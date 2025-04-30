@@ -5,6 +5,7 @@ import { ISnackbar } from '@store/reducers/snackbars'
 import { Chain, PrefixConfig, Token, TokenPriceData, WalletType } from './types'
 import { cat1Icon, cat2Icon, dog1Icon, dog2Icon } from '@static/icons'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import fogoTokenIcon from '@static/fogoTokenIcon.jpg'
 
 export enum NetworkType {
   Local = 'Local',
@@ -77,7 +78,7 @@ export const WFOGO_TEST: Token = {
   address: WFOGO_ADDRESS[NetworkType.Testnet],
   decimals: 9,
   name: 'Fogo',
-  logoURI: '', // TODO: add
+  logoURI: fogoTokenIcon, // TODO: change
   coingeckoId: ''
 }
 
@@ -164,7 +165,13 @@ export const autoSwapPools: {
 export const commonTokensForNetworks: Record<NetworkType, PublicKey[]> = {
   Devnet: [],
   Mainnet: [WFOGO_MAIN.address],
-  Testnet: [WFOGO_TEST.address],
+  Testnet: [
+    WFOGO_TEST.address,
+    BTC_TEST.address,
+    SOL_TEST.address,
+    ETH_TEST.address,
+    USDC_TEST.address
+  ],
   Local: []
 }
 
@@ -189,7 +196,7 @@ export const airdropQuantities: Record<NetworkType, number[]> = {
 
 export const WRAPPED_FOGO_ADDRESS = 'So11111111111111111111111111111111111111112'
 
-// CHECK REQUIRED FOR BELOW
+// TODO: CHECK REQUIRED FOR BELOW
 export const WFOGO_MIN_FAUCET_FEE_TEST = new BN(45000)
 export const WFOGO_MIN_FAUCET_FEE_MAIN = new BN(25000)
 
