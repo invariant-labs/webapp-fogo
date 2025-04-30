@@ -28,8 +28,8 @@ type Story = StoryObj<typeof meta>
 const tokensList = [
   {
     icon: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-    name: 'Wrapped SOL',
-    symbol: 'SOL',
+    name: 'Wrapped FOGO',
+    symbol: 'FOGO',
     price: 123.321321452,
     priceChange: 0.123,
     volume: 421323423.23,
@@ -60,8 +60,8 @@ const tokensList = [
       address: '5Dvb5E8zKU4E9c7YxfNL5VC8YQj4VAFUTCGYY9ayFLnnY3UA',
       chainId: 101,
       decimals: 9,
-      name: 'Wrapped SOL',
-      symbol: 'SOL',
+      name: 'Wrapped FOGO',
+      symbol: 'FOGO',
       logoURI:
         'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
       tags: ['old-registry'],
@@ -82,8 +82,8 @@ const tokensList = [
       address: '5Dvb5E8zKU4E9c7YxfNL5VC8YQj4VAFUTCGYY9ayFLnnY3UA',
       chainId: 101,
       decimals: 9,
-      name: 'Wrapped SOL',
-      symbol: 'SOL',
+      name: 'Wrapped FOGO',
+      symbol: 'FOGO',
       logoURI:
         'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
       tags: ['old-registry'],

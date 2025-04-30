@@ -30,8 +30,10 @@ export const usePrices = ({
 
     const fetchPrices = async () => {
       getTokenPrice(tokenX.assetsAddress ?? '', networkType)
-        .then(price => {
-          setTokenXPriceData({ price: price ?? 0, loading: false })
+        .then(data => {
+          const price = data ? data : getMockedTokenPrice(tokenX.name ?? '', networkType).price
+
+          setTokenXPriceData({ price, loading: false })
         })
         .catch(() => {
           setTokenXPriceData({
@@ -41,7 +43,11 @@ export const usePrices = ({
         })
 
       getTokenPrice(tokenY.assetsAddress ?? '', networkType)
-        .then(price => setTokenYPriceData({ price: price ?? 0, loading: false }))
+        .then(data => {
+          const price = data ? data : getMockedTokenPrice(tokenY.name ?? '', networkType).price
+
+          setTokenYPriceData({ price, loading: false })
+        })
         .catch(() => {
           setTokenYPriceData({
             price: getMockedTokenPrice(tokenY.name ?? '', networkType).price,

@@ -81,7 +81,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
   }, [isFeesLoading])
 
   const walletStatus = useSelector(status)
-  const solBalance = useSelector(balance)
+  const fogoBalance = useSelector(balance)
 
   const isTimeoutError = useSelector(timeoutError)
 
@@ -296,12 +296,24 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
 
     const xAddr = position.tokenX.assetAddress.toString()
     getTokenPrice(xAddr, currentNetwork)
-      .then(data => setTokenXPriceData({ price: data ?? 0 }))
+      .then(data => {
+        const price = data
+          ? data
+          : getMockedTokenPrice(position.tokenX.symbol, currentNetwork).price
+
+        setTokenXPriceData({ price })
+      })
       .catch(() => setTokenXPriceData(getMockedTokenPrice(position.tokenX.symbol, currentNetwork)))
 
     const yAddr = position.tokenY.assetAddress.toString()
     getTokenPrice(yAddr, currentNetwork)
-      .then(data => setTokenYPriceData({ price: data ?? 0 }))
+      .then(data => {
+        const price = data
+          ? data
+          : getMockedTokenPrice(position.tokenY.symbol, currentNetwork).price
+
+        setTokenYPriceData({ price })
+      })
       .catch(() => setTokenYPriceData(getMockedTokenPrice(position.tokenY.symbol, currentNetwork)))
   }, [position?.id, triggerFetchPrice])
 
@@ -501,7 +513,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
         isLocked={position.isLocked}
         success={success}
         inProgress={inProgress}
-        solBalance={solBalance}
+        fogoBalance={fogoBalance}
         poolDetails={poolDetails}
         onGoBackClick={() => navigate(ROUTES.PORTFOLIO)}
         showPoolDetailsLoader={isLoadingStats}

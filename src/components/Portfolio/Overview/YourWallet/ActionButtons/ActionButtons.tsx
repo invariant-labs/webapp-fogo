@@ -1,7 +1,7 @@
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
 import { Box } from '@mui/material'
 import { horizontalSwapIcon, newTabBtnIcon, plusIcon } from '@static/icons'
-import { NetworkType, WSOL_MAIN, WSOL_TEST } from '@store/consts/static'
+import { NetworkType, USDC_TEST, WFOGO_MAIN, WFOGO_TEST } from '@store/consts/static'
 import { StrategyConfig, WalletToken } from '@store/types/userOverview'
 import { addressToTicker, ROUTES } from '@utils/utils'
 import { useNavigate } from 'react-router-dom'
@@ -24,8 +24,6 @@ export const ActionButtons = ({ pool, strategy, currentNetwork }: IActionButtons
         return ''
       case NetworkType.Testnet:
         return '?cluster=testnet'
-      case NetworkType.Devnet:
-        return '?cluster=devnet'
       default:
         return '?cluster=testnet'
     }
@@ -39,7 +37,13 @@ export const ActionButtons = ({ pool, strategy, currentNetwork }: IActionButtons
           onClick={() => {
             const sourceToken = addressToTicker(currentNetwork, strategy.tokenAddressA)
             const targetToken =
-              currentNetwork === NetworkType.Mainnet ? WSOL_MAIN.address : WSOL_TEST.address
+              sourceToken === 'FOGO'
+                ? currentNetwork === NetworkType.Mainnet
+                  ? WFOGO_MAIN.address
+                  : USDC_TEST.address
+                : currentNetwork === NetworkType.Mainnet
+                  ? WFOGO_MAIN.address
+                  : WFOGO_TEST.address
 
             navigate(
               ROUTES.getNewPositionRoute(
@@ -61,7 +65,13 @@ export const ActionButtons = ({ pool, strategy, currentNetwork }: IActionButtons
           onClick={() => {
             const sourceToken = addressToTicker(currentNetwork, pool.id.toString())
             const targetToken =
-              currentNetwork === NetworkType.Mainnet ? WSOL_MAIN.address : WSOL_TEST.address
+              sourceToken === 'FOGO'
+                ? currentNetwork === NetworkType.Mainnet
+                  ? WFOGO_MAIN.address
+                  : USDC_TEST.address
+                : currentNetwork === NetworkType.Mainnet
+                  ? WFOGO_MAIN.address
+                  : WFOGO_TEST.address
 
             navigate(
               ROUTES.getExchangeRoute(
@@ -82,7 +92,7 @@ export const ActionButtons = ({ pool, strategy, currentNetwork }: IActionButtons
           className={classes.actionIcon}
           onClick={() => {
             window.open(
-              `https://eclipsescan.xyz/token/${pool.id.toString()}/${networkUrl}`,
+              `https://explorer.fogo.io/address/${pool.id.toString()}/${networkUrl}`,
               '_blank',
               'noopener,noreferrer'
             )

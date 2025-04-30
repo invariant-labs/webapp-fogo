@@ -21,7 +21,7 @@ import {
   MAX_CROSSES_IN_SINGLE_TX_WITH_LUTS,
   SIGNING_SNACKBAR_CONFIG,
   TIMEOUT_ERROR_MESSAGE,
-  WRAPPED_SOL_ADDRESS
+  WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import { network, rpcAddress } from '@store/selectors/solanaConnection'
 import { actions as connectionActions } from '@store/reducers/solanaConnection'
@@ -48,7 +48,7 @@ import { ParsedInstruction } from '@solana/web3.js'
 import { NATIVE_MINT } from '@solana/spl-token'
 import { computeUnitsInstruction } from '@invariant-labs/sdk-fogo/src'
 
-export function* handleSwapWithSOL(): Generator {
+export function* handleSwapWithFOGO(): Generator {
   const loaderSwappingTokens = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
@@ -103,15 +103,15 @@ export function* handleSwapWithSOL(): Generator {
 
     const isXtoY = tokenFrom.equals(swapPool.tokenX)
 
-    const wrappedSolAccount = Keypair.generate()
+    const wrappedFOGOAccount = Keypair.generate()
 
     const net = networkTypetoProgramNetwork(networkType)
     const prependendIxs: TransactionInstruction[] = []
     const appendedIxs: TransactionInstruction[] = []
 
-    if (allTokens[tokenFrom.toString()].address.toString() === WRAPPED_SOL_ADDRESS) {
+    if (allTokens[tokenFrom.toString()].address.toString() === WRAPPED_FOGO_ADDRESS) {
       const { createIx, transferIx, initIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-        wrappedSolAccount.publicKey,
+        wrappedFOGOAccount.publicKey,
         wallet.publicKey,
         net,
         amountIn.toNumber()
@@ -121,7 +121,7 @@ export function* handleSwapWithSOL(): Generator {
       appendedIxs.push(unwrapIx)
     } else {
       const { createIx, initIx, unwrapIx } = createNativeAtaInstructions(
-        wrappedSolAccount.publicKey,
+        wrappedFOGOAccount.publicKey,
         wallet.publicKey,
         net
       )
@@ -134,8 +134,8 @@ export function* handleSwapWithSOL(): Generator {
     // initialTx.feePayer = wallet.publicKey
 
     let fromAddress =
-      allTokens[tokenFrom.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[tokenFrom.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[tokenFrom.toString()]
           ? tokensAccounts[tokenFrom.toString()].address
           : null
@@ -143,8 +143,8 @@ export function* handleSwapWithSOL(): Generator {
       fromAddress = yield* call(createAccount, tokenFrom)
     }
     let toAddress =
-      allTokens[tokenTo.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[tokenTo.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[tokenTo.toString()]
           ? tokensAccounts[tokenTo.toString()].address
           : null
@@ -203,9 +203,9 @@ export function* handleSwapWithSOL(): Generator {
       yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
       const serializedMessage = swapTx.message.serialize()
-      const signatureUint8 = nacl.sign.detached(serializedMessage, wrappedSolAccount.secretKey)
+      const signatureUint8 = nacl.sign.detached(serializedMessage, wrappedFOGOAccount.secretKey)
 
-      swapTx.addSignature(wrappedSolAccount.publicKey, signatureUint8)
+      swapTx.addSignature(wrappedFOGOAccount.publicKey, signatureUint8)
 
       const initialSignedTx = (yield* call(
         [wallet, wallet.signTransaction],
@@ -259,7 +259,7 @@ export function* handleSwapWithSOL(): Generator {
 
       yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-      tx.partialSign(wrappedSolAccount)
+      tx.partialSign(wrappedFOGOAccount)
 
       const initialSignedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
@@ -284,7 +284,7 @@ export function* handleSwapWithSOL(): Generator {
 
       return yield put(
         snackbarsActions.add({
-          message: 'SOL wrapping failed. Please try again',
+          message: 'FOGO wrapping failed. Please try again',
           variant: 'error',
           persist: false,
           txid: initialTxid
@@ -307,7 +307,7 @@ export function* handleSwapWithSOL(): Generator {
     //   return yield put(
     //     snackbarsActions.add({
     //       message:
-    //         'Tokens swapping failed. Please unwrap wrapped SOL in your wallet and try again.',
+    //         'Tokens swapping failed. Please unwrap wrapped FOGO in your wallet and try again.',
     //       variant: 'error',
     //       persist: false,
     //       txid: swapTxid
@@ -390,7 +390,7 @@ export function* handleSwapWithSOL(): Generator {
     // if (!unwrapTxid.length) {
     //   yield put(
     //     snackbarsActions.add({
-    //       message: 'Wrapped SOL unwrap failed. Try to unwrap it in your wallet.',
+    //       message: 'Wrapped FOGO unwrap failed. Try to unwrap it in your wallet.',
     //       variant: 'warning',
     //       persist: false,
     //       txid: unwrapTxid
@@ -399,7 +399,7 @@ export function* handleSwapWithSOL(): Generator {
     // } else {
     //   yield put(
     //     snackbarsActions.add({
-    //       message: 'SOL unwrapped successfully.',
+    //       message: 'FOGO unwrapped successfully.',
     //       variant: 'success',
     //       persist: false,
     //       txid: unwrapTxid
@@ -445,7 +445,7 @@ export function* handleSwapWithSOL(): Generator {
   }
 }
 
-export function* handleTwoHopSwapWithSOL(): Generator {
+export function* handleTwoHopSwapWithFOGO(): Generator {
   const loaderSwappingTokens = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
@@ -520,15 +520,15 @@ export function* handleTwoHopSwapWithSOL(): Generator {
     const firstXtoY = tokenFrom.equals(firstPool.tokenX)
     const secondXtoY = tokenBetween.equals(secondPool.tokenX)
 
-    const wrappedSolAccount = Keypair.generate()
+    const wrappedFOGOAccount = Keypair.generate()
 
     const net = networkTypetoProgramNetwork(networkType)
     const prependendIxs: TransactionInstruction[] = []
     const appendedIxs: TransactionInstruction[] = []
 
-    if (allTokens[tokenFrom.toString()].address.toString() === WRAPPED_SOL_ADDRESS) {
+    if (allTokens[tokenFrom.toString()].address.toString() === WRAPPED_FOGO_ADDRESS) {
       const { createIx, transferIx, initIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-        wrappedSolAccount.publicKey,
+        wrappedFOGOAccount.publicKey,
         wallet.publicKey,
         net,
         amountIn.toNumber()
@@ -538,7 +538,7 @@ export function* handleTwoHopSwapWithSOL(): Generator {
       appendedIxs.push(unwrapIx)
     } else {
       const { createIx, initIx, unwrapIx } = createNativeAtaInstructions(
-        wrappedSolAccount.publicKey,
+        wrappedFOGOAccount.publicKey,
         wallet.publicKey,
         net
       )
@@ -552,8 +552,8 @@ export function* handleTwoHopSwapWithSOL(): Generator {
     // initialTx.feePayer = wallet.publicKey
 
     let fromAddress =
-      allTokens[tokenFrom.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[tokenFrom.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[tokenFrom.toString()]
           ? tokensAccounts[tokenFrom.toString()].address
           : null
@@ -561,8 +561,8 @@ export function* handleTwoHopSwapWithSOL(): Generator {
       fromAddress = yield* call(createAccount, tokenFrom)
     }
     let toAddress =
-      allTokens[tokenTo.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[tokenTo.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[tokenTo.toString()]
           ? tokensAccounts[tokenTo.toString()].address
           : null
@@ -618,9 +618,9 @@ export function* handleTwoHopSwapWithSOL(): Generator {
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     const serializedMessage = swapTx.message.serialize()
-    const signatureUint8 = nacl.sign.detached(serializedMessage, wrappedSolAccount.secretKey)
+    const signatureUint8 = nacl.sign.detached(serializedMessage, wrappedFOGOAccount.secretKey)
 
-    swapTx.addSignature(wrappedSolAccount.publicKey, signatureUint8)
+    swapTx.addSignature(wrappedFOGOAccount.publicKey, signatureUint8)
 
     const signedTx = (yield* call([wallet, wallet.signTransaction], swapTx)) as VersionedTransaction
 
@@ -642,7 +642,7 @@ export function* handleTwoHopSwapWithSOL(): Generator {
 
       return yield put(
         snackbarsActions.add({
-          message: 'SOL wrapping failed. Please try again',
+          message: 'FOGO wrapping failed. Please try again',
           variant: 'error',
           persist: false,
           txid
@@ -665,7 +665,7 @@ export function* handleTwoHopSwapWithSOL(): Generator {
     //   return yield put(
     //     snackbarsActions.add({
     //       message:
-    //         'Tokens swapping failed. Please unwrap wrapped SOL in your wallet and try again.',
+    //         'Tokens swapping failed. Please unwrap wrapped FOGO in your wallet and try again.',
     //       variant: 'error',
     //       persist: false,
     //       txid: swapTxid
@@ -751,7 +751,7 @@ export function* handleTwoHopSwapWithSOL(): Generator {
     // if (!unwrapTxid.length) {
     //   yield put(
     //     snackbarsActions.add({
-    //       message: 'Wrapped SOL unwrap failed. Try to unwrap it in your wallet.',
+    //       message: 'Wrapped FOGO unwrap failed. Try to unwrap it in your wallet.',
     //       variant: 'warning',
     //       persist: false,
     //       txid: unwrapTxid
@@ -760,7 +760,7 @@ export function* handleTwoHopSwapWithSOL(): Generator {
     // } else {
     //   yield put(
     //     snackbarsActions.add({
-    //       message: 'SOL unwrapped successfully.',
+    //       message: 'FOGO unwrapped successfully.',
     //       variant: 'success',
     //       persist: false,
     //       txid: unwrapTxid
@@ -826,12 +826,12 @@ export function* handleTwoHopSwap(): Generator {
       amountOut
     } = yield* select(swap)
 
-    // No need to use wrapped SOL when it is intermediate token
+    // No need to use wrapped FOGO when it is intermediate token
     if (
-      tokenFrom.toString() === WRAPPED_SOL_ADDRESS ||
-      tokenTo.toString() === WRAPPED_SOL_ADDRESS
+      tokenFrom.toString() === WRAPPED_FOGO_ADDRESS ||
+      tokenTo.toString() === WRAPPED_FOGO_ADDRESS
     ) {
-      return yield* call(handleTwoHopSwapWithSOL)
+      return yield* call(handleTwoHopSwapWithFOGO)
     }
 
     // Should never be triggered
@@ -1106,10 +1106,10 @@ export function* handleSwap(): Generator {
     }
 
     if (
-      tokenFrom.toString() === WRAPPED_SOL_ADDRESS ||
-      tokenTo.toString() === WRAPPED_SOL_ADDRESS
+      tokenFrom.toString() === WRAPPED_FOGO_ADDRESS ||
+      tokenTo.toString() === WRAPPED_FOGO_ADDRESS
     ) {
-      return yield* call(handleSwapWithSOL)
+      return yield* call(handleSwapWithFOGO)
     }
 
     // Should never be trigerred
@@ -1432,7 +1432,7 @@ export function* handleGetTwoHopSwapData(
   accounts.tickmaps = { ...accounts.tickmaps, ...accountsTickmaps.tickmaps }
 
   const crossLimit =
-    tokenFrom.toString() === WRAPPED_SOL_ADDRESS || tokenTo.toString() === WRAPPED_SOL_ADDRESS
+    tokenFrom.toString() === WRAPPED_FOGO_ADDRESS || tokenTo.toString() === WRAPPED_FOGO_ADDRESS
       ? MAX_CROSSES_IN_SINGLE_TX
       : TICK_CROSSES_PER_IX
   const accountsTicks = yield* call([market, market.fetchAccounts], {

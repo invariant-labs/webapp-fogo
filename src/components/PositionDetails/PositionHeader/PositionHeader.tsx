@@ -23,7 +23,7 @@ type Props = {
     ticker: string
   }
   fee: number
-  hasEnoughSOL: boolean
+  hasEnoughFOGO: boolean
   hasFees: boolean
   poolAddress: string
   networkUrl: string
@@ -43,7 +43,7 @@ export const PositionHeader = ({
   tokenA,
   tokenB,
   fee,
-  hasEnoughSOL,
+  hasEnoughFOGO,
   hasFees,
   poolAddress,
   networkUrl,
@@ -84,21 +84,21 @@ export const PositionHeader = ({
     if (isLocked) {
       return 'Closing positions is disabled when position is locked'
     }
-    if (!hasEnoughSOL) {
-      return 'Insufficient SOL to close position'
+    if (!hasEnoughFOGO) {
+      return 'Insufficient FOGO to close position'
     }
     if (hasFees) {
       return 'Unclaimed fees will be returned when closing the position'
     }
     return ''
-  }, [isPreview, isLocked, hasEnoughSOL, hasFees])
+  }, [isPreview, isLocked, hasEnoughFOGO, hasFees])
 
   const closeButton = closeButtonTitle ? (
     <TooltipHover title={closeButtonTitle}>
       <Button
         height={36}
         scheme='green'
-        disabled={isLocked || !hasEnoughSOL || isPreview}
+        disabled={isLocked || !hasEnoughFOGO || isPreview}
         variant='contained'
         onClick={() => onClosePositionClick()}>
         Close position
@@ -108,7 +108,7 @@ export const PositionHeader = ({
     <Button
       height={36}
       scheme='green'
-      disabled={isLocked || !hasEnoughSOL || isPreview}
+      disabled={isLocked || !hasEnoughFOGO || isPreview}
       variant='contained'
       onClick={() => onClosePositionClick()}>
       Close position
@@ -132,7 +132,7 @@ export const PositionHeader = ({
       />
       <TooltipHover title='Open pool in explorer'>
         <a
-          href={`https://eclipsescan.xyz/account/${poolAddress.toString()}${networkUrl}`}
+          href={`https://explorer.fogo.io/address/${poolAddress.toString()}${networkUrl}`}
           target='_blank'
           rel='noopener noreferrer'>
           <img className={classes.explorerLink} src={newTabIcon} alt='Explorer link' />

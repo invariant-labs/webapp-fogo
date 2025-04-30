@@ -3,8 +3,8 @@ import { Swap } from '@components/Swap/Swap'
 import {
   commonTokensForNetworks,
   DEFAULT_SWAP_SLIPPAGE,
-  WSOL_MAIN,
-  WRAPPED_SOL_ADDRESS
+  WFOGO_MAIN,
+  WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import { actions as poolsActions } from '@store/reducers/pools'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
@@ -73,7 +73,7 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
   const [progress, setProgress] = useState<ProgressState>('none')
   const [tokenFrom, setTokenFrom] = useState<PublicKey | null>(null)
   const [tokenTo, setTokenTo] = useState<PublicKey | null>(null)
-  const solBalance = useSelector(balance)
+  const fogoBalance = useSelector(balance)
   const isTimeoutError = useSelector(timeoutError)
   const isPathTokensLoading = useSelector(isLoadingPathTokens)
   const { state } = useLocation()
@@ -119,7 +119,7 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
     initialTokenFrom && tickerToAddress(networkType, initialTokenFrom)
       ? tickerToAddress(networkType, initialTokenFrom)
       : localStorage.getItem(`INVARIANT_LAST_TOKEN_FROM_${networkType}`) ??
-        WSOL_MAIN.address.toString()
+        WFOGO_MAIN.address.toString()
 
   const lastTokenTo =
     initialTokenTo && tickerToAddress(networkType, initialTokenTo)
@@ -230,7 +230,12 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
     if (addr) {
       setPriceFromLoading(true)
       getTokenPrice(addr, networkType)
-        .then(data => setTokenFromPriceData({ price: data ?? 0 }))
+        .then(data => {
+          const price = data
+            ? data
+            : getMockedTokenPrice(tokensDict[tokenFrom.toString()].symbol, networkType).price
+          setTokenFromPriceData({ price })
+        })
         .catch(() =>
           setTokenFromPriceData(
             getMockedTokenPrice(tokensDict[tokenFrom.toString()].symbol, networkType)
@@ -254,7 +259,13 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
     if (addr) {
       setPriceToLoading(true)
       getTokenPrice(addr, networkType)
-        .then(data => setTokenToPriceData({ price: data ?? 0 }))
+        .then(data => {
+          const price = data
+            ? data
+            : getMockedTokenPrice(tokensDict[tokenTo.toString()].symbol, networkType).price
+
+          setTokenToPriceData({ price })
+        })
         .catch(() =>
           setTokenToPriceData(
             getMockedTokenPrice(tokensDict[tokenTo.toString()].symbol, networkType)
@@ -316,20 +327,20 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
 
   const allAccounts = useSelector(solanaAccounts)
 
-  const wrappedSOLAccountExist = useMemo(() => {
-    let wrappedSOLAccountExist = false
+  const wrappedFOGOAccountExist = useMemo(() => {
+    let wrappedFOGOAccountExist = false
 
     Object.entries(allAccounts).map(([address, token]) => {
-      if (address === WRAPPED_SOL_ADDRESS && token.balance.gt(new BN(0))) {
-        wrappedSOLAccountExist = true
+      if (address === WRAPPED_FOGO_ADDRESS && token.balance.gt(new BN(0))) {
+        wrappedFOGOAccountExist = true
       }
     })
 
-    return wrappedSOLAccountExist
+    return wrappedFOGOAccountExist
   }, [allAccounts])
 
-  const unwrapWSOL = () => {
-    dispatch(walletActions.unwrapWSOL())
+  const unwrapWFOGO = () => {
+    dispatch(walletActions.unwrapWFOGO())
   }
 
   useEffect(() => {
@@ -426,10 +437,10 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
       initialSlippage={initialSlippage}
       isBalanceLoading={isBalanceLoading}
       copyTokenAddressHandler={copyTokenAddressHandler}
-      solBalance={solBalance}
+      fogoBalance={fogoBalance}
       network={networkType}
-      unwrapWSOL={unwrapWSOL}
-      wrappedSOLAccountExist={wrappedSOLAccountExist}
+      unwrapWFOGO={unwrapWFOGO}
+      wrappedFOGOAccountExist={wrappedFOGOAccountExist}
       isTimeoutError={isTimeoutError}
       deleteTimeoutError={() => {
         dispatch(connectionActions.setTimeoutError(false))

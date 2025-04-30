@@ -13,9 +13,9 @@ import {
   airdropQuantities,
   airdropTokens,
   NetworkType,
-  WSOL_MIN_FAUCET_FEE_MAIN,
-  WSOL_MIN_FAUCET_FEE_TEST,
-  WRAPPED_SOL_ADDRESS
+  WFOGO_MIN_FAUCET_FEE_MAIN,
+  WFOGO_MIN_FAUCET_FEE_TEST,
+  WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import { Token as StoreToken } from '@store/consts/types'
 import { BN } from '@coral-xyz/anchor'
@@ -60,11 +60,11 @@ export function* getWallet(): SagaGenerator<WalletAdapter> {
   return wallet
 }
 export function* getBalance(pubKey: PublicKey): SagaGenerator<BN> {
-  yield* put(actions.setIssolBalanceLoading(true))
+  yield* put(actions.setIsfogoBalanceLoading(true))
   const connection = yield* call(getConnection)
   const balance = yield* call([connection, connection.getBalance], pubKey)
   yield* put(actions.setBalance(new BN(balance)))
-  yield* put(actions.setIssolBalanceLoading(false))
+  yield* put(actions.setIsfogoBalanceLoading(false))
 }
 
 export function* handleBalance(): Generator {
@@ -211,14 +211,14 @@ export function* handleAirdrop(): Generator {
   const connection = yield* call(getConnection)
   const networkType = yield* select(network)
   const wallet = yield* call(getWallet)
-  const solBalance = yield* select(balance)
+  const fogoBalance = yield* select(balance)
 
   try {
     if (networkType === NetworkType.Testnet) {
-      if (solBalance.lt(WSOL_MIN_FAUCET_FEE_TEST)) {
+      if (fogoBalance.lt(WFOGO_MIN_FAUCET_FEE_TEST)) {
         yield put(
           snackbarsActions.add({
-            message: 'Do not have enough SOL to claim faucet',
+            message: 'Do not have enough FOGO to claim faucet',
             variant: 'error',
             persist: false
           })
@@ -238,7 +238,7 @@ export function* handleAirdrop(): Generator {
 
       // transfer sol
       // yield* call([connection, connection.requestAirdrop], airdropAdmin.publicKey, 1 * 1e9)
-      // yield* call(transferAirdropSOL)
+      // yield* call(transferAirdropFOGO)
       yield* call(
         getCollateralTokenAirdrop,
         airdropTokens[networkType],
@@ -253,10 +253,10 @@ export function* handleAirdrop(): Generator {
         })
       )
     } else if (networkType === NetworkType.Mainnet) {
-      if (solBalance.lt(WSOL_MIN_FAUCET_FEE_MAIN)) {
+      if (fogoBalance.lt(WFOGO_MIN_FAUCET_FEE_MAIN)) {
         yield put(
           snackbarsActions.add({
-            message: 'Do not have enough SOL to claim faucet',
+            message: 'Do not have enough FOGO to claim faucet',
             variant: 'error',
             persist: false
           })
@@ -338,7 +338,7 @@ export function* setEmptyAccounts(collateralsAddresses: PublicKey[]): Generator 
   }
 }
 
-export function* transferAirdropSOL(): Generator {
+export function* transferAirdropFOGO(): Generator {
   const wallet = yield* call(getWallet)
   const tx = new Transaction().add(
     SystemProgram.transfer({
@@ -361,7 +361,7 @@ export function* transferAirdropSOL(): Generator {
   if (!txid.length) {
     yield put(
       snackbarsActions.add({
-        message: 'Failed to airdrop testnet SOL. Please try again',
+        message: 'Failed to airdrop testnet FOGO. Please try again',
         variant: 'error',
         persist: false,
         txid
@@ -370,7 +370,7 @@ export function* transferAirdropSOL(): Generator {
   } else {
     yield put(
       snackbarsActions.add({
-        message: 'Testnet SOL airdrop successfully',
+        message: 'Testnet FOGO airdrop successfully',
         variant: 'success',
         persist: false,
         txid
@@ -650,42 +650,42 @@ export function* handleDisconnect(): Generator {
   }
 }
 
-export function* handleunwrapWSOL(): Generator {
+export function* handleunwrapWFOGO(): Generator {
   const wallet = yield* call(getWallet)
   const connection = yield* call(getConnection)
   const allAccounts = yield* select(accounts)
 
-  const loaderunwrapWSOL = createLoaderKey()
+  const loaderunwrapWFOGO = createLoaderKey()
 
-  const wrappedSolAccountPublicKeys: PublicKey[] = []
+  const wrappedFOGOAccountPublicKeys: PublicKey[] = []
   Object.entries(allAccounts).map(([address, token]) => {
     if (
-      address === WRAPPED_SOL_ADDRESS &&
-      token.balance.gt(new BN(0) && wrappedSolAccountPublicKeys.length < 10)
+      address === WRAPPED_FOGO_ADDRESS &&
+      token.balance.gt(new BN(0) && wrappedFOGOAccountPublicKeys.length < 10)
     ) {
-      wrappedSolAccountPublicKeys.push(token.address)
+      wrappedFOGOAccountPublicKeys.push(token.address)
     }
   })
 
-  if (!wrappedSolAccountPublicKeys) {
+  if (!wrappedFOGOAccountPublicKeys) {
     return
   }
 
   try {
     yield put(
       snackbarsActions.add({
-        message: 'Unwraping Wrapped SOL...',
+        message: 'Unwraping Wrapped FOGO...',
         variant: 'pending',
         persist: true,
-        key: loaderunwrapWSOL
+        key: loaderunwrapWFOGO
       })
     )
 
     const unwrapTx = new Transaction()
 
-    wrappedSolAccountPublicKeys.forEach(wrappedSolAccountPublicKey => {
+    wrappedFOGOAccountPublicKeys.forEach(wrappedFOGOAccountPublicKey => {
       const unwrapIx = createCloseAccountInstruction(
-        wrappedSolAccountPublicKey,
+        wrappedFOGOAccountPublicKey,
         wallet.publicKey,
         wallet.publicKey,
         [],
@@ -713,7 +713,7 @@ export function* handleunwrapWSOL(): Generator {
     if (!unwrapTxid.length) {
       yield put(
         snackbarsActions.add({
-          message: 'Wrapped SOL unwrap failed. Try to unwrap it in your wallet',
+          message: 'Wrapped FOGO unwrap failed. Try to unwrap it in your wallet',
           variant: 'warning',
           persist: false,
           txid: unwrapTxid
@@ -722,7 +722,7 @@ export function* handleunwrapWSOL(): Generator {
     } else {
       yield put(
         snackbarsActions.add({
-          message: 'SOL unwrapped successfully',
+          message: 'FOGO unwrapped successfully',
           variant: 'success',
           persist: false,
           txid: unwrapTxid
@@ -738,8 +738,8 @@ export function* handleunwrapWSOL(): Generator {
     yield* call(handleRpcError, error.message)
   }
 
-  closeSnackbar(loaderunwrapWSOL)
-  yield put(snackbarsActions.remove(loaderunwrapWSOL))
+  closeSnackbar(loaderunwrapWFOGO)
+  yield put(snackbarsActions.remove(loaderunwrapWFOGO))
 }
 
 export function* changeWalletInExtenstionHandler(): Generator {
@@ -761,8 +761,8 @@ export function* handleBalanceSaga(): Generator {
   yield takeLeading(actions.getBalance, handleBalance)
 }
 
-export function* unwrapWSOLHandler(): Generator {
-  yield takeLeading(actions.unwrapWSOL, handleunwrapWSOL)
+export function* unwrapWFOGOHandler(): Generator {
+  yield takeLeading(actions.unwrapWFOGO, handleunwrapWFOGO)
 }
 
 export function* walletSaga(): Generator {
@@ -772,7 +772,7 @@ export function* walletSaga(): Generator {
       connectHandler,
       disconnectHandler,
       handleBalanceSaga,
-      unwrapWSOLHandler,
+      unwrapWFOGOHandler,
       changeWalletInExtenstionHandler
     ].map(spawn)
   )

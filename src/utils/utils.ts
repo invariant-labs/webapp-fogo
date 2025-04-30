@@ -58,9 +58,13 @@ import {
   POSITIONS_PER_PAGE,
   MAX_CROSSES_IN_SINGLE_TX_WITH_LUTS,
   PRICE_API_URL,
-  WRAPPED_SOL_ADDRESS,
-  WSOL_TEST,
-  WSOL_MAIN
+  WRAPPED_FOGO_ADDRESS,
+  WFOGO_TEST,
+  WFOGO_MAIN,
+  ETH_TEST,
+  BTC_TEST,
+  USDC_TEST,
+  SOL_TEST
 } from '@store/consts/static'
 import { PoolWithAddress } from '@store/reducers/pools'
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes'
@@ -873,13 +877,17 @@ export const getNetworkTokensList = (networkType: NetworkType): Record<string, T
   switch (networkType) {
     case NetworkType.Mainnet:
       return {
-        [WSOL_MAIN.address.toString()]: WSOL_MAIN
+        [WFOGO_MAIN.address.toString()]: WFOGO_MAIN
       }
     case NetworkType.Devnet:
       return {}
     case NetworkType.Testnet:
       return {
-        [WSOL_TEST.address.toString()]: WSOL_TEST
+        [WFOGO_TEST.address.toString()]: WFOGO_TEST,
+        [SOL_TEST.address.toString()]: SOL_TEST,
+        [ETH_TEST.address.toString()]: ETH_TEST,
+        [BTC_TEST.address.toString()]: BTC_TEST,
+        [USDC_TEST.address.toString()]: USDC_TEST
       }
     default:
       return {}
@@ -1071,8 +1079,8 @@ export const handleSimulate = async (
 
     const maxCrosses = hasLuts(pool.address)
       ? MAX_CROSSES_IN_SINGLE_TX_WITH_LUTS
-      : pool.tokenX.toString() === WRAPPED_SOL_ADDRESS ||
-          pool.tokenY.toString() === WRAPPED_SOL_ADDRESS
+      : pool.tokenX.toString() === WRAPPED_FOGO_ADDRESS ||
+          pool.tokenY.toString() === WRAPPED_FOGO_ADDRESS
         ? MAX_CROSSES_IN_SINGLE_TX
         : TICK_CROSSES_PER_IX
 
@@ -1180,7 +1188,8 @@ export const simulateAutoSwapOnTheSamePool = async (
   }
 
   const maxCrosses =
-    pool.tokenX.toString() === WRAPPED_SOL_ADDRESS || pool.tokenY.toString() === WRAPPED_SOL_ADDRESS
+    pool.tokenX.toString() === WRAPPED_FOGO_ADDRESS ||
+    pool.tokenY.toString() === WRAPPED_FOGO_ADDRESS
       ? MAX_CROSSES_IN_SINGLE_TX
       : TICK_CROSSES_PER_IX
 
@@ -1225,7 +1234,8 @@ export const simulateAutoSwap = async (
   }
 
   const maxCrosses =
-    pool.tokenX.toString() === WRAPPED_SOL_ADDRESS || pool.tokenY.toString() === WRAPPED_SOL_ADDRESS
+    pool.tokenX.toString() === WRAPPED_FOGO_ADDRESS ||
+    pool.tokenY.toString() === WRAPPED_FOGO_ADDRESS
       ? MAX_CROSSES_IN_SINGLE_TX
       : TICK_CROSSES_PER_IX
   const precision = toDecimal(1, 3)
@@ -1829,10 +1839,14 @@ export const getMockedTokenPrice = (symbol: string, network: NetworkType): Token
   const sufix = network === NetworkType.Devnet ? '_DEV' : '_TEST'
   const prices = tokensPrices[network]
   switch (symbol) {
+    case 'FOGO':
+      return prices['W' + symbol + sufix]
     case 'BTC':
       return prices[symbol + sufix]
     case 'SOL':
-      return prices['W' + symbol + sufix]
+      return prices[symbol + sufix]
+    case 'ETH':
+      return prices[symbol + sufix]
     case 'USDC':
       return prices[symbol + sufix]
     default:

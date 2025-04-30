@@ -70,7 +70,7 @@ export const NewPositionWrapper: React.FC<IProps> = ({
 }) => {
   const dispatch = useDispatch()
   const connection = getCurrentSolanaConnection()
-  const solBalance = useSelector(balance)
+  const fogoBalance = useSelector(balance)
   const tokens = useSelector(poolTokens)
   const walletStatus = useSelector(status)
   const allPools = useSelector(poolsArraySortedByFees)
@@ -519,7 +519,13 @@ export const NewPositionWrapper: React.FC<IProps> = ({
     const addr = tokens[tokenAIndex].address.toString()
     setPriceALoading(true)
     getTokenPrice(addr, currentNetwork)
-      .then(data => setTokenAPriceData({ price: data ?? 0 }))
+      .then(data => {
+        const price = data
+          ? data
+          : getMockedTokenPrice(tokens[tokenAIndex].symbol, currentNetwork).price
+
+        setTokenAPriceData({ price })
+      })
       .catch(() =>
         setTokenAPriceData(getMockedTokenPrice(tokens[tokenAIndex].symbol, currentNetwork))
       )
@@ -536,7 +542,13 @@ export const NewPositionWrapper: React.FC<IProps> = ({
     const addr = tokens[tokenBIndex].address.toString()
     setPriceBLoading(true)
     getTokenPrice(addr, currentNetwork)
-      .then(data => setTokenBPriceData({ price: data ?? 0 }))
+      .then(data => {
+        const price = data
+          ? data
+          : getMockedTokenPrice(tokens[tokenBIndex].symbol, currentNetwork).price
+
+        setTokenBPriceData({ price })
+      })
       .catch(() =>
         setTokenBPriceData(getMockedTokenPrice(tokens[tokenBIndex].symbol, currentNetwork))
       )
@@ -935,7 +947,7 @@ export const NewPositionWrapper: React.FC<IProps> = ({
       setOnlyUserPositions={() => {}} //TODO implement logic
       network={currentNetwork}
       isLoadingTokens={isCurrentlyLoadingTokens}
-      solBalance={solBalance}
+      fogoBalance={fogoBalance}
       walletStatus={walletStatus}
       onConnectWallet={() => {
         dispatch(walletActions.connect(false))

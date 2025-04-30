@@ -37,7 +37,7 @@ export const Token: Story = {
   args: {
     displayType: 'token',
     icon: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-    name: 'Wrapped SOL',
+    name: 'Wrapped FOGO',
     itemNumber: 5,
     volume: 1000000000,
     TVL: 500000000,

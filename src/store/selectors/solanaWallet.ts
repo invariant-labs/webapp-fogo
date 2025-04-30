@@ -4,7 +4,7 @@ import { keySelectors, AnyProps } from './helpers'
 import { PublicKey } from '@solana/web3.js'
 import { tokens } from './pools'
 import { ISolanaWallet, ITokenAccount, solanaWalletSliceName } from '@store/reducers/solanaWallet'
-import { WRAPPED_SOL_ADDRESS } from '@store/consts/static'
+import { WRAPPED_FOGO_ADDRESS } from '@store/consts/static'
 
 const store = (s: AnyProps) => s[solanaWalletSliceName] as ISolanaWallet
 
@@ -13,7 +13,7 @@ export const {
   balance,
   accounts,
   status,
-  solBalanceLoading,
+  fogoBalanceLoading,
   tokenBalanceLoading,
   thankYouModalShown
 } = keySelectors(store, [
@@ -21,13 +21,13 @@ export const {
   'balance',
   'accounts',
   'status',
-  'solBalanceLoading',
+  'fogoBalanceLoading',
   'tokenBalanceLoading',
   'thankYouModalShown'
 ])
 
 export const balanceLoading = createSelector(
-  solBalanceLoading,
+  fogoBalanceLoading,
   tokenBalanceLoading,
   (a, b) => a || b
 )
@@ -70,13 +70,13 @@ export const swapTokens = createSelector(
   accounts,
   tokens,
   balance,
-  (allAccounts, tokens, solBalance) => {
+  (allAccounts, tokens, fogoBalance) => {
     return Object.values(tokens).map(token => ({
       ...token,
       assetAddress: token.address,
       balance:
-        token.address.toString() === WRAPPED_SOL_ADDRESS
-          ? solBalance
+        token.address.toString() === WRAPPED_FOGO_ADDRESS
+          ? fogoBalance
           : allAccounts[token.address.toString()]?.balance ?? new BN(0)
     }))
   }
@@ -86,13 +86,13 @@ export const poolTokens = createSelector(
   accounts,
   tokens,
   balance,
-  (allAccounts, tokens, solBalance) => {
+  (allAccounts, tokens, fogoBalance) => {
     return Object.values(tokens).map(token => ({
       ...token,
       assetAddress: token.address,
       balance:
-        token.address.toString() === WRAPPED_SOL_ADDRESS
-          ? solBalance
+        token.address.toString() === WRAPPED_FOGO_ADDRESS
+          ? fogoBalance
           : allAccounts[token.address.toString()]?.balance ?? new BN(0)
     }))
   }
@@ -102,7 +102,7 @@ export const swapTokensDict = createSelector(
   accounts,
   tokens,
   balance,
-  (allAccounts, tokens, solBalance) => {
+  (allAccounts, tokens, fogoBalance) => {
     const swapTokens: Record<string, SwapToken> = {}
 
     Object.entries(tokens).forEach(([key, val]) => {
@@ -110,8 +110,8 @@ export const swapTokensDict = createSelector(
         ...val,
         assetAddress: val.address,
         balance:
-          val.address.toString() === WRAPPED_SOL_ADDRESS
-            ? solBalance
+          val.address.toString() === WRAPPED_FOGO_ADDRESS
+            ? fogoBalance
             : allAccounts[val.address.toString()]?.balance ?? new BN(0)
       }
     })
@@ -132,7 +132,7 @@ export const solanaWalletSelectors = {
   accounts,
   status,
   tokenAccount,
-  solBalanceLoading,
+  fogoBalanceLoading,
   tokenBalanceLoading,
   thankYouModalShown
 }

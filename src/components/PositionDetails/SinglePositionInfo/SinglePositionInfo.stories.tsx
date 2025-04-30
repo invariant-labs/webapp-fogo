@@ -31,7 +31,7 @@ export const Primary: Story = {
       balance: 9.11
     },
     tokenY: {
-      name: 'SOL',
+      name: 'FOGO',
       icon: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png',
       decimal: 12,
       liqValue: 10000.23532,
@@ -63,7 +63,7 @@ export const Primary: Story = {
           balance: 9.11
         }}
         tokenY={{
-          name: 'SOL',
+          name: 'FOGO',
           icon: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png',
           decimal: 12,
           liqValue: 10000.23532,

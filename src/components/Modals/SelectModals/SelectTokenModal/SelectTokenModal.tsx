@@ -97,7 +97,7 @@ const RowItem: React.FC<ListChildComponentProps<RowItemData>> = React.memo(
             </Typography>
             <Grid className={classes.tokenAddress} container>
               <a
-                href={`https://eclipsescan.xyz/token/${token.assetAddress.toString()}${networkUrl}`}
+                href={`https://explorer.fogo.io/address/${token.assetAddress.toString()}${networkUrl}`}
                 target='_blank'
                 rel='noopener noreferrer'
                 onClick={event => {
@@ -272,8 +272,6 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
           return ''
         case NetworkType.Testnet:
           return '?cluster=testnet'
-        case NetworkType.Devnet:
-          return '?cluster=devnet'
         default:
           return '?cluster=testnet'
       }

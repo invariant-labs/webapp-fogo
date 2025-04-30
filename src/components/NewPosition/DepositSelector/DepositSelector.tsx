@@ -19,13 +19,13 @@ import {
   DepositOptions,
   MINIMUM_PRICE_IMPACT,
   NetworkType,
-  WSOL_POOL_INIT_LAMPORTS_MAIN,
-  WSOL_POOL_INIT_LAMPORTS_TEST,
-  WSOL_POSITION_INIT_LAMPORTS_MAIN,
-  WSOL_POSITION_INIT_LAMPORTS_TEST,
-  WSOL_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN,
-  WSOL_SWAP_AND_POSITION_INIT_LAMPORTS_TEST,
-  WRAPPED_SOL_ADDRESS
+  WFOGO_POOL_INIT_LAMPORTS_MAIN,
+  WFOGO_POOL_INIT_LAMPORTS_TEST,
+  WFOGO_POSITION_INIT_LAMPORTS_MAIN,
+  WFOGO_POSITION_INIT_LAMPORTS_TEST,
+  WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN,
+  WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_TEST,
+  WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import classNames from 'classnames'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -116,7 +116,7 @@ export interface IDepositSelector {
   isGetLiquidityError: boolean
   isLoadingTicksOrTickmap: boolean
   network: NetworkType
-  solBalance: BN
+  fogoBalance: BN
   walletStatus: Status
   onConnectWallet: () => void
   onDisconnectWallet: () => void
@@ -190,7 +190,7 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
   walletStatus,
   onConnectWallet,
   onDisconnectWallet,
-  solBalance,
+  fogoBalance,
   canNavigate,
   isCurrentPoolExisting,
   feeTiersWithTvl,
@@ -246,17 +246,21 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
 
   const isAutoswapOn = useMemo(() => alignment === DepositOptions.Auto, [alignment])
 
-  const WSOL_MIN_FEE_LAMPORTS = useMemo(() => {
+  const WFOGO_MIN_FEE_LAMPORTS = useMemo(() => {
     if (network === NetworkType.Testnet) {
       if (isAutoswapOn) {
-        return WSOL_SWAP_AND_POSITION_INIT_LAMPORTS_TEST
+        return WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_TEST
       }
-      return isCurrentPoolExisting ? WSOL_POSITION_INIT_LAMPORTS_TEST : WSOL_POOL_INIT_LAMPORTS_TEST
+      return isCurrentPoolExisting
+        ? WFOGO_POSITION_INIT_LAMPORTS_TEST
+        : WFOGO_POOL_INIT_LAMPORTS_TEST
     } else {
       if (isAutoswapOn) {
-        return WSOL_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN
+        return WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN
       }
-      return isCurrentPoolExisting ? WSOL_POSITION_INIT_LAMPORTS_MAIN : WSOL_POOL_INIT_LAMPORTS_MAIN
+      return isCurrentPoolExisting
+        ? WFOGO_POSITION_INIT_LAMPORTS_MAIN
+        : WFOGO_POOL_INIT_LAMPORTS_MAIN
     }
   }, [network, isCurrentPoolExisting, alignment])
 
@@ -427,15 +431,15 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
     const tokenBBalance = convertBalanceToBN(tokenBInputState.value, tokens[tokenBIndex].decimals)
 
     if (
-      (tokens[tokenAIndex].assetAddress.toString() === WRAPPED_SOL_ADDRESS &&
-        tokens[tokenAIndex].balance.lt(tokenABalance.add(WSOL_MIN_FEE_LAMPORTS)) &&
+      (tokens[tokenAIndex].assetAddress.toString() === WRAPPED_FOGO_ADDRESS &&
+        tokens[tokenAIndex].balance.lt(tokenABalance.add(WFOGO_MIN_FEE_LAMPORTS)) &&
         tokenACheckbox) ||
-      (tokens[tokenBIndex].assetAddress.toString() === WRAPPED_SOL_ADDRESS &&
-        tokens[tokenBIndex].balance.lt(tokenBBalance.add(WSOL_MIN_FEE_LAMPORTS)) &&
+      (tokens[tokenBIndex].assetAddress.toString() === WRAPPED_FOGO_ADDRESS &&
+        tokens[tokenBIndex].balance.lt(tokenBBalance.add(WFOGO_MIN_FEE_LAMPORTS)) &&
         tokenBCheckbox) ||
-      solBalance.lt(WSOL_MIN_FEE_LAMPORTS)
+      fogoBalance.lt(WFOGO_MIN_FEE_LAMPORTS)
     ) {
-      return `Insufficient SOL`
+      return `Insufficient FOGO`
     }
 
     if (
@@ -581,14 +585,14 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
 
   const actionsTokenA = createButtonActions({
     tokens,
-    wrappedTokenAddress: WRAPPED_SOL_ADDRESS,
-    minAmount: WSOL_MIN_FEE_LAMPORTS,
+    wrappedTokenAddress: WRAPPED_FOGO_ADDRESS,
+    minAmount: WFOGO_MIN_FEE_LAMPORTS,
     onAmountSet: tokenAInputState.setValue
   })
   const actionsTokenB = createButtonActions({
     tokens,
-    wrappedTokenAddress: WRAPPED_SOL_ADDRESS,
-    minAmount: WSOL_MIN_FEE_LAMPORTS,
+    wrappedTokenAddress: WRAPPED_FOGO_ADDRESS,
+    minAmount: WFOGO_MIN_FEE_LAMPORTS,
     onAmountSet: tokenBInputState.setValue
   })
 
@@ -1140,10 +1144,10 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
             connected={false}
             onDisconnect={onDisconnectWallet}
           />
-        ) : getButtonMessage() === 'Insufficient SOL' ? (
+        ) : getButtonMessage() === 'Insufficient FOGO' ? (
           <TooltipHover
             fullSpan
-            title='More SOL is required to cover the transaction fee. Obtain more SOL to complete this transaction.'
+            title='More FOGO is required to cover the transaction fee. Obtain more FOGO to complete this transaction.'
             top={-10}>
             <AnimatedButton
               className={classNames(

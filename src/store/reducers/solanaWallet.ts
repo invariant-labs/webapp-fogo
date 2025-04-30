@@ -36,7 +36,7 @@ export interface ISolanaWallet {
   address: PublicKey
   balance: BN
   accounts: { [key in string]: ITokenAccount }
-  solBalanceLoading: boolean
+  fogoBalanceLoading: boolean
   tokenBalanceLoading: boolean
   unkownTokenBalanceLoading: boolean
   thankYouModalShown: boolean
@@ -47,7 +47,7 @@ export const defaultState: ISolanaWallet = {
   address: DEFAULT_PUBLICKEY,
   balance: new BN(0),
   accounts: {},
-  solBalanceLoading: false,
+  fogoBalanceLoading: false,
   tokenBalanceLoading: false,
   unkownTokenBalanceLoading: false,
   thankYouModalShown: false
@@ -82,8 +82,8 @@ const solanaWalletSlice = createSlice({
     changeWalletInExtension(state) {
       return state
     },
-    setIssolBalanceLoading(state, action: PayloadAction<boolean>) {
-      action.payload ? (state.solBalanceLoading = true) : (state.solBalanceLoading = false)
+    setIsfogoBalanceLoading(state, action: PayloadAction<boolean>) {
+      action.payload ? (state.fogoBalanceLoading = true) : (state.fogoBalanceLoading = false)
       return state
     },
     addTokenAccount(state, action: PayloadAction<ITokenAccount>) {
@@ -126,7 +126,7 @@ const solanaWalletSlice = createSlice({
     },
     disconnect() {},
     reconnect() {},
-    unwrapWSOL() {}
+    unwrapWFOGO() {}
   }
 })
 interface IsetTokenBalance {

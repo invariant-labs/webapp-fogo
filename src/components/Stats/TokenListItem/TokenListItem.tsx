@@ -59,10 +59,8 @@ const TokenListItem: React.FC<IProps> = ({
         return ''
       case NetworkType.Testnet:
         return '?cluster=testnet'
-      case NetworkType.Devnet:
-        return '?cluster=devnet'
       default:
-        return ''
+        return '?cluster=testnet'
     }
   }, [network])
 
@@ -134,7 +132,7 @@ const TokenListItem: React.FC<IProps> = ({
                   className={classes.actionButton}
                   onClick={() =>
                     window.open(
-                      `https://eclipsescan.xyz/token/${address}${networkUrl}`,
+                      `https://explorer.fogo.io/address/${address}${networkUrl}`,
                       '_blank',
                       'noopener,noreferrer'
                     )

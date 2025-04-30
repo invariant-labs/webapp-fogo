@@ -15,7 +15,7 @@ const tokens: SwapToken[] = [
   {
     balance: new BN(100).mul(new BN(34786)),
     decimals: 6,
-    symbol: 'SOL',
+    symbol: 'FOGO',
     assetAddress: new PublicKey('So11111111111111111111111111111111111111112'),
     name: 'Wrapped Solana',
     logoURI:
@@ -145,7 +145,7 @@ export const Primary: Story = {
     isGetLiquidityError: false,
     isLoadingTicksOrTickmap: false,
     network: NetworkType.Testnet,
-    solBalance: 20000000000,
+    fogoBalance: 20000000000,
     walletStatus: Status.Initialized,
     onConnectWallet: () => {},
     onDisconnectWallet: () => {},
