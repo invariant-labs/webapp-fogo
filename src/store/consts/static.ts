@@ -35,28 +35,28 @@ export const WFOGO_ADDRESS = {
 
 export const SOL_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: emptyPublicKey,
+  [NetworkType.Testnet]: new PublicKey('V2znQH2XjWwsCvz9QmHVcTG3CgDBBupb2dw1gAQihck'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
 
 export const BTC_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: emptyPublicKey,
+  [NetworkType.Testnet]: new PublicKey('A3gkTN9Ct6MukRPPogC4EuJe2yNyPfNCkz2bib69HfWK'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
 
 export const USDC_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: emptyPublicKey,
+  [NetworkType.Testnet]: new PublicKey('F9X4cDbf33LSTh4WY1HYW8JALKtDrsgHyKBxwJLTWKPe'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
 
 export const ETH_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: emptyPublicKey,
+  [NetworkType.Testnet]: new PublicKey('8Xb3K1T8J8J9kiQzjGTgTMDaVgxSBdmEWRreXCrr74Xy'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
