@@ -11,9 +11,9 @@ import {
   NetworkType,
   REFRESHER_INTERVAL,
   SwapType,
-  WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN,
-  WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST,
-  WRAPPED_SOL_ADDRESS
+  WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN,
+  WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST,
+  WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import {
   convertBalanceToBN,
@@ -105,9 +105,9 @@ export interface ISwap {
   isBalanceLoading: boolean
   copyTokenAddressHandler: (message: string, variant: VariantType) => void
   network: NetworkType
-  solBalance: BN
-  unwrapWSOL: () => void
-  wrappedSOLAccountExist: boolean
+  fogoBalance: BN
+  unwrapWFOGO: () => void
+  wrappedFOGOAccountExist: boolean
   isTimeoutError: boolean
   deleteTimeoutError: () => void
   canNavigate: boolean
@@ -158,9 +158,9 @@ export const Swap: React.FC<ISwap> = ({
   isBalanceLoading,
   copyTokenAddressHandler,
   network,
-  solBalance,
-  unwrapWSOL,
-  wrappedSOLAccountExist,
+  fogoBalance,
+  unwrapWFOGO,
+  wrappedFOGOAccountExist,
   isTimeoutError,
   deleteTimeoutError,
   canNavigate,
@@ -242,11 +242,11 @@ export const Swap: React.FC<ISwap> = ({
   const [wasSwapIsLoadingRun, setWasSwapIsLoadingRun] = useState(false)
   const [isReversingTokens, setIsReversingTokens] = useState(false)
 
-  const WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT = useMemo(() => {
+  const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT = useMemo(() => {
     if (network === NetworkType.Testnet) {
-      return WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST
+      return WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST
     } else {
-      return WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN
+      return WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN
     }
   }, [network])
 
@@ -651,15 +651,15 @@ export const Swap: React.FC<ISwap> = ({
     }
 
     if (
-      tokens[tokenFromIndex].assetAddress.toString() === WRAPPED_SOL_ADDRESS
-        ? solBalance.lt(
+      tokens[tokenFromIndex].assetAddress.toString() === WRAPPED_FOGO_ADDRESS
+        ? fogoBalance.lt(
             convertBalanceToBN(amountFrom, tokens[tokenFromIndex].decimals).add(
-              WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT
+              WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT
             )
           )
-        : solBalance.lt(WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT)
+        : fogoBalance.lt(WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT)
     ) {
-      return `Insufficient SOL`
+      return `Insufficient FOGO`
     }
 
     if (
@@ -697,7 +697,7 @@ export const Swap: React.FC<ISwap> = ({
       getStateMessage() === 'Connect a wallet' ||
       getStateMessage() === 'Insufficient liquidity' ||
       getStateMessage() === 'Not enough liquidity' ||
-      getStateMessage() === 'Insufficient SOL'
+      getStateMessage() === 'Insufficient FOGO'
     )
   }
   const setSlippage = (slippage: string): void => {
@@ -789,18 +789,18 @@ export const Swap: React.FC<ISwap> = ({
 
   const actions = createButtonActions({
     tokens,
-    wrappedTokenAddress: WRAPPED_SOL_ADDRESS,
-    minAmount: WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT,
+    wrappedTokenAddress: WRAPPED_FOGO_ADDRESS,
+    minAmount: WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT,
     onAmountSet: setAmountFrom,
     onSelectInput: () => setInputRef(inputTarget.FROM)
   })
 
   return (
     <Grid container className={classes.swapWrapper} alignItems='center'>
-      {wrappedSOLAccountExist && (
+      {wrappedFOGOAccountExist && (
         <Box className={classes.unwrapContainer}>
-          You have wrapped SOL.{' '}
-          <u className={classes.unwrapNowButton} onClick={unwrapWSOL}>
+          You have wrapped FOGO.{' '}
+          <u className={classes.unwrapNowButton} onClick={unwrapWFOGO}>
             Unwrap now.
           </u>
         </Box>
@@ -1145,9 +1145,9 @@ export const Swap: React.FC<ISwap> = ({
               onDisconnect={onDisconnectWallet}
               isSwap={true}
             />
-          ) : getStateMessage() === 'Insufficient SOL' ? (
+          ) : getStateMessage() === 'Insufficient FOGO' ? (
             <TooltipHover
-              title='More SOL is required to cover the transaction fee. Obtain more SOL to complete this transaction.'
+              title='More FOGO is required to cover the transaction fee. Obtain more FOGO to complete this transaction.'
               top={-45}>
               <AnimatedButton
                 content={getStateMessage()}

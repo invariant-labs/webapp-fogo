@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react'
 import PoolListItem from '@components/Stats/PoolListItem/PoolListItem'
 import { useStyles } from './style'
 import { Grid, useMediaQuery } from '@mui/material'
-import { ITEMS_PER_PAGE, NetworkType, SortTypePoolList, WSOL_TEST } from '@store/consts/static'
+import { ITEMS_PER_PAGE, NetworkType, SortTypePoolList, WFOGO_TEST } from '@store/consts/static'
 import { PaginationList } from '@common/Pagination/Pagination'
 import { VariantType } from 'notistack'
 import { Keypair } from '@solana/web3.js'
@@ -45,7 +45,7 @@ export interface PoolListInterface {
   showAPY: boolean
 }
 
-const tokens = [WSOL_TEST]
+const tokens = [WFOGO_TEST]
 const fees = [0.01, 0.02, 0.1, 0.3, 0.9, 1]
 
 const generateMockData = () => {

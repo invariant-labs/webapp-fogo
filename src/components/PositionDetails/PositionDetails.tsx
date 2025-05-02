@@ -5,8 +5,8 @@ import { Box, useMediaQuery } from '@mui/material'
 import {
   NetworkType,
   REFRESHER_INTERVAL,
-  WSOL_CLOSE_POSITION_LAMPORTS_MAIN,
-  WSOL_CLOSE_POSITION_LAMPORTS_TEST
+  WFOGO_CLOSE_POSITION_LAMPORTS_MAIN,
+  WFOGO_CLOSE_POSITION_LAMPORTS_TEST
 } from '@store/consts/static'
 import { PlotTickData } from '@store/reducers/positions'
 import { VariantType } from 'notistack'
@@ -65,7 +65,7 @@ interface IProps {
   isLocked: boolean
   success: boolean
   inProgress: boolean
-  solBalance: BN
+  fogoBalance: BN
   poolDetails: PoolDetails | null
   onGoBackClick: () => void
   showPoolDetailsLoader: boolean
@@ -104,7 +104,7 @@ const PositionDetails: React.FC<IProps> = ({
   isLocked,
   success,
   inProgress,
-  solBalance,
+  fogoBalance,
   isPreview,
   onGoBackClick,
   poolDetails,
@@ -148,8 +148,6 @@ const PositionDetails: React.FC<IProps> = ({
         return ''
       case NetworkType.Testnet:
         return '?cluster=testnet'
-      case NetworkType.Devnet:
-        return '?cluster=devnet'
       default:
         return '?cluster=testnet'
     }
@@ -180,13 +178,13 @@ const PositionDetails: React.FC<IProps> = ({
     }
   }, [min, max, currentPrice, tokenX, tokenY, xToY])
 
-  const hasEnoughSOL = useMemo(() => {
+  const hasEnoughFOGO = useMemo(() => {
     if (network === NetworkType.Testnet) {
-      return solBalance.gte(WSOL_CLOSE_POSITION_LAMPORTS_TEST)
+      return fogoBalance.gte(WFOGO_CLOSE_POSITION_LAMPORTS_TEST)
     } else {
-      return solBalance.gte(WSOL_CLOSE_POSITION_LAMPORTS_MAIN)
+      return fogoBalance.gte(WFOGO_CLOSE_POSITION_LAMPORTS_MAIN)
     }
-  }, [solBalance, network])
+  }, [fogoBalance, network])
 
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -272,7 +270,7 @@ const PositionDetails: React.FC<IProps> = ({
           networkUrl={networkUrl}
           isLocked={isLocked}
           isActive={isActive}
-          hasEnoughSOL={hasEnoughSOL}
+          hasEnoughFOGO={hasEnoughFOGO}
           hasFees={tokenX.claimValue + tokenY.claimValue > 0}
           onReverseTokensClick={() => setXToY(!xToY)}
           onClosePositionClick={() => {

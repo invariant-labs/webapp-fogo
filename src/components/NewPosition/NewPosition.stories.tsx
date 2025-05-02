@@ -27,7 +27,7 @@ const tokens: SwapToken[] = [
   {
     balance: new BN(100).mul(new BN(34786)),
     decimals: 6,
-    symbol: 'SOL',
+    symbol: 'FOGO',
     assetAddress: new PublicKey('So11111111111111111111111111111111111111112'),
     name: 'Wrapped Solana',
     logoURI:
@@ -90,7 +90,7 @@ export const Primary: Story = {
     initialOpeningPositionMethod: 'concentration',
     initialSlippage: '0.01',
     initialTokenFrom: 'BTC',
-    initialTokenTo: 'SOL',
+    initialTokenTo: 'FOGO',
     isCurrentPoolExisting: true,
     isWaitingForNewPool: false,
     onChangePositionTokens: fn(),
@@ -117,7 +117,7 @@ export const Primary: Story = {
     setOnlyUserPositions: fn(),
     network: NetworkType.Testnet,
     isLoadingTokens: false,
-    solBalance: 200000000,
+    fogoBalance: 200000000,
     walletStatus: Status.Initialized,
     onConnectWallet: () => {},
     onDisconnectWallet: () => {},
@@ -157,7 +157,7 @@ export const Primary: Story = {
         currentPairReversed={false}
         isXtoY={true}
         initialTokenFrom='BTC'
-        initialTokenTo='SOL'
+        initialTokenTo='FOGO'
         initialFee='0.05'
         initialSlippage='0.01'
         initialOpeningPositionMethod='concentration'
@@ -184,7 +184,7 @@ export const Primary: Story = {
         setOnlyUserPositions={fn()}
         network={NetworkType.Testnet}
         isLoadingTokens={false}
-        solBalance={2000000000}
+        fogoBalance={2000000000}
         walletStatus={Status.Initialized}
         onConnectWallet={() => {}}
         onDisconnectWallet={() => {}}

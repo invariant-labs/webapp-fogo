@@ -19,7 +19,7 @@ interface TokenInfoInputsProps {
   buttonText: string
   success: boolean
   inProgress: boolean
-  solBalance: BN
+  fogoBalance: BN
   currentNetwork: NetworkType
   onConnectWallet: () => void
 }
@@ -29,7 +29,7 @@ export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
   buttonText,
   success,
   inProgress,
-  solBalance,
+  fogoBalance,
   currentNetwork,
   onConnectWallet
 }) => {
@@ -65,8 +65,8 @@ export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
   }, [success, inProgress])
 
   const createAvailable = useMemo(() => {
-    return solBalance.gt(getCreateTokenLamports(currentNetwork))
-  }, [solBalance])
+    return fogoBalance.gt(getCreateTokenLamports(currentNetwork))
+  }, [fogoBalance])
 
   return (
     <Box className={classes.container}>
@@ -132,19 +132,19 @@ export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
       <Box className={classes.tokenCost}>
         <InfoIcon />
         <Typography>
-          Token cost: ~{trimZeros(printBN(getCreateTokenLamports(currentNetwork), 9))} SOL
+          Token cost: ~{trimZeros(printBN(getCreateTokenLamports(currentNetwork), 9))} FOGO
         </Typography>
       </Box>
 
       {isSubmitButton ? (
         !createAvailable ? (
           <TooltipHover
-            title='More SOL is required to cover the transaction fee. Obtain more SOL to complete this transaction.'
+            title='More FOGO is required to cover the transaction fee. Obtain more FOGO to complete this transaction.'
             top={-45}>
             <div>
               <AnimatedButton
                 type='submit'
-                content={'Insufficient SOL'}
+                content={'Insufficient FOGO'}
                 className={classes.button}
                 onClick={() => {}}
                 disabled={!createAvailable}

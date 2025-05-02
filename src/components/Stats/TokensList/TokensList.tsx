@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { colors, theme } from '@static/theme'
 import useStyles from './style'
 import { Grid, useMediaQuery } from '@mui/material'
-import { ITEMS_PER_PAGE, NetworkType, SortTypeTokenList, WSOL_TEST } from '@store/consts/static'
+import { ITEMS_PER_PAGE, NetworkType, SortTypeTokenList, WFOGO_TEST } from '@store/consts/static'
 import { PaginationList } from '@common/Pagination/Pagination'
 import NotFoundPlaceholder from '../NotFoundPlaceholder/NotFoundPlaceholder'
 import { VariantType } from 'notistack'
@@ -30,7 +30,7 @@ export interface ITokensList {
   isLoading: boolean
 }
 
-const tokens = [WSOL_TEST]
+const tokens = [WFOGO_TEST]
 
 const generateMockData = () => {
   return Array.from({ length: ITEMS_PER_PAGE }, (_, index) => ({

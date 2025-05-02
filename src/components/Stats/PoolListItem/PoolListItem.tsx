@@ -170,10 +170,8 @@ const PoolListItem: React.FC<IProps> = ({
         return ''
       case NetworkType.Testnet:
         return '?cluster=testnet'
-      case NetworkType.Devnet:
-        return '?cluster=devnet'
       default:
-        return ''
+        return '?cluster=testnet'
     }
   }, [network])
 
@@ -312,7 +310,7 @@ const PoolListItem: React.FC<IProps> = ({
                   className={classes.actionButton}
                   onClick={() =>
                     window.open(
-                      `https://eclipsescan.xyz/account/${poolAddress}${networkUrl}`,
+                      `https://explorer.fogo.io/address/${poolAddress}${networkUrl}`,
                       '_blank',
                       'noopener,noreferrer'
                     )

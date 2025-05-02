@@ -1,8 +1,8 @@
 import {
   NetworkType,
   POSITIONS_PER_PAGE,
-  WSOL_CLOSE_POSITION_LAMPORTS_MAIN,
-  WSOL_CLOSE_POSITION_LAMPORTS_TEST
+  WFOGO_CLOSE_POSITION_LAMPORTS_MAIN,
+  WFOGO_CLOSE_POSITION_LAMPORTS_TEST
 } from '@store/consts/static'
 import { EmptyPlaceholder } from '@common/EmptyPlaceholder/EmptyPlaceholder'
 import { calculatePriceSqrt } from '@invariant-labs/sdk-fogo'
@@ -54,7 +54,7 @@ const PortfolioWrapper = () => {
   const tokensList = useSelector(swapTokens)
   const isBalanceLoading = useSelector(balanceLoading)
   const pricesData = useSelector(prices)
-  const solBalance = useSelector(balance)
+  const fogoBalance = useSelector(balance)
 
   const navigate = useNavigate()
   const dispatch = useDispatch()
@@ -89,11 +89,11 @@ const PortfolioWrapper = () => {
 
   const canClosePosition = useMemo(() => {
     if (currentNetwork === NetworkType.Testnet) {
-      return solBalance.gte(WSOL_CLOSE_POSITION_LAMPORTS_TEST)
+      return fogoBalance.gte(WFOGO_CLOSE_POSITION_LAMPORTS_TEST)
     } else {
-      return solBalance.gte(WSOL_CLOSE_POSITION_LAMPORTS_MAIN)
+      return fogoBalance.gte(WFOGO_CLOSE_POSITION_LAMPORTS_MAIN)
     }
-  }, [solBalance, currentNetwork])
+  }, [fogoBalance, currentNetwork])
   const handleClosePosition = (index: number) => {
     canClosePosition
       ? dispatch(
@@ -106,7 +106,7 @@ const PortfolioWrapper = () => {
         )
       : dispatch(
           snackbarActions.add({
-            message: 'Not enough SOL balance to close position',
+            message: 'Not enough FOGO balance to close position',
             variant: 'error',
             persist: false
           })

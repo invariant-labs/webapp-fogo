@@ -39,6 +39,7 @@ export interface Token {
   decimals: number
   name: string
   logoURI: string
+  coingeckoId?: string
   isUnknown?: boolean
 }
 

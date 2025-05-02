@@ -28,7 +28,7 @@ import {
 import {
   SIGNING_SNACKBAR_CONFIG,
   TIMEOUT_ERROR_MESSAGE,
-  WRAPPED_SOL_ADDRESS
+  WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import {
   plotTicks,
@@ -66,12 +66,12 @@ import { parseTick, Position } from '@invariant-labs/sdk-fogo/lib/market'
 import { NATIVE_MINT } from '@solana/spl-token'
 import { unknownTokenIcon } from '@static/icons'
 
-function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionData>): Generator {
+function* handleInitPositionAndPoolWithFOGO(action: PayloadAction<InitPositionData>): Generator {
   const data = action.payload
 
   if (
-    (data.tokenX.toString() === WRAPPED_SOL_ADDRESS && data.xAmount === 0) ||
-    (data.tokenY.toString() === WRAPPED_SOL_ADDRESS && data.yAmount === 0)
+    (data.tokenX.toString() === WRAPPED_FOGO_ADDRESS && data.xAmount === 0) ||
+    (data.tokenY.toString() === WRAPPED_FOGO_ADDRESS && data.yAmount === 0)
   ) {
     return yield* call(handleInitPosition, action)
   }
@@ -98,21 +98,21 @@ function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionDat
     const tokensAccounts = yield* select(accounts)
     const allTokens = yield* select(tokens)
 
-    const wrappedSolAccount = Keypair.generate()
+    const wrappedFOGOAccount = Keypair.generate()
     const net = networkTypetoProgramNetwork(networkType)
 
     const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-      wrappedSolAccount.publicKey,
+      wrappedFOGOAccount.publicKey,
       wallet.publicKey,
       net,
-      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS
+      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
         ? data.xAmount
         : data.yAmount
     )
 
     let userTokenX =
-      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[data.tokenX.toString()]
           ? tokensAccounts[data.tokenX.toString()].address
           : null
@@ -122,8 +122,8 @@ function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionDat
     }
 
     let userTokenY =
-      allTokens[data.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[data.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[data.tokenY.toString()]
           ? tokensAccounts[data.tokenY.toString()].address
           : null
@@ -187,7 +187,7 @@ function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionDat
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    combinedTransaction.partialSign(wrappedSolAccount)
+    combinedTransaction.partialSign(wrappedFOGOAccount)
 
     if (createPoolSigners.length) {
       createPoolTx.partialSign(...createPoolSigners)
@@ -202,7 +202,7 @@ function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionDat
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    // initialSignedTx.partialSign(wrappedSolAccount)
+    // initialSignedTx.partialSign(wrappedFOGOAccount)
 
     // const initialTxid = yield* call(
     //   sendAndConfirmRawTransaction,
@@ -218,7 +218,7 @@ function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionDat
 
     //   return yield put(
     //     snackbarsActions.add({
-    //       message: 'SOL wrapping failed. Please try again.',
+    //       message: 'FOGO wrapping failed. Please try again.',
     //       variant: 'error',
     //       persist: false,
     //       txid: initialTxid
@@ -248,7 +248,7 @@ function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionDat
       return yield put(
         snackbarsActions.add({
           message:
-            // 'Position adding failed. Please unwrap wrapped SOL in your wallet and try again.',
+            // 'Position adding failed. Please unwrap wrapped FOGO in your wallet and try again.',
             'Position adding failed. Please try again',
           variant: 'error',
           persist: false,
@@ -329,7 +329,7 @@ function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionDat
     // if (!unwrapTxid.length) {
     //   yield put(
     //     snackbarsActions.add({
-    //       message: 'Wrapped SOL unwrap failed. Try to unwrap it in your wallet.',
+    //       message: 'Wrapped FOGO unwrap failed. Try to unwrap it in your wallet.',
     //       variant: 'warning',
     //       persist: false,
     //       txid: unwrapTxid
@@ -338,7 +338,7 @@ function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionDat
     // } else {
     //   yield put(
     //     snackbarsActions.add({
-    //       message: 'SOL unwrapped successfully.',
+    //       message: 'FOGO unwrapped successfully.',
     //       variant: 'success',
     //       persist: false,
     //       txid: unwrapTxid
@@ -384,19 +384,19 @@ function* handleInitPositionAndPoolWithSOL(action: PayloadAction<InitPositionDat
   }
 }
 
-function* handleInitPositionWithSOL(action: PayloadAction<InitPositionData>): Generator {
+function* handleInitPositionWithFOGO(action: PayloadAction<InitPositionData>): Generator {
   const data = action.payload
 
   if (
-    (data.tokenX.toString() === WRAPPED_SOL_ADDRESS && data.xAmount === 0) ||
-    (data.tokenY.toString() === WRAPPED_SOL_ADDRESS && data.yAmount === 0)
+    (data.tokenX.toString() === WRAPPED_FOGO_ADDRESS && data.xAmount === 0) ||
+    (data.tokenY.toString() === WRAPPED_FOGO_ADDRESS && data.yAmount === 0)
   ) {
     return yield* call(handleInitPosition, action)
   }
 
-  // To initialize both the pool and position, separate transactions are necessary, as a single transaction does not have enough space to accommodate all instructions for both pool and position creation with SOL.
+  // To initialize both the pool and position, separate transactions are necessary, as a single transaction does not have enough space to accommodate all instructions for both pool and position creation with FOGO.
   if (data.initPool) {
-    return yield* call(handleInitPositionAndPoolWithSOL, action)
+    return yield* call(handleInitPositionAndPoolWithFOGO, action)
   }
 
   const loaderCreatePosition = createLoaderKey()
@@ -433,22 +433,22 @@ function* handleInitPositionWithSOL(action: PayloadAction<InitPositionData>): Ge
     })
     const userPositionList = yield* select(positionsList)
 
-    const wrappedSolAccount = Keypair.generate()
+    const wrappedFOGOAccount = Keypair.generate()
 
     const net = networkTypetoProgramNetwork(networkType)
 
     const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-      wrappedSolAccount.publicKey,
+      wrappedFOGOAccount.publicKey,
       wallet.publicKey,
       net,
-      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS
+      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
         ? data.xAmount
         : data.yAmount
     )
 
     let userTokenX =
-      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[data.tokenX.toString()]
           ? tokensAccounts[data.tokenX.toString()].address
           : null
@@ -458,8 +458,8 @@ function* handleInitPositionWithSOL(action: PayloadAction<InitPositionData>): Ge
     }
 
     let userTokenY =
-      allTokens[data.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[data.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[data.tokenY.toString()]
           ? tokensAccounts[data.tokenY.toString()].address
           : null
@@ -519,7 +519,7 @@ function* handleInitPositionWithSOL(action: PayloadAction<InitPositionData>): Ge
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    combinedTransaction.partialSign(wrappedSolAccount)
+    combinedTransaction.partialSign(wrappedFOGOAccount)
 
     if (poolSigners.length) {
       combinedTransaction.partialSign(...poolSigners)
@@ -648,7 +648,7 @@ function* handleInitPositionWithSOL(action: PayloadAction<InitPositionData>): Ge
   }
 }
 
-export function* handleSwapAndInitPositionWithSOL(
+export function* handleSwapAndInitPositionWithFOGO(
   action: PayloadAction<SwapAndCreatePosition>
 ): Generator {
   const loaderCreatePosition = createLoaderKey()
@@ -688,21 +688,21 @@ export function* handleSwapAndInitPositionWithSOL(
     const tokensAccounts = yield* select(accounts)
     const userPositionList = yield* select(positionsList)
 
-    const wrappedSolAccount = Keypair.generate()
+    const wrappedFOGOAccount = Keypair.generate()
     const net = networkTypetoProgramNetwork(networkType)
 
     const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-      wrappedSolAccount.publicKey,
+      wrappedFOGOAccount.publicKey,
       wallet.publicKey,
       net,
-      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS
+      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
         ? action.payload.xAmount
         : action.payload.yAmount
     )
 
     let userTokenX =
-      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[action.payload.tokenX.toString()]
           ? tokensAccounts[action.payload.tokenX.toString()].address
           : null
@@ -712,8 +712,8 @@ export function* handleSwapAndInitPositionWithSOL(
     }
 
     let userTokenY =
-      allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[action.payload.tokenY.toString()]
           ? tokensAccounts[action.payload.tokenY.toString()].address
           : null
@@ -747,9 +747,9 @@ export function* handleSwapAndInitPositionWithSOL(
         : undefined
 
     const isInitialSolZero =
-      (allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS &&
+      (allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
         action.payload.xAmount.eq(new BN(0))) ||
-      (allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS &&
+      (allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
         action.payload.yAmount.eq(new BN(0)))
 
     const prependedIxs = [createIx, ...(isInitialSolZero ? [] : [transferIx]), initIx]
@@ -807,9 +807,9 @@ export function* handleSwapAndInitPositionWithSOL(
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     const serializedMessage = tx.message.serialize()
-    const signatureUint8 = nacl.sign.detached(serializedMessage, wrappedSolAccount.secretKey)
+    const signatureUint8 = nacl.sign.detached(serializedMessage, wrappedFOGOAccount.secretKey)
 
-    tx.addSignature(wrappedSolAccount.publicKey, signatureUint8)
+    tx.addSignature(wrappedFOGOAccount.publicKey, signatureUint8)
     const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
 
     closeSnackbar(loaderSigningTx)
@@ -950,10 +950,10 @@ export function* handleSwapAndInitPosition(
     const allTokens = yield* select(tokens)
 
     if (
-      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS ||
-      allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS
+      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS ||
+      allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
     ) {
-      return yield* call(handleSwapAndInitPositionWithSOL, action)
+      return yield* call(handleSwapAndInitPositionWithFOGO, action)
     }
 
     yield put(
@@ -1222,12 +1222,12 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     const allTokens = yield* select(tokens)
 
     if (
-      (allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS &&
+      (allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
         action.payload.xAmount !== 0) ||
-      (allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS &&
+      (allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
         action.payload.yAmount !== 0)
     ) {
-      return yield* call(handleInitPositionWithSOL, action)
+      return yield* call(handleInitPositionWithFOGO, action)
     }
 
     yield put(
@@ -1721,7 +1721,7 @@ export function* handleGetPositionsList() {
   }
 }
 
-export function* handleClaimFeeWithSOL({ index, isLocked }: { index: number; isLocked: boolean }) {
+export function* handleClaimFeeWithFOGO({ index, isLocked }: { index: number; isLocked: boolean }) {
   const loaderClaimFee = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
@@ -1747,12 +1747,12 @@ export function* handleClaimFeeWithSOL({ index, isLocked }: { index: number; isL
     const tokensAccounts = yield* select(accounts)
     const allTokens = yield* select(tokens)
 
-    const wrappedSolAccount = Keypair.generate()
+    const wrappedFOGOAccount = Keypair.generate()
 
     const net = networkTypetoProgramNetwork(networkType)
 
     const { createIx, initIx, unwrapIx } = createNativeAtaInstructions(
-      wrappedSolAccount.publicKey,
+      wrappedFOGOAccount.publicKey,
       wallet.publicKey,
       net
     )
@@ -1761,8 +1761,8 @@ export function* handleClaimFeeWithSOL({ index, isLocked }: { index: number; isL
     const position = allPositionsData[index]
 
     let userTokenX =
-      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[poolForIndex.tokenX.toString()]
           ? tokensAccounts[poolForIndex.tokenX.toString()].address
           : null
@@ -1772,8 +1772,8 @@ export function* handleClaimFeeWithSOL({ index, isLocked }: { index: number; isL
     }
 
     let userTokenY =
-      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[poolForIndex.tokenY.toString()]
           ? tokensAccounts[poolForIndex.tokenY.toString()].address
           : null
@@ -1826,7 +1826,7 @@ export function* handleClaimFeeWithSOL({ index, isLocked }: { index: number; isL
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    tx.partialSign(wrappedSolAccount)
+    tx.partialSign(wrappedFOGOAccount)
 
     const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
@@ -1955,10 +1955,10 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
     const poolForIndex = position.poolData
 
     if (
-      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS ||
-      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS
+      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS ||
+      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
     ) {
-      return yield* call(handleClaimFeeWithSOL, action.payload)
+      return yield* call(handleClaimFeeWithFOGO, action.payload)
     }
 
     yield put(
@@ -2368,7 +2368,7 @@ export function* handleClaimAllFees() {
   }
 }
 
-export function* handleClosePositionWithSOL(data: ClosePositionData) {
+export function* handleClosePositionWithFOGO(data: ClosePositionData) {
   const loaderClosePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
@@ -2393,12 +2393,12 @@ export function* handleClosePositionWithSOL(data: ClosePositionData) {
     const allTokens = yield* select(tokens)
     const userPositionList = yield* select(positionsList)
 
-    const wrappedSolAccount = Keypair.generate()
+    const wrappedFOGOAccount = Keypair.generate()
 
     const net = networkTypetoProgramNetwork(networkType)
 
     const { createIx, initIx, unwrapIx } = createNativeAtaInstructions(
-      wrappedSolAccount.publicKey,
+      wrappedFOGOAccount.publicKey,
       wallet.publicKey,
       net
     )
@@ -2406,8 +2406,8 @@ export function* handleClosePositionWithSOL(data: ClosePositionData) {
     const poolForIndex = position.poolData
 
     let userTokenX =
-      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[poolForIndex.tokenX.toString()]
           ? tokensAccounts[poolForIndex.tokenX.toString()].address
           : null
@@ -2417,8 +2417,8 @@ export function* handleClosePositionWithSOL(data: ClosePositionData) {
     }
 
     let userTokenY =
-      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS
-        ? wrappedSolAccount.publicKey
+      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
+        ? wrappedFOGOAccount.publicKey
         : tokensAccounts[poolForIndex.tokenY.toString()]
           ? tokensAccounts[poolForIndex.tokenY.toString()].address
           : null
@@ -2456,7 +2456,7 @@ export function* handleClosePositionWithSOL(data: ClosePositionData) {
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    tx.partialSign(wrappedSolAccount)
+    tx.partialSign(wrappedFOGOAccount)
 
     const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
@@ -2584,10 +2584,10 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
     const position = allPositionsData[action.payload.positionIndex]
 
     if (
-      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_SOL_ADDRESS ||
-      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_SOL_ADDRESS
+      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS ||
+      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
     ) {
-      return yield* call(handleClosePositionWithSOL, action.payload)
+      return yield* call(handleClosePositionWithFOGO, action.payload)
     }
 
     yield put(

@@ -134,7 +134,7 @@ export interface INewPosition {
   setOnlyUserPositions: (val: boolean) => void
   network: NetworkType
   isLoadingTokens: boolean
-  solBalance: BN
+  fogoBalance: BN
   walletStatus: Status
   onConnectWallet: () => void
   onDisconnectWallet: () => void
@@ -207,7 +207,7 @@ export const NewPosition: React.FC<INewPosition> = ({
   setOnlyUserPositions,
   network,
   isLoadingTokens,
-  solBalance,
+  fogoBalance,
   walletStatus,
   onConnectWallet,
   onDisconnectWallet,
@@ -637,8 +637,6 @@ export const NewPosition: React.FC<INewPosition> = ({
         return ''
       case NetworkType.Testnet:
         return '?cluster=testnet'
-      case NetworkType.Devnet:
-        return '?cluster=devnet'
       default:
         return '?cluster=testnet'
     }
@@ -822,7 +820,7 @@ export const NewPosition: React.FC<INewPosition> = ({
                 <TooltipHover title='Open pool in explorer'>
                   <Grid width={'12px'} height={'24px'}>
                     <a
-                      href={`https://eclipsescan.xyz/account/${poolAddress}${networkUrl}`}
+                      href={`https://explorer.fogo.io/address/${poolAddress}${networkUrl}`}
                       target='_blank'
                       rel='noopener noreferrer'
                       onClick={event => {
@@ -1097,7 +1095,7 @@ export const NewPosition: React.FC<INewPosition> = ({
           isGetLiquidityError={isGetLiquidityError}
           isLoadingTicksOrTickmap={isLoadingTicksOrTickmap}
           network={network}
-          solBalance={solBalance}
+          fogoBalance={fogoBalance}
           walletStatus={walletStatus}
           onConnectWallet={onConnectWallet}
           onDisconnectWallet={onDisconnectWallet}

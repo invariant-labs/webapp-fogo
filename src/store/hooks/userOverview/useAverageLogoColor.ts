@@ -13,10 +13,10 @@ export const useAverageLogoColor = () => {
     b: number
   }
 
-  const tokenColorOverrides: TokenColorOverride[] = [{ token: 'SOL', color: '#9945FF' }]
+  const tokenColorOverrides: TokenColorOverride[] = [{ token: 'FOGO', color: '#9945FF' }]
 
   const defaultTokenColors: Record<string, string> = {
-    SOL: '#9945FF',
+    FOGO: '#9945FF',
     DEFAULT: '#7C7C7C'
   }
 

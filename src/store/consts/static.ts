@@ -5,6 +5,7 @@ import { ISnackbar } from '@store/reducers/snackbars'
 import { Chain, PrefixConfig, Token, TokenPriceData, WalletType } from './types'
 import { cat1Icon, cat2Icon, dog1Icon, dog2Icon } from '@static/icons'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import fogoTokenIcon from '@static/fogoTokenIcon.jpg'
 
 export enum NetworkType {
   Local = 'Local',
@@ -25,45 +26,104 @@ export enum SwapType {
   WithHop
 }
 
-export const WSOL_ADDRESS = {
+export const WFOGO_ADDRESS = {
   [NetworkType.Mainnet]: new PublicKey('So11111111111111111111111111111111111111112'),
   [NetworkType.Testnet]: new PublicKey('So11111111111111111111111111111111111111112'),
   [NetworkType.Devnet]: new PublicKey('So11111111111111111111111111111111111111112'),
   [NetworkType.Local]: emptyPublicKey
 }
 
+export const SOL_ADDRESS = {
+  [NetworkType.Mainnet]: emptyPublicKey,
+  [NetworkType.Testnet]: new PublicKey('V2znQH2XjWwsCvz9QmHVcTG3CgDBBupb2dw1gAQihck'),
+  [NetworkType.Devnet]: emptyPublicKey,
+  [NetworkType.Local]: emptyPublicKey
+}
+
 export const BTC_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: emptyPublicKey,
+  [NetworkType.Testnet]: new PublicKey('A3gkTN9Ct6MukRPPogC4EuJe2yNyPfNCkz2bib69HfWK'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
 
 export const USDC_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: emptyPublicKey,
+  [NetworkType.Testnet]: new PublicKey('F9X4cDbf33LSTh4WY1HYW8JALKtDrsgHyKBxwJLTWKPe'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
 
-export const WSOL_MAIN: Token = {
-  tokenProgram: TOKEN_PROGRAM_ID,
-  symbol: 'SOL',
-  address: WSOL_ADDRESS[NetworkType.Mainnet],
-  decimals: 9,
-  name: 'Solana',
-  logoURI:
-    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
+export const ETH_ADDRESS = {
+  [NetworkType.Mainnet]: emptyPublicKey,
+  [NetworkType.Testnet]: new PublicKey('8Xb3K1T8J8J9kiQzjGTgTMDaVgxSBdmEWRreXCrr74Xy'),
+  [NetworkType.Devnet]: emptyPublicKey,
+  [NetworkType.Local]: emptyPublicKey
 }
 
-export const WSOL_TEST: Token = {
+export const WFOGO_MAIN: Token = {
   tokenProgram: TOKEN_PROGRAM_ID,
   symbol: 'SOL',
-  address: WSOL_ADDRESS[NetworkType.Testnet],
+  address: WFOGO_ADDRESS[NetworkType.Mainnet],
   decimals: 9,
   name: 'Solana',
   logoURI:
-    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
+    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+  coingeckoId: 'solana'
+}
+
+export const WFOGO_TEST: Token = {
+  tokenProgram: TOKEN_PROGRAM_ID,
+  symbol: 'FOGO',
+  address: WFOGO_ADDRESS[NetworkType.Testnet],
+  decimals: 9,
+  name: 'Fogo',
+  logoURI: fogoTokenIcon, // TODO: change
+  coingeckoId: ''
+}
+
+export const SOL_TEST: Token = {
+  tokenProgram: TOKEN_PROGRAM_ID,
+  symbol: 'SOL',
+  address: SOL_ADDRESS[NetworkType.Testnet],
+  decimals: 9,
+  name: 'Solana',
+  logoURI:
+    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+  coingeckoId: 'solana'
+}
+
+export const USDC_TEST: Token = {
+  tokenProgram: TOKEN_PROGRAM_ID,
+  symbol: 'USDC',
+  address: USDC_ADDRESS[NetworkType.Testnet],
+  decimals: 6,
+  name: 'USD Coin',
+  logoURI:
+    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
+  coingeckoId: 'usd-coin'
+}
+
+export const BTC_TEST: Token = {
+  tokenProgram: TOKEN_PROGRAM_ID,
+  symbol: 'BTC',
+  address: BTC_ADDRESS[NetworkType.Testnet],
+  decimals: 9,
+  name: 'Bitcoin',
+  logoURI:
+    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png',
+  coingeckoId: 'bitcoin'
+}
+
+export const ETH_TEST: Token = {
+  tokenProgram: TOKEN_PROGRAM_ID,
+  symbol: 'ETH',
+  address: ETH_ADDRESS[NetworkType.Testnet],
+  decimals: 9,
+  name: 'Ether',
+  logoURI:
+    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk/logo.png',
+  coingeckoId: 'bridged-wrapped-ether-eclipse'
 }
 
 export const REFRESHER_INTERVAL = 30
@@ -81,13 +141,19 @@ const MAX_U64 = new BN('18446744073709551615')
 export const tokensPrices: Record<NetworkType, Record<string, TokenPriceData>> = {
   Devnet: {},
   Mainnet: {},
-  Testnet: {},
+  Testnet: {
+    WFOGO_TEST: { price: 147.63 },
+    USDC_TEST: { price: 1 },
+    SOL_TEST: { price: 147.63 },
+    BTC_TEST: { price: 94961.57 },
+    ETH_TEST: { price: 1808.3 }
+  },
   Local: {}
 }
 export const tokens: Record<NetworkType, Token[]> = {
   Devnet: [],
   Mainnet: [],
-  Testnet: [],
+  Testnet: [USDC_TEST, BTC_TEST, ETH_TEST],
   Local: []
 }
 
@@ -98,57 +164,68 @@ export const autoSwapPools: {
 
 export const commonTokensForNetworks: Record<NetworkType, PublicKey[]> = {
   Devnet: [],
-  Mainnet: [WSOL_MAIN.address],
-  Testnet: [WSOL_TEST.address],
+  Mainnet: [WFOGO_MAIN.address],
+  Testnet: [
+    WFOGO_TEST.address,
+    BTC_TEST.address,
+    SOL_TEST.address,
+    ETH_TEST.address,
+    USDC_TEST.address
+  ],
   Local: []
 }
 
 export const airdropTokens: Record<NetworkType, PublicKey[]> = {
   Devnet: [],
   Mainnet: [],
-  Testnet: [],
+  Testnet: [USDC_TEST.address, BTC_TEST.address, ETH_TEST.address, SOL_TEST.address],
   Local: []
 }
 
 export const airdropQuantities: Record<NetworkType, number[]> = {
   Devnet: [],
   Mainnet: [],
-  Testnet: [],
+  Testnet: [
+    2 * 10 ** USDC_TEST.decimals,
+    0.00005 * 10 ** BTC_TEST.decimals,
+    0.001 * 10 ** ETH_TEST.decimals,
+    0.5 * 10 ** SOL_TEST.decimals
+  ],
   Local: []
 }
 
-export const WRAPPED_SOL_ADDRESS = 'So11111111111111111111111111111111111111112'
+export const WRAPPED_FOGO_ADDRESS = 'So11111111111111111111111111111111111111112'
 
-// CHECK REQUIRED FOR BELOW
-export const WSOL_MIN_FAUCET_FEE_TEST = new BN(45000)
-export const WSOL_MIN_FAUCET_FEE_MAIN = new BN(25000)
+// TODO: CHECK REQUIRED FOR BELOW
+export const WFOGO_MIN_FAUCET_FEE_TEST = new BN(45000)
+export const WFOGO_MIN_FAUCET_FEE_MAIN = new BN(25000)
 
-export const WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST = new BN(50000)
-export const WSOL_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN = new BN(25000)
+export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST = new BN(50000)
+export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN = new BN(25000)
 
-export const WSOL_POSITION_INIT_LAMPORTS_MAIN = new BN(700000)
-export const WSOL_POSITION_INIT_LAMPORTS_TEST = new BN(700000)
+export const WFOGO_POSITION_INIT_LAMPORTS_MAIN = new BN(700000)
+export const WFOGO_POSITION_INIT_LAMPORTS_TEST = new BN(700000)
 
-export const WSOL_POOL_INIT_LAMPORTS_MAIN = new BN(1750000)
-export const WSOL_POOL_INIT_LAMPORTS_TEST = new BN(1100000)
+export const WFOGO_POOL_INIT_LAMPORTS_MAIN = new BN(1750000)
+export const WFOGO_POOL_INIT_LAMPORTS_TEST = new BN(1100000)
 
-export const WSOL_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN = new BN(100000)
-export const WSOL_SWAP_AND_POSITION_INIT_LAMPORTS_TEST = new BN(100000)
+export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN = new BN(100000)
+export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_TEST = new BN(100000)
 
-export const WSOL_CREATE_TOKEN_LAMPORTS_MAIN = new BN(2000000)
-export const WSOL_CREATE_TOKEN_LAMPORTS_TEST = new BN(10100000)
+export const WFOGO_CREATE_TOKEN_LAMPORTS_MAIN = new BN(2000000)
+export const WFOGO_CREATE_TOKEN_LAMPORTS_TEST = new BN(10100000)
 
-export const WSOL_CLOSE_POSITION_LAMPORTS_MAIN = new BN(30000)
-export const WSOL_CLOSE_POSITION_LAMPORTS_TEST = new BN(30000)
+export const WFOGO_CLOSE_POSITION_LAMPORTS_MAIN = new BN(30000)
+export const WFOGO_CLOSE_POSITION_LAMPORTS_TEST = new BN(30000)
 
 export const MINIMUM_PRICE_IMPACT = toDecimal(1, 4)
 
 export const getCreateTokenLamports = (network: NetworkType): BN => {
   switch (network) {
     case NetworkType.Testnet:
-      return WSOL_CREATE_TOKEN_LAMPORTS_TEST
+      return WFOGO_CREATE_TOKEN_LAMPORTS_TEST
     case NetworkType.Mainnet:
-      return WSOL_CREATE_TOKEN_LAMPORTS_MAIN
+      return WFOGO_CREATE_TOKEN_LAMPORTS_MAIN
     default:
       throw new Error('Invalid network')
   }
@@ -197,11 +274,15 @@ export const defaultPrefixConfig: PrefixConfig = {
 export const getAddressTickerMap = (network: NetworkType): { [k: string]: string } => {
   if (network !== NetworkType.Mainnet) {
     return {
-      WSOL: WSOL_ADDRESS[network].toString()
+      WFOGO: WFOGO_ADDRESS[network].toString()
     }
   } else {
     return {
-      WSOL: WSOL_ADDRESS[network].toString()
+      WFOGO: WFOGO_ADDRESS[network].toString(),
+      SOL: SOL_ADDRESS[network].toString(),
+      ETH: ETH_ADDRESS[network].toString(),
+      BTC: BTC_ADDRESS[network].toString(),
+      USDC: USDC_ADDRESS[network].toString()
     }
   }
 }

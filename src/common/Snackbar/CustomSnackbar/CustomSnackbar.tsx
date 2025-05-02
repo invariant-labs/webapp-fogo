@@ -78,8 +78,6 @@ const CustomSnackbar = React.forwardRef<HTMLDivElement, CustomContentProps & Cus
           return ''
         case NetworkType.Testnet:
           return '?cluster=testnet'
-        case NetworkType.Devnet:
-          return '?cluster=devnet'
         default:
           return '?cluster=testnet'
       }
@@ -113,7 +111,7 @@ const CustomSnackbar = React.forwardRef<HTMLDivElement, CustomContentProps & Cus
           <Grid className={classes.transactionWrapper}>
             <StyledDetails
               onClick={() =>
-                window.open(`https://eclipsescan.xyz/tx/${txid}${networkUrl}`, '_blank')
+                window.open(`https://explorer.fogo.io/tx/${txid}${networkUrl}`, '_blank')
               }>
               Details
               <img alt='new tab' src={newTabIcon} />

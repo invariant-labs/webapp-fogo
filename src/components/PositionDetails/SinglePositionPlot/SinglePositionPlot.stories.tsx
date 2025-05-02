@@ -45,7 +45,7 @@ export const Primary: Story = {
       decimal: 9
     },
     tokenY: {
-      name: 'SOL',
+      name: 'FOGO',
       decimal: 12
     },
     xToY: true,
@@ -74,7 +74,7 @@ export const Primary: Story = {
           decimal: 9
         }}
         tokenY={{
-          name: 'SOL',
+          name: 'FOGO',
           decimal: 12
         }}
         tickSpacing={1}

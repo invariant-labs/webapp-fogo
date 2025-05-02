@@ -173,8 +173,6 @@ export const FilterSearch: React.FC<IFilterSearch> = memo(
           return ''
         case NetworkType.Testnet:
           return '?cluster=testnet'
-        case NetworkType.Devnet:
-          return '?cluster=devnet'
         default:
           return '?cluster=testnet'
       }

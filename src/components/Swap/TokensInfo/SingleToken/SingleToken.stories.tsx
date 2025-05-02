@@ -44,7 +44,7 @@ export const WithToken: Story = {
     token: {
       balance: new BN(100).mul(new BN(34786)),
       decimals: 6,
-      symbol: 'SOL',
+      symbol: 'FOGO',
       assetAddress: new PublicKey('So11111111111111111111111111111111111111112'),
       name: 'Wrapped Solana',
       logoURI:

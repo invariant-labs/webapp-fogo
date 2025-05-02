@@ -5,7 +5,7 @@ import { FormatNumberThreshold } from '@store/consts/types'
 
 export const toBlur = 'global-blur'
 export const addressTickerMap: { [key: string]: string } = {
-  WSOL: 'So11111111111111111111111111111111111111112'
+  WFOGO: 'So11111111111111111111111111111111111111112'
 }
 
 export const reversedAddressTickerMap = Object.fromEntries(

@@ -7,8 +7,8 @@ import { BN } from '@coral-xyz/anchor'
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
 import {
   NetworkType,
-  WSOL_MIN_FAUCET_FEE_MAIN,
-  WSOL_MIN_FAUCET_FEE_TEST
+  WFOGO_MIN_FAUCET_FEE_MAIN,
+  WFOGO_MIN_FAUCET_FEE_TEST
 } from '@store/consts/static'
 import classNames from 'classnames'
 
@@ -46,7 +46,7 @@ export const FaucetButton: React.FC<IProps> = ({
     disabled ||
     walletBalance === null ||
     walletBalance.lte(
-      network === NetworkType.Mainnet ? WSOL_MIN_FAUCET_FEE_MAIN : WSOL_MIN_FAUCET_FEE_TEST
+      network === NetworkType.Mainnet ? WFOGO_MIN_FAUCET_FEE_MAIN : WFOGO_MIN_FAUCET_FEE_TEST
     )
 
   const getTooltipText = () => {
@@ -56,10 +56,10 @@ export const FaucetButton: React.FC<IProps> = ({
     if (
       walletBalance !== null &&
       walletBalance.lte(
-        network === NetworkType.Mainnet ? WSOL_MIN_FAUCET_FEE_MAIN : WSOL_MIN_FAUCET_FEE_TEST
+        network === NetworkType.Mainnet ? WFOGO_MIN_FAUCET_FEE_MAIN : WFOGO_MIN_FAUCET_FEE_TEST
       )
     ) {
-      return "You don't have enough SOL to claim faucet"
+      return "You don't have enough FOGO to claim faucet"
     }
 
     return ''
