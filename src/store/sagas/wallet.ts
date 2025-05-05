@@ -52,7 +52,6 @@ import { disconnectWallet, getFogoWallet } from '@utils/web3/wallet'
 import { WalletAdapter } from '@utils/web3/adapters/types'
 import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
-
 import { PayloadAction } from '@reduxjs/toolkit'
 
 export function* getWallet(): SagaGenerator<WalletAdapter> {
@@ -244,7 +243,6 @@ export function* handleAirdrop(): Generator {
         airdropTokens[networkType],
         airdropQuantities[networkType]
       )
-
       yield put(
         snackbarsActions.add({
           message: 'You will soon receive airdrop of tokens',
@@ -401,16 +399,32 @@ export function* getCollateralTokenAirdrop(
   }
   const tx = instructions.reduce((tx, ix) => tx.add(ix), new Transaction())
   const connection = yield* call(getConnection)
-  const blockhash = yield* call([connection, connection.getLatestBlockhash])
+  const { blockhash, lastValidBlockHeight } = yield* call([
+    connection,
+    connection.getLatestBlockhash
+  ])
   tx.feePayer = wallet.publicKey
-  tx.recentBlockhash = blockhash.blockhash
+  tx.recentBlockhash = blockhash
+  tx.lastValidBlockHeight = lastValidBlockHeight
   tx.partialSign(airdropAdmin)
 
   const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
-  yield* call([connection, connection.sendRawTransaction], signedTx.serialize(), {
-    skipPreflight: true
+  const signatureTx = yield* call(
+    [connection, connection.sendRawTransaction],
+    signedTx.serialize(),
+    {
+      skipPreflight: true
+    }
+  )
+
+  const confirmedTx = yield* call([connection, connection.confirmTransaction], {
+    blockhash: blockhash,
+    lastValidBlockHeight: lastValidBlockHeight,
+    signature: signatureTx
   })
+
+  return !confirmedTx.value.err
 }
 
 export function* signAndSend(wallet: WalletAdapter, tx: Transaction): SagaGenerator<string> {

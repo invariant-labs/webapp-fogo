@@ -513,8 +513,12 @@ function* handleInitPositionWithFOGO(action: PayloadAction<InitPositionData>): G
     combinedTransaction.add(initPositionTx)
     combinedTransaction.add(unwrapIx)
 
-    const blockhash = yield* call([connection, connection.getLatestBlockhash])
-    combinedTransaction.recentBlockhash = blockhash.blockhash
+    const { blockhash, lastValidBlockHeight } = yield* call([
+      connection,
+      connection.getLatestBlockhash
+    ])
+    combinedTransaction.recentBlockhash = blockhash
+    combinedTransaction.lastValidBlockHeight = lastValidBlockHeight
     combinedTransaction.feePayer = wallet.publicKey
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
@@ -846,7 +850,6 @@ export function* handleSwapAndInitPositionWithFOGO(
 
       if (txDetails) {
         const meta = txDetails.meta
-        console.log(txDetails)
         if (meta?.innerInstructions && meta.innerInstructions) {
           try {
             const index = meta.innerInstructions.length
@@ -1277,7 +1280,6 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     if (userTokenY === null) {
       userTokenY = yield* call(createAccount, action.payload.tokenY)
     }
-
     let tx: Transaction
     let createPoolTx: Transaction | null = null
     let poolSigners: Keypair[] = []
@@ -1340,48 +1342,59 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
         }
       )
     }
-
-    const blockhash = yield* call([connection, connection.getLatestBlockhash])
-    tx.recentBlockhash = blockhash.blockhash
+    const { blockhash, lastValidBlockHeight } = yield* call([
+      connection,
+      connection.getLatestBlockhash
+    ])
+    tx.recentBlockhash = blockhash
+    tx.lastValidBlockHeight = lastValidBlockHeight
     tx.feePayer = wallet.publicKey
 
     if (createPoolTx) {
-      createPoolTx.recentBlockhash = blockhash.blockhash
+      createPoolTx.recentBlockhash = blockhash
+      createPoolTx.lastValidBlockHeight = lastValidBlockHeight
       createPoolTx.feePayer = wallet.publicKey
       yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
+      for (const poolSigner of poolSigners) {
+        createPoolTx.partialSign(poolSigner)
+      }
       const signedTx = (yield* call([wallet, wallet.signTransaction], createPoolTx)) as Transaction
 
       closeSnackbar(loaderSigningTx)
 
       yield put(snackbarsActions.remove(loaderSigningTx))
-      signedTx.partialSign(...poolSigners)
 
       yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
         skipPreflight: false
       })
     }
-
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
+    const txId = yield* call([connection, connection.sendRawTransaction], signedTx.serialize(), {
+      skipPreflight: true
     })
 
-    yield put(actions.setInitPositionSuccess(!!txid.length))
+    const confirmedTx = yield* call([connection, connection.confirmTransaction], {
+      blockhash: blockhash,
+      lastValidBlockHeight: lastValidBlockHeight,
+      signature: txId
+    })
+    if (confirmedTx.value.err !== null) {
+      throw new Error()
+    }
 
-    if (!txid.length) {
+    yield put(actions.setInitPositionSuccess(!confirmedTx.value.err))
+    if (confirmedTx.value.err === null) {
       yield put(
         snackbarsActions.add({
           message: 'Position adding failed. Please try again',
           variant: 'error',
           persist: false,
-          txid
+          txid: txId
         })
       )
     } else {
@@ -1390,11 +1403,11 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
           message: 'Position added successfully',
           variant: 'success',
           persist: false,
-          txid
+          txid: txId
         })
       )
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txId)
 
       if (txDetails) {
         const meta = txDetails.meta
@@ -1436,7 +1449,6 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
           }
         }
       }
-
       yield put(actions.getPositionsList())
     }
 
