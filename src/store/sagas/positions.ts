@@ -1387,7 +1387,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
       throw new Error()
     }
 
-    yield put(actions.setInitPositionSuccess(!confirmedTx.value.err))
+    yield put(actions.setInitPositionSuccess(!!confirmedTx.value.err))
     if (confirmedTx.value.err === null) {
       yield put(
         snackbarsActions.add({
