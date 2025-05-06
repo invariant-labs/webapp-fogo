@@ -1342,15 +1342,12 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
         }
       )
     }
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    tx.recentBlockhash = blockhash
-    tx.lastValidBlockHeight = lastValidBlockHeight
-    tx.feePayer = wallet.publicKey
 
     if (createPoolTx) {
+      const { blockhash, lastValidBlockHeight } = yield* call([
+        connection,
+        connection.getLatestBlockhash
+      ])
       createPoolTx.recentBlockhash = blockhash
       createPoolTx.lastValidBlockHeight = lastValidBlockHeight
       createPoolTx.feePayer = wallet.publicKey
@@ -1369,7 +1366,13 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
       })
     }
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
+    const { blockhash, lastValidBlockHeight } = yield* call([
+      connection,
+      connection.getLatestBlockhash
+    ])
+    tx.recentBlockhash = blockhash
+    tx.lastValidBlockHeight = lastValidBlockHeight
+    tx.feePayer = wallet.publicKey
     const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
