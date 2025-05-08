@@ -165,7 +165,7 @@ export const commonTokensForNetworks: Record<NetworkType, PublicKey[]> = {
   Devnet: [],
   Mainnet: [WFOGO_MAIN.address],
   Testnet: [
-    WFOGO_TEST.address,
+    // WFOGO_TEST.address,
     BTC_TEST.address,
     SOL_TEST.address,
     ETH_TEST.address,
