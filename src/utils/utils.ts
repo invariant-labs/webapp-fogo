@@ -59,12 +59,12 @@ import {
   MAX_CROSSES_IN_SINGLE_TX_WITH_LUTS,
   PRICE_API_URL,
   WRAPPED_FOGO_ADDRESS,
-  WFOGO_TEST,
   WFOGO_MAIN,
   ETH_TEST,
   BTC_TEST,
   USDC_TEST,
-  SOL_TEST
+  SOL_TEST,
+  WFOGO_TEST
 } from '@store/consts/static'
 import { PoolWithAddress } from '@store/reducers/pools'
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes'
