@@ -168,9 +168,6 @@ function* handleInitPositionAndPoolWithFOGO(action: PayloadAction<InitPositionDa
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
     const { blockhash: createPoolBlockhash, lastValidBlockHeight: createPoolLastValidBlockheight } =
       yield* call([connection, connection.getLatestBlockhash])
 
@@ -213,6 +210,9 @@ function* handleInitPositionAndPoolWithFOGO(action: PayloadAction<InitPositionDa
         skipPreflight: false
       }
     )
+
+    closeSnackbar(loaderSigningTx)
+    yield put(snackbarsActions.remove(loaderSigningTx))
 
     if (!createPositionTxid.length) {
       yield put(actions.setInitPositionSuccess(false))
@@ -441,8 +441,6 @@ function* handleInitPositionWithFOGO(action: PayloadAction<InitPositionData>): G
       userTokenY = yield* call(createAccount, data.tokenY)
     }
 
-    const poolSigners: Keypair[] = []
-
     const combinedTransaction = new Transaction()
 
     combinedTransaction.add(createIx).add(transferIx).add(initIx)
@@ -497,10 +495,6 @@ function* handleInitPositionWithFOGO(action: PayloadAction<InitPositionData>): G
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     combinedTransaction.partialSign(wrappedFOGOAccount)
-
-    if (poolSigners.length) {
-      combinedTransaction.partialSign(...poolSigners)
-    }
 
     const signedTx = (yield* call(
       [wallet, wallet.signTransaction],
@@ -1317,26 +1311,30 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     }
 
     if (createPoolTx) {
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+
       const { blockhash, lastValidBlockHeight } = yield* call([
         connection,
         connection.getLatestBlockhash
       ])
+
       createPoolTx.recentBlockhash = blockhash
       createPoolTx.lastValidBlockHeight = lastValidBlockHeight
       createPoolTx.feePayer = wallet.publicKey
-      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-      for (const poolSigner of poolSigners) {
-        createPoolTx.partialSign(poolSigner)
+
+      if (poolSigners.length) {
+        createPoolTx.partialSign(...poolSigners)
       }
+
       const signedTx = (yield* call([wallet, wallet.signTransaction], createPoolTx)) as Transaction
-
-      closeSnackbar(loaderSigningTx)
-
-      yield put(snackbarsActions.remove(loaderSigningTx))
 
       yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
         skipPreflight: false
       })
+
+      closeSnackbar(loaderSigningTx)
+
+      yield put(snackbarsActions.remove(loaderSigningTx))
     }
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
@@ -1349,12 +1347,12 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     tx.feePayer = wallet.publicKey
     const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
     const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
       skipPreflight: false
     })
+
+    closeSnackbar(loaderSigningTx)
+    yield put(snackbarsActions.remove(loaderSigningTx))
 
     yield put(actions.setInitPositionSuccess(!!txid.length))
     if (!txid.length) {
@@ -1446,6 +1444,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
       yield put(connectionActions.setTimeoutError(true))
       yield put(RPCAction.setRpcStatus(RpcStatus.Error))
     } else {
+      console.log(error)
       yield put(
         snackbarsActions.add({
           message: 'Failed to send. Please try again',

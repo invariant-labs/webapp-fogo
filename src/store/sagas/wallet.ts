@@ -13,7 +13,6 @@ import {
   airdropQuantities,
   airdropTokens,
   NetworkType,
-  WFOGO_MIN_FAUCET_FEE_MAIN,
   WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import { Token as StoreToken } from '@store/consts/types'
@@ -24,7 +23,7 @@ import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { actions, ITokenAccount, Status } from '@store/reducers/solanaWallet'
 import { tokens } from '@store/selectors/pools'
 import { network } from '@store/selectors/solanaConnection'
-import { accounts, balance, status } from '@store/selectors/solanaWallet'
+import { accounts, status } from '@store/selectors/solanaWallet'
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
@@ -206,10 +205,7 @@ export function* handleAirdrop(): Generator {
 
   const loaderKey = createLoaderKey()
 
-  const connection = yield* call(getConnection)
   const networkType = yield* select(network)
-  const wallet = yield* call(getWallet)
-  const fogoBalance = yield* select(balance)
 
   try {
     if (networkType === NetworkType.Testnet) {
@@ -235,58 +231,16 @@ export function* handleAirdrop(): Generator {
       )
 
       // transfer sol
-      // yield* call([connection, connection.requestAirdrop], airdropAdmin.publicKey, 1 * 1e9)
       yield* call(transferAirdropFOGO)
       yield* call(
         getCollateralTokenAirdrop,
         airdropTokens[networkType],
         airdropQuantities[networkType]
       )
-    } else if (networkType === NetworkType.Mainnet) {
-      if (fogoBalance.lt(WFOGO_MIN_FAUCET_FEE_MAIN)) {
-        yield put(
-          snackbarsActions.add({
-            message: 'Do not have enough FOGO to claim faucet',
-            variant: 'error',
-            persist: false
-          })
-        )
-        return
-      }
-      yield put(
-        snackbarsActions.add({
-          message: 'Airdrop in progress...',
-          variant: 'pending',
-          persist: true,
-          key: loaderKey
-        })
-      )
-
-      yield* call(
-        getCollateralTokenAirdrop,
-        airdropTokens[networkType],
-        airdropQuantities[networkType]
-      )
-
-      yield put(
-        snackbarsActions.add({
-          message: 'You will soon receive airdrop of tokens',
-          variant: 'success',
-          persist: false
-        })
-      )
-      yield* put(actions.showThankYouModal(true))
     } else {
-      yield* call([connection, connection.requestAirdrop], wallet.publicKey, 1 * 1e9)
-
-      yield* call(
-        getCollateralTokenAirdrop,
-        airdropTokens[networkType],
-        airdropQuantities[networkType]
-      )
       yield put(
         snackbarsActions.add({
-          message: 'You will soon receive airdrop',
+          message: 'You can claim faucet only on testnet!',
           variant: 'success',
           persist: false
         })

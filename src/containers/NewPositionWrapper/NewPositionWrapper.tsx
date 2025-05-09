@@ -943,8 +943,8 @@ export const NewPositionWrapper: React.FC<IProps> = ({
       shouldNotUpdatePriceRange={shouldNotUpdatePriceRange}
       unblockUpdatePriceRange={unblockUpdatePriceRange}
       isGetLiquidityError={false}
-      onlyUserPositions={false} //TODO implement logic
-      setOnlyUserPositions={() => {}} //TODO implement logic
+      onlyUserPositions={false}
+      setOnlyUserPositions={() => {}}
       network={currentNetwork}
       isLoadingTokens={isCurrentlyLoadingTokens}
       fogoBalance={fogoBalance}
