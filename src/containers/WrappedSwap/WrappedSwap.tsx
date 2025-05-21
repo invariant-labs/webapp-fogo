@@ -3,7 +3,7 @@ import { Swap } from '@components/Swap/Swap'
 import {
   commonTokensForNetworks,
   DEFAULT_SWAP_SLIPPAGE,
-  USDC_TEST,
+  WFOGO_TEST,
   WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import { actions as poolsActions } from '@store/reducers/pools'
@@ -119,7 +119,7 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
     initialTokenFrom && tickerToAddress(networkType, initialTokenFrom)
       ? tickerToAddress(networkType, initialTokenFrom)
       : localStorage.getItem(`INVARIANT_LAST_TOKEN_FROM_${networkType}`) ??
-        USDC_TEST.address.toString()
+        WFOGO_TEST.address.toString()
 
   const lastTokenTo =
     initialTokenTo && tickerToAddress(networkType, initialTokenTo)

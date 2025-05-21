@@ -63,7 +63,8 @@ import {
   ETH_TEST,
   BTC_TEST,
   USDC_TEST,
-  SOL_TEST
+  SOL_TEST,
+  WFOGO_TEST
 } from '@store/consts/static'
 import { PoolWithAddress } from '@store/reducers/pools'
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes'
@@ -882,7 +883,7 @@ export const getNetworkTokensList = (networkType: NetworkType): Record<string, T
       return {}
     case NetworkType.Testnet:
       return {
-        // [WFOGO_TEST.address.toString()]: WFOGO_TEST,
+        [WFOGO_TEST.address.toString()]: WFOGO_TEST,
         [SOL_TEST.address.toString()]: SOL_TEST,
         [ETH_TEST.address.toString()]: ETH_TEST,
         [BTC_TEST.address.toString()]: BTC_TEST,

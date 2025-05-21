@@ -584,7 +584,6 @@ export const Swap: React.FC<ISwap> = ({
         tokens[tokenToIndex].assetAddress,
         pools
       )
-
       let poolEmptyCount = 0
       for (const pair of pairs) {
         if (
