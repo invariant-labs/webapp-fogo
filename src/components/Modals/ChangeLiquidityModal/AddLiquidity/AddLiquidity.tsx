@@ -1808,10 +1808,10 @@ export const AddLiquidity: React.FC<IProps> = ({
             onDisconnect={onDisconnectWallet}
             noUnblur
           />
-        ) : getButtonMessage() === 'Insufficient ETH' ? (
+        ) : getButtonMessage() === 'Insufficient FOGO' ? (
           <TooltipHover
             fullSpan
-            title='More ETH is required to cover the transaction fee. Obtain more ETH to complete this transaction.'
+            title='More FOGO is required to cover the transaction fee. Obtain more FOGO to complete this transaction.'
             top={-10}>
             <Box width={'100%'}>
               <AnimatedButton
@@ -1842,7 +1842,6 @@ export const AddLiquidity: React.FC<IProps> = ({
             className={cx(classes.addButton, progress === 'none' ? classes.hoverButton : undefined)}
             onClick={() => {
               if (progress === 'none' && tokenAIndex !== null && tokenBIndex !== null) {
-                console.log('test')
                 if (!isAutoswapOn) {
                   onAddLiquidity(
                     isXtoY
@@ -1865,7 +1864,6 @@ export const AddLiquidity: React.FC<IProps> = ({
                       : convertBalanceToBN(valueB, tokens[tokenBIndex].decimals)
                   )
                 } else {
-                  console.log('test')
                   if (
                     (tokenACheckbox || tokenBCheckbox) &&
                     simulation &&
@@ -1874,7 +1872,6 @@ export const AddLiquidity: React.FC<IProps> = ({
                     isSimulationStatus(SwapAndCreateSimulationStatus.Ok) &&
                     !!autoSwapPoolData
                   ) {
-                    console.log('test')
                     const userMinUtilization = toDecimal(+Number(utilization).toFixed(4), 2)
                     const tokenADecimal = tokens[tokenAIndex].decimals
                     const tokenBDecimal = tokens[tokenBIndex].decimals
@@ -1891,7 +1888,6 @@ export const AddLiquidity: React.FC<IProps> = ({
                       ? tokenBValue
                       : tokenAValue
 
-                    console.log('test')
                     onSwapAndAddLiquidity(
                       amountX,
                       amountY,

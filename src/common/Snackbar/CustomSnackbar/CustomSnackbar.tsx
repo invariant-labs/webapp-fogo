@@ -76,8 +76,6 @@ const CustomSnackbar = React.forwardRef<HTMLDivElement, CustomContentProps & Cus
           return ''
         case NetworkType.Testnet:
           return '?cluster=testnet'
-        case NetworkType.Devnet:
-          return '?cluster=devnet'
         default:
           return '?cluster=testnet'
       }

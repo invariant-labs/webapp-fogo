@@ -3424,12 +3424,14 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
         ? data.xAmount
         : data.yAmount
 
+    console.log(fogoAmount)
     const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
       wrappedFogoAccount.publicKey,
       wallet.publicKey,
       net,
       fogoAmount ? fogoAmount : new BN(0)
     )
+    console.log(1)
 
     let userTokenX =
       allTokens[position.poolData.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
@@ -3441,6 +3443,7 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
     if (userTokenX === null) {
       userTokenX = yield* call(createAccount, position.poolData.tokenX)
     }
+    console.log(2)
 
     let userTokenY =
       allTokens[position.poolData.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
@@ -3452,6 +3455,7 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
     if (userTokenY === null) {
       userTokenY = yield* call(createAccount, position.poolData.tokenY)
     }
+    console.log(3)
 
     const poolSigners: Keypair[] = []
 
@@ -3472,6 +3476,7 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
       accountX: userTokenX,
       accountY: userTokenY
     })
+    console.log(4)
 
     combinedTransaction.add(changeLiquidityIx)
     combinedTransaction.add(unwrapIx)
@@ -3480,6 +3485,8 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
       connection,
       connection.getLatestBlockhash
     ])
+    console.log(5)
+
     combinedTransaction.recentBlockhash = blockhash
     combinedTransaction.lastValidBlockHeight = lastValidBlockHeight
     combinedTransaction.feePayer = wallet.publicKey
@@ -3487,6 +3494,7 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     combinedTransaction.partialSign(wrappedFogoAccount)
+    console.log(6)
 
     if (poolSigners.length) {
       combinedTransaction.partialSign(...poolSigners)
@@ -3496,6 +3504,7 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
       [wallet, wallet.signTransaction],
       combinedTransaction
     )) as Transaction
+    console.log(7)
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
@@ -3503,6 +3512,7 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
     const txId = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
       skipPreflight: false
     })
+    console.log(8)
 
     if (!txId.length) {
       yield put(actions.setChangeLiquiditySuccess(false))
