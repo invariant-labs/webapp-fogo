@@ -5,11 +5,7 @@ import { blurContent, unblurContent } from '@utils/uiUtils'
 import { Box, Button, Typography } from '@mui/material'
 import { BN } from '@coral-xyz/anchor'
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
-import {
-  NetworkType,
-  WFOGO_MIN_FAUCET_FEE_MAIN,
-  WFOGO_MIN_FAUCET_FEE_TEST
-} from '@store/consts/static'
+import { NetworkType } from '@store/consts/static'
 import classNames from 'classnames'
 
 export interface IProps {
@@ -24,7 +20,6 @@ export const FaucetButton: React.FC<IProps> = ({
   onFaucet,
   disabled = false,
   children,
-  network,
   walletBalance
 }) => {
   const { classes } = useStyles()
@@ -42,25 +37,24 @@ export const FaucetButton: React.FC<IProps> = ({
     setOpenFaucet(false)
   }
 
-  const isDisabled =
-    disabled ||
-    walletBalance === null ||
-    walletBalance.lte(
-      network === NetworkType.Mainnet ? WFOGO_MIN_FAUCET_FEE_MAIN : WFOGO_MIN_FAUCET_FEE_TEST
-    )
+  const isDisabled = disabled
+  //  || walletBalance === null ||
+  // walletBalance.lte(
+  //   network === NetworkType.Mainnet ? WFOGO_MIN_FAUCET_FEE_MAIN : WFOGO_MIN_FAUCET_FEE_TEST
+  // )
 
   const getTooltipText = () => {
     if (walletBalance === null) {
       return 'Please connect wallet to claim faucet'
     }
-    if (
-      walletBalance !== null &&
-      walletBalance.lte(
-        network === NetworkType.Mainnet ? WFOGO_MIN_FAUCET_FEE_MAIN : WFOGO_MIN_FAUCET_FEE_TEST
-      )
-    ) {
-      return "You don't have enough FOGO to claim faucet"
-    }
+    // if (
+    //   walletBalance !== null &&
+    //   walletBalance.lte(
+    //     network === NetworkType.Mainnet ? WFOGO_MIN_FAUCET_FEE_MAIN : WFOGO_MIN_FAUCET_FEE_TEST
+    //   )
+    // ) {
+    //   return "You don't have enough FOGO to claim faucet"
+    // }
 
     return ''
   }

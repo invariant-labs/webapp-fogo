@@ -13,8 +13,6 @@ import {
   airdropQuantities,
   airdropTokens,
   NetworkType,
-  WFOGO_MIN_FAUCET_FEE_MAIN,
-  WFOGO_MIN_FAUCET_FEE_TEST,
   WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import { Token as StoreToken } from '@store/consts/types'
@@ -25,7 +23,7 @@ import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { actions, ITokenAccount, Status } from '@store/reducers/solanaWallet'
 import { tokens } from '@store/selectors/pools'
 import { network } from '@store/selectors/solanaConnection'
-import { accounts, balance, status } from '@store/selectors/solanaWallet'
+import { accounts, status } from '@store/selectors/solanaWallet'
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
@@ -52,7 +50,6 @@ import { disconnectWallet, getFogoWallet } from '@utils/web3/wallet'
 import { WalletAdapter } from '@utils/web3/adapters/types'
 import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
-
 import { PayloadAction } from '@reduxjs/toolkit'
 
 export function* getWallet(): SagaGenerator<WalletAdapter> {
@@ -208,23 +205,20 @@ export function* handleAirdrop(): Generator {
 
   const loaderKey = createLoaderKey()
 
-  const connection = yield* call(getConnection)
   const networkType = yield* select(network)
-  const wallet = yield* call(getWallet)
-  const fogoBalance = yield* select(balance)
 
   try {
     if (networkType === NetworkType.Testnet) {
-      if (fogoBalance.lt(WFOGO_MIN_FAUCET_FEE_TEST)) {
-        yield put(
-          snackbarsActions.add({
-            message: 'Do not have enough FOGO to claim faucet',
-            variant: 'error',
-            persist: false
-          })
-        )
-        return
-      }
+      // if (fogoBalance.lt(WFOGO_MIN_FAUCET_FEE_TEST)) {
+      //   yield put(
+      //     snackbarsActions.add({
+      //       message: 'Do not have enough FOGO to claim faucet',
+      //       variant: 'error',
+      //       persist: false
+      //     })
+      //   )
+      //   return
+      // }
 
       yield* put(actions.showThankYouModal(true))
       yield put(
@@ -237,66 +231,16 @@ export function* handleAirdrop(): Generator {
       )
 
       // transfer sol
-      // yield* call([connection, connection.requestAirdrop], airdropAdmin.publicKey, 1 * 1e9)
-      // yield* call(transferAirdropFOGO)
+      yield* call(transferAirdropFOGO)
       yield* call(
         getCollateralTokenAirdrop,
         airdropTokens[networkType],
         airdropQuantities[networkType]
       )
-
-      yield put(
-        snackbarsActions.add({
-          message: 'You will soon receive airdrop of tokens',
-          variant: 'success',
-          persist: false
-        })
-      )
-    } else if (networkType === NetworkType.Mainnet) {
-      if (fogoBalance.lt(WFOGO_MIN_FAUCET_FEE_MAIN)) {
-        yield put(
-          snackbarsActions.add({
-            message: 'Do not have enough FOGO to claim faucet',
-            variant: 'error',
-            persist: false
-          })
-        )
-        return
-      }
-      yield put(
-        snackbarsActions.add({
-          message: 'Airdrop in progress...',
-          variant: 'pending',
-          persist: true,
-          key: loaderKey
-        })
-      )
-
-      yield* call(
-        getCollateralTokenAirdrop,
-        airdropTokens[networkType],
-        airdropQuantities[networkType]
-      )
-
-      yield put(
-        snackbarsActions.add({
-          message: 'You will soon receive airdrop of tokens',
-          variant: 'success',
-          persist: false
-        })
-      )
-      yield* put(actions.showThankYouModal(true))
     } else {
-      yield* call([connection, connection.requestAirdrop], wallet.publicKey, 1 * 1e9)
-
-      yield* call(
-        getCollateralTokenAirdrop,
-        airdropTokens[networkType],
-        airdropQuantities[networkType]
-      )
       yield put(
         snackbarsActions.add({
-          message: 'You will soon receive airdrop',
+          message: 'You can claim faucet only on testnet!',
           variant: 'success',
           persist: false
         })
@@ -344,15 +288,18 @@ export function* transferAirdropFOGO(): Generator {
     SystemProgram.transfer({
       fromPubkey: airdropAdmin.publicKey,
       toPubkey: wallet.publicKey,
-      lamports: 50000
+      lamports: 10000000
     })
   )
   const connection = yield* call(getConnection)
-  const blockhash = yield* call([connection, connection.getLatestBlockhash])
+  const { blockhash, lastValidBlockHeight } = yield* call([
+    connection,
+    connection.getLatestBlockhash
+  ])
   tx.feePayer = airdropAdmin.publicKey
-  tx.recentBlockhash = blockhash.blockhash
-  tx.setSigners(airdropAdmin.publicKey)
-  tx.partialSign(airdropAdmin as Signer)
+  tx.recentBlockhash = blockhash
+  tx.lastValidBlockHeight = lastValidBlockHeight
+  tx.sign(airdropAdmin as Signer)
 
   const txid = yield* call(sendAndConfirmRawTransaction, connection, tx.serialize(), {
     skipPreflight: false
@@ -401,23 +348,50 @@ export function* getCollateralTokenAirdrop(
   }
   const tx = instructions.reduce((tx, ix) => tx.add(ix), new Transaction())
   const connection = yield* call(getConnection)
-  const blockhash = yield* call([connection, connection.getLatestBlockhash])
+  const { blockhash, lastValidBlockHeight } = yield* call([
+    connection,
+    connection.getLatestBlockhash
+  ])
   tx.feePayer = wallet.publicKey
-  tx.recentBlockhash = blockhash.blockhash
+  tx.recentBlockhash = blockhash
+  tx.lastValidBlockHeight = lastValidBlockHeight
   tx.partialSign(airdropAdmin)
 
   const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
-  yield* call([connection, connection.sendRawTransaction], signedTx.serialize(), {
-    skipPreflight: true
+  const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+    skipPreflight: false
   })
+
+  if (!txid.length) {
+    yield put(
+      snackbarsActions.add({
+        message: 'Failed to airdrop testnet tokens. Please try again',
+        variant: 'error',
+        persist: false,
+        txid
+      })
+    )
+  } else {
+    yield put(
+      snackbarsActions.add({
+        message: 'You will soon receive airdrop of tokens',
+        variant: 'success',
+        persist: false
+      })
+    )
+  }
 }
 
 export function* signAndSend(wallet: WalletAdapter, tx: Transaction): SagaGenerator<string> {
   const connection = yield* call(getConnection)
-  const blockhash = yield* call([connection, connection.getLatestBlockhash])
+  const { blockhash, lastValidBlockHeight } = yield* call([
+    connection,
+    connection.getLatestBlockhash
+  ])
   tx.feePayer = wallet.publicKey
-  tx.recentBlockhash = blockhash.blockhash
+  tx.recentBlockhash = blockhash
+  tx.lastValidBlockHeight = lastValidBlockHeight
   const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
   const signature = yield* call([connection, connection.sendRawTransaction], signedTx.serialize())
   return signature
@@ -695,8 +669,12 @@ export function* handleunwrapWFOGO(): Generator {
       unwrapTx.add(unwrapIx)
     })
 
-    const unwrapBlockhash = yield* call([connection, connection.getLatestBlockhash])
-    unwrapTx.recentBlockhash = unwrapBlockhash.blockhash
+    const { blockhash, lastValidBlockHeight } = yield* call([
+      connection,
+      connection.getLatestBlockhash
+    ])
+    unwrapTx.recentBlockhash = blockhash
+    unwrapTx.lastValidBlockHeight = lastValidBlockHeight
     unwrapTx.feePayer = wallet.publicKey
 
     const unwrapSignedTx = (yield* call([wallet, wallet.signTransaction], unwrapTx)) as Transaction

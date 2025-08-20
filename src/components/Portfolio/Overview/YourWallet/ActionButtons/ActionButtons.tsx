@@ -1,7 +1,7 @@
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
 import { Box } from '@mui/material'
 import { horizontalSwapIcon, newTabBtnIcon, plusIcon } from '@static/icons'
-import { NetworkType, USDC_TEST, WFOGO_MAIN, WFOGO_TEST } from '@store/consts/static'
+import { NetworkType, USDC_TEST, WFOGO_MAIN } from '@store/consts/static'
 import { StrategyConfig, WalletToken } from '@store/types/userOverview'
 import { addressToTicker, ROUTES } from '@utils/utils'
 import { useNavigate } from 'react-router-dom'
@@ -43,7 +43,7 @@ export const ActionButtons = ({ pool, strategy, currentNetwork }: IActionButtons
                   : USDC_TEST.address
                 : currentNetwork === NetworkType.Mainnet
                   ? WFOGO_MAIN.address
-                  : WFOGO_TEST.address
+                  : USDC_TEST.address
 
             navigate(
               ROUTES.getNewPositionRoute(
@@ -71,7 +71,7 @@ export const ActionButtons = ({ pool, strategy, currentNetwork }: IActionButtons
                   : USDC_TEST.address
                 : currentNetwork === NetworkType.Mainnet
                   ? WFOGO_MAIN.address
-                  : WFOGO_TEST.address
+                  : USDC_TEST.address
 
             navigate(
               ROUTES.getExchangeRoute(

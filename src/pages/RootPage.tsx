@@ -31,8 +31,8 @@ const RootPage: React.FC = memo(() => {
     [ROUTES.PORTFOLIO, 'Invariant | Portfolio'],
     [ROUTES.NEW_POSITION, 'Invariant | New Position'],
     [ROUTES.POSITION, 'Invariant | Position Details'],
-    [ROUTES.STATISTICS, 'Invariant | Statistics'],
-    [ROUTES.CREATOR, 'Invariant | Creator']
+    [ROUTES.STATISTICS, 'Invariant | Statistics']
+    // [ROUTES.CREATOR, 'Invariant | Creator']
   ])
 
   useEffect(() => {

@@ -35,41 +35,40 @@ export const WFOGO_ADDRESS = {
 
 export const SOL_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: new PublicKey('V2znQH2XjWwsCvz9QmHVcTG3CgDBBupb2dw1gAQihck'),
+  [NetworkType.Testnet]: new PublicKey('9Lxd3admpK1tfnJmQqkxzbZbkGo2f6EQNqKtMX5VXJeY'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
 
 export const BTC_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: new PublicKey('A3gkTN9Ct6MukRPPogC4EuJe2yNyPfNCkz2bib69HfWK'),
+  [NetworkType.Testnet]: new PublicKey('D5iUETZ2ugRwPNaa3hr6R5mzAYE5KesqJwZaWLQ8QYCt'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
 
 export const USDC_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: new PublicKey('F9X4cDbf33LSTh4WY1HYW8JALKtDrsgHyKBxwJLTWKPe'),
+  [NetworkType.Testnet]: new PublicKey('HNQRxWh8Q36BAv4YV9cZUUSebwerZuQK5TLxwefS4KLy'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
 
 export const ETH_ADDRESS = {
   [NetworkType.Mainnet]: emptyPublicKey,
-  [NetworkType.Testnet]: new PublicKey('8Xb3K1T8J8J9kiQzjGTgTMDaVgxSBdmEWRreXCrr74Xy'),
+  [NetworkType.Testnet]: new PublicKey('FvLECEfW93DscEAdbtLF6KPTmwougdkvQnygKjm8EbDH'),
   [NetworkType.Devnet]: emptyPublicKey,
   [NetworkType.Local]: emptyPublicKey
 }
 
 export const WFOGO_MAIN: Token = {
   tokenProgram: TOKEN_PROGRAM_ID,
-  symbol: 'SOL',
+  symbol: 'FOGO',
   address: WFOGO_ADDRESS[NetworkType.Mainnet],
   decimals: 9,
-  name: 'Solana',
-  logoURI:
-    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-  coingeckoId: 'solana'
+  name: 'Fogo',
+  logoURI: fogoTokenIcon, // TODO: change
+  coingeckoId: ''
 }
 
 export const WFOGO_TEST: Token = {
@@ -196,26 +195,24 @@ export const airdropQuantities: Record<NetworkType, number[]> = {
 
 export const WRAPPED_FOGO_ADDRESS = 'So11111111111111111111111111111111111111112'
 
-// TODO: CHECK REQUIRED FOR BELOW
-export const WFOGO_MIN_FAUCET_FEE_TEST = new BN(45000)
-export const WFOGO_MIN_FAUCET_FEE_MAIN = new BN(25000)
+// export const WFOGO_MIN_FAUCET_FEE_TEST = new BN(45000)
 
-export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST = new BN(50000)
-export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN = new BN(25000)
+export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN = new BN(25000) // TODO: adjust when on
+export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST = new BN(5000)
 
-export const WFOGO_POSITION_INIT_LAMPORTS_MAIN = new BN(700000)
-export const WFOGO_POSITION_INIT_LAMPORTS_TEST = new BN(700000)
+export const WFOGO_POSITION_INIT_LAMPORTS_MAIN = new BN(700000) // TODO: adjust when on
+export const WFOGO_POSITION_INIT_LAMPORTS_TEST = new BN(5000)
 
-export const WFOGO_POOL_INIT_LAMPORTS_MAIN = new BN(1750000)
-export const WFOGO_POOL_INIT_LAMPORTS_TEST = new BN(1100000)
+export const WFOGO_POOL_INIT_LAMPORTS_MAIN = new BN(1750000) // TODO: adjust when on
+export const WFOGO_POOL_INIT_LAMPORTS_TEST = new BN(25000)
 
-export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN = new BN(100000)
-export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_TEST = new BN(100000)
+export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN = new BN(100000) // TODO: adjust when on
+export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_TEST = new BN(100000) // TODO: adjust when on
 
-export const WFOGO_CREATE_TOKEN_LAMPORTS_MAIN = new BN(2000000)
-export const WFOGO_CREATE_TOKEN_LAMPORTS_TEST = new BN(10100000)
+export const WFOGO_CREATE_TOKEN_LAMPORTS_MAIN = new BN(2000000) // TODO: adjust when on
+export const WFOGO_CREATE_TOKEN_LAMPORTS_TEST = new BN(10100000) // TODO: adjust when on
 
-export const WFOGO_CLOSE_POSITION_LAMPORTS_MAIN = new BN(30000)
+export const WFOGO_CLOSE_POSITION_LAMPORTS_MAIN = new BN(30000) // TODO: adjust when on
 export const WFOGO_CLOSE_POSITION_LAMPORTS_TEST = new BN(30000)
 
 export const MINIMUM_PRICE_IMPACT = toDecimal(1, 4)

@@ -57,16 +57,16 @@ export const Header: React.FC<IHeader> = ({
     'exchange',
     'liquidity',
     'portfolio',
-    ...(typeOfNetwork === NetworkType.Testnet ? ['creator'] : []),
+    // ...(typeOfNetwork === NetworkType.Testnet ? ['creator'] : []),
     'statistics'
   ]
 
   const otherRoutesToHighlight: Record<string, RegExp[]> = {
     liquidity: [/^liquidity\/*/],
     exchange: [/^exchange\/*/],
-    portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/],
+    portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/]
 
-    ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {})
+    // ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {})
   }
 
   const [activePath, setActive] = useState('exchange')

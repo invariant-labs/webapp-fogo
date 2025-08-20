@@ -2,20 +2,12 @@ import { Box, Typography } from '@mui/material'
 import useStyles from './style'
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import {
-  liquidityIcon,
-  statsIcon,
-  swapArrowsIcon,
-  tokenCreatorIcon,
-  walletIcon
-} from '@static/icons'
-import { NetworkType } from '@store/consts/static'
-import { useSelector } from 'react-redux'
-import { network } from '@store/selectors/solanaConnection'
+import { liquidityIcon, statsIcon, swapArrowsIcon, walletIcon } from '@static/icons'
+
 import { colors } from '@static/theme'
 
 export const FooterNavbar = () => {
-  const typeOfNetwork = useSelector(network)
+  // const typeOfNetwork = useSelector(network)
 
   const links = [
     {
@@ -37,16 +29,16 @@ export const FooterNavbar = () => {
       width: 26
     },
 
-    ...(typeOfNetwork === NetworkType.Testnet
-      ? [
-          {
-            label: 'Creator',
-            icon: tokenCreatorIcon,
-            url: 'creator',
-            width: 33
-          }
-        ]
-      : []),
+    // ...(typeOfNetwork === NetworkType.Testnet
+    //   ? [
+    //       {
+    //         label: 'Creator',
+    //         icon: tokenCreatorIcon,
+    //         url: 'creator',
+    //         width: 33
+    //       }
+    //     ]
+    //   : []),
 
     {
       label: 'Stats',
@@ -69,9 +61,9 @@ export const FooterNavbar = () => {
   const otherRoutesToHighlight: Record<string, RegExp[]> = {
     liquidity: [/^liquidity\/*/],
     exchange: [/^exchange\/*/],
-    portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/],
+    portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/]
 
-    ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {})
+    // ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {})
   }
 
   const [display, setDisplay] = useState(true)
