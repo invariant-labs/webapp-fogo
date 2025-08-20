@@ -17,8 +17,8 @@ export const useStyles = makeStyles()(() => ({
     alignItems: 'center'
   },
   skeleton: {
+    transition: 'height 0.3s ease',
     width: '220px',
-    height: '344px',
     opacity: 0.7,
     borderRadius: 24
   },

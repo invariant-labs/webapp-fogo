@@ -40,7 +40,7 @@ const PopularPools: React.FC<IPopularPools> = ({
   }, [isMdDown, isLgDown, isSmDown])
 
   const { classes } = useStyles()
-
+  console.log(pools)
   return (
     <Grid container mb={'72px'}>
       <Box display='flex' alignItems='center' justifyContent='space-between' width='100%' mb='16px'>
@@ -50,7 +50,7 @@ const PopularPools: React.FC<IPopularPools> = ({
           setInterval={updateInterval}
         />
       </Box>
-      <div className={classes.cardsContainer}>
+      <div style={{ height: showAPY ? 398 : 330 }} className={classes.cardsContainer}>
         <Slider
           dots={isLgDown}
           draggable={isLgDown}

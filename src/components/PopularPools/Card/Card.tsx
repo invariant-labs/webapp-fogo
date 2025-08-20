@@ -88,7 +88,12 @@ const Card: React.FC<ICard> = ({
   return (
     <Grid className={classes.root}>
       {isLoading || !poolAddress?.toString() ? (
-        <Skeleton variant='rounded' animation='wave' className={classes.skeleton} />
+        <Skeleton
+          height={showAPY ? 344 : 300}
+          variant='rounded'
+          animation='wave'
+          className={classes.skeleton}
+        />
       ) : (
         <Grid>
           <GradientBorder
