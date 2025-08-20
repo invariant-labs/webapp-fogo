@@ -13,6 +13,9 @@ import { PoolDetails as PoolDetailsType } from '@containers/SinglePositionWrappe
 import { calculateAPYAndAPR } from '@utils/utils'
 import { PublicKey } from '@solana/web3.js'
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
+import { Intervals } from '@store/consts/static'
+import { Minus } from '@static/componentIcon/Minus'
+import { Plus } from '@static/componentIcon/Plus'
 
 interface IProp {
   onClickClaimFee: () => void
@@ -27,6 +30,10 @@ interface IProp {
   poolAddress: PublicKey
   isPreview: boolean
   showPositionLoader?: boolean
+  isClosing: boolean
+  interval: Intervals
+  isLocked?: boolean
+  showChangeLiquidityModal: (isAddLiquidity: boolean) => void
 }
 
 const SinglePositionInfo: React.FC<IProp> = ({
@@ -41,10 +48,14 @@ const SinglePositionInfo: React.FC<IProp> = ({
   showPoolDetailsLoader = false,
   poolDetails,
   poolAddress,
-  isPreview
+  isPreview,
+  isClosing,
+  interval,
+  isLocked,
+  showChangeLiquidityModal
 }) => {
   const [isFeeTooltipOpen, setIsFeeTooltipOpen] = useState(false)
-  const { classes } = useStyles()
+  const { classes, cx } = useStyles()
 
   const Overlay = () => (
     <div
@@ -56,7 +67,7 @@ const SinglePositionInfo: React.FC<IProp> = ({
       className={classes.overlay}
     />
   )
-  const { convertedApr } = calculateAPYAndAPR(
+  const { convertedApy } = calculateAPYAndAPR(
     poolDetails?.apy ?? 0,
     poolAddress.toString(),
     poolDetails?.volume24 ?? 0,
@@ -77,11 +88,33 @@ const SinglePositionInfo: React.FC<IProp> = ({
             tokenX.claimValue * (tokenXPriceData?.price ?? 0) +
             tokenY.claimValue * (tokenYPriceData?.price ?? 0)
           }
-          poolApr={convertedApr}
+          poolApy={convertedApy}
           isLoading={showPositionLoader}
+          showPoolDetailsLoader={showPoolDetailsLoader}
         />
         <Separator size='100%' isHorizontal color={colors.invariant.light} />
-        <Section title='Liquidity'>
+        <Section
+          title='Liquidity'
+          item={
+            <Box className={classes.liquidityButtons}>
+              <Button
+                className={cx(classes.liquidityButton, {
+                  [classes.liquidityButtonDisabled]: isLocked || isPreview
+                })}
+                disabled={isLocked || isPreview}
+                onClick={() => showChangeLiquidityModal(true)}>
+                <Plus />
+              </Button>
+              <Button
+                className={cx(classes.liquidityButton, {
+                  [classes.liquidityButtonDisabled]: isLocked || isPreview
+                })}
+                disabled={isLocked || isPreview}
+                onClick={() => showChangeLiquidityModal(false)}>
+                <Minus />
+              </Button>
+            </Box>
+          }>
           <Liquidity
             tokenA={
               xToY
@@ -127,7 +160,7 @@ const SinglePositionInfo: React.FC<IProp> = ({
               <TooltipHover title={"Can't claim fees in preview"}>
                 <Button
                   className={classes.claimButton}
-                  disabled={tokenX.claimValue + tokenY.claimValue === 0 || isPreview}
+                  disabled={tokenX.claimValue + tokenY.claimValue === 0 || isPreview || isClosing}
                   variant='contained'
                   onClick={() => onClickClaimFee()}>
                   Claim
@@ -136,7 +169,7 @@ const SinglePositionInfo: React.FC<IProp> = ({
             ) : (
               <Button
                 className={classes.claimButton}
-                disabled={tokenX.claimValue + tokenY.claimValue === 0 || isPreview}
+                disabled={tokenX.claimValue + tokenY.claimValue === 0 || isPreview || isClosing}
                 variant='contained'
                 onClick={() => onClickClaimFee()}>
                 Claim
@@ -187,6 +220,7 @@ const SinglePositionInfo: React.FC<IProp> = ({
             volume24={poolDetails?.volume24 ?? 0}
             fee24={poolDetails?.fee24 ?? 0}
             showPoolDetailsLoader={showPoolDetailsLoader}
+            interval={interval}
           />
         </Section>
       </Box>

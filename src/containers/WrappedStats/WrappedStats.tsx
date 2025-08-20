@@ -1,63 +1,198 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import useStyles from './styles'
-import { Grid, Typography } from '@mui/material'
+import { Box, Button, Grid, Typography, useMediaQuery } from '@mui/material'
 import { EmptyPlaceholder } from '@common/EmptyPlaceholder/EmptyPlaceholder'
 import {
-  fees24,
   isLoading,
   liquidityPlot,
   poolsStatsWithTokensDetails,
   tokensStatsWithTokensDetails,
-  tvl24,
-  volume24,
-  volumePlot
+  volume,
+  fees,
+  tvl,
+  lastSnapTimestamp,
+  volumePlot,
+  currentInterval,
+  lastInterval,
+  cumulativeVolume,
+  cumulativeFees,
+  feesPlot
 } from '@store/selectors/stats'
 import { network } from '@store/selectors/solanaConnection'
 import { actions } from '@store/reducers/stats'
-import Volume from '@components/Stats/Volume/Volume'
-import Liquidity from '@components/Stats/Liquidity/Liquidity'
-import VolumeBar from '@components/Stats/volumeBar/VolumeBar'
 import TokensList from '@components/Stats/TokensList/TokensList'
 import PoolList from '@components/Stats/PoolList/PoolList'
-import { unknownTokenIcon } from '@static/icons'
+import { star, starFill, unknownTokenIcon } from '@static/icons'
 import { actions as snackbarActions } from '@store/reducers/snackbars'
+import { actions as navigationActions } from '@store/reducers/navigation'
 import { VariantType } from 'notistack'
 import { FilterSearch, ISearchToken } from '@common/FilterSearch/FilterSearch'
+import { Intervals as IntervalsKeys } from '@store/consts/static'
+import Overview from '@components/Stats/Overview/Overview'
+import {
+  poolSearch,
+  tokenSearch,
+  showFavourites as showFavouritesSelector,
+  showFavouritesTokens as showFavouritesTokensSelector
+} from '@store/selectors/navigation'
+import { theme } from '@static/theme'
 
 export const WrappedStats: React.FC = () => {
   const { classes } = useStyles()
 
-  const dispatch = useDispatch()
+  const isMd = useMediaQuery(theme.breakpoints.down('md'))
 
+  const dispatch = useDispatch()
   const poolsList = useSelector(poolsStatsWithTokensDetails)
   const tokensList = useSelector(tokensStatsWithTokensDetails)
-  const volume24h = useSelector(volume24)
-  const tvl24h = useSelector(tvl24)
-  const fees24h = useSelector(fees24)
+  const volumeInterval = useSelector(volume)
+  const tvlInterval = useSelector(tvl)
+  const feesInterval = useSelector(fees)
+  const lastStatsTimestamp = useSelector(lastSnapTimestamp)
   const volumePlotData = useSelector(volumePlot)
   const liquidityPlotData = useSelector(liquidityPlot)
+  const feesPlotData = useSelector(feesPlot)
   const isLoadingStats = useSelector(isLoading)
   const currentNetwork = useSelector(network)
-  const [searchTokensValue, setSearchTokensValue] = useState<ISearchToken[]>([])
-  const [searchPoolsValue, setSearchPoolsValue] = useState<ISearchToken[]>([])
+  const searchParamsPool = useSelector(poolSearch)
+  const searchParamsToken = useSelector(tokenSearch)
+  const cumulativeVolumeData = useSelector(cumulativeVolume)
+  const cumulativeFeesData = useSelector(cumulativeFees)
+
+  const lastUsedInterval = useSelector(currentInterval)
+  const lastFetchedInterval = useSelector(lastInterval)
+
+  const [favouritePools, setFavouritePools] = useState<Set<string>>(
+    new Set(
+      JSON.parse(localStorage.getItem(`INVARIANT_FAVOURITE_POOLS_Fogo_${currentNetwork}`) || '[]')
+    )
+  )
+  const [favouriteTokens, setFavouriteTokens] = useState<Set<string>>(
+    new Set(
+      JSON.parse(localStorage.getItem(`INVARIANT_FAVOURITE_TOKENS_Fogo_${currentNetwork}`) || '[]')
+    )
+  )
+  const showFavourites = useSelector(showFavouritesSelector)
+  const showFavouritesTokens = useSelector(showFavouritesTokensSelector)
+
+  const setShowFavourites = (show: boolean) => {
+    dispatch(navigationActions.setShowFavourites(show))
+  }
+  const setShowFavouritesTokens = (show: boolean) => {
+    dispatch(navigationActions.setShowFavouritesTokens(show))
+  }
 
   useEffect(() => {
-    dispatch(actions.getCurrentStats())
-  }, [])
+    localStorage.setItem(
+      `INVARIANT_FAVOURITE_POOLS_Fogo_${currentNetwork}`,
+      JSON.stringify([...favouritePools])
+    )
+  }, [favouritePools])
+  useEffect(() => {
+    localStorage.setItem(
+      `INVARIANT_FAVOURITE_TOKENS_Fogo_${currentNetwork}`,
+      JSON.stringify([...favouriteTokens])
+    )
+  }, [favouriteTokens])
+
+  const switchFavouritePool = (poolAddress: string) => {
+    if (favouritePools.has(poolAddress)) {
+      const updatedFavouritePools = new Set(favouritePools)
+      updatedFavouritePools.delete(poolAddress)
+      setFavouritePools(updatedFavouritePools)
+    } else {
+      const updatedFavouritePools = new Set(favouritePools)
+      updatedFavouritePools.add(poolAddress)
+      setFavouritePools(updatedFavouritePools)
+    }
+  }
+  const switchFavouriteToken = (tokenAddress: string) => {
+    if (favouriteTokens.has(tokenAddress)) {
+      const updatedFavouriteTokens = new Set(favouriteTokens)
+      updatedFavouriteTokens.delete(tokenAddress)
+      setFavouriteTokens(updatedFavouriteTokens)
+    } else {
+      const updatedFavouriteTokens = new Set(favouriteTokens)
+      updatedFavouriteTokens.add(tokenAddress)
+      setFavouriteTokens(updatedFavouriteTokens)
+    }
+  }
+
+  const searchTokensValue = searchParamsToken.filteredTokens
+
+  const setSearchTokensValue = (tokens: ISearchToken[]) => {
+    dispatch(
+      navigationActions.setSearch({
+        section: 'statsTokens',
+        type: 'filteredTokens',
+        filteredTokens: tokens
+      })
+    )
+    dispatch(
+      navigationActions.setSearch({
+        section: 'statsTokens',
+        type: 'pageNumber',
+        pageNumber: 1
+      })
+    )
+  }
+
+  const searchPoolsValue = searchParamsPool.filteredTokens
+  const setSearchPoolsValue = (tokens: ISearchToken[]) => {
+    dispatch(
+      navigationActions.setSearch({
+        section: 'statsPool',
+        type: 'filteredTokens',
+        filteredTokens: tokens
+      })
+    )
+    dispatch(
+      navigationActions.setSearch({
+        section: 'statsPool',
+        type: 'pageNumber',
+        pageNumber: 1
+      })
+    )
+  }
+
+  useEffect(() => {
+    if (lastFetchedInterval === lastUsedInterval || !lastUsedInterval) return
+    dispatch(actions.getCurrentIntervalStats({ interval: lastUsedInterval }))
+  }, [lastUsedInterval, lastFetchedInterval])
+
+  useEffect(() => {
+    if (lastUsedInterval) return
+    dispatch(actions.getCurrentIntervalStats({ interval: IntervalsKeys.Daily }))
+    dispatch(actions.setCurrentInterval({ interval: IntervalsKeys.Daily }))
+  }, [lastUsedInterval])
+
+  const updateInterval = (interval: IntervalsKeys) => {
+    dispatch(actions.getCurrentIntervalStats({ interval }))
+    dispatch(actions.setCurrentInterval({ interval }))
+  }
 
   const filteredTokenList = useMemo(() => {
-    if (searchTokensValue.length === 0) {
-      return tokensList
-    }
+    const tokensListWithFavourites = tokensList.map(tokenData => ({
+      ...tokenData,
+      isFavourite: favouriteTokens.has(tokenData.address.toString())
+    }))
 
-    return tokensList.filter(tokenData => {
+    return tokensListWithFavourites.filter(tokenData => {
+      if (showFavouritesTokens && !tokenData.isFavourite) {
+        return false
+      }
+
+      if (searchTokensValue.length === 0) {
+        return true
+      }
+
       const tokenAddress = tokenData.address.toString().toLowerCase()
       const tokenSymbol = tokenData.tokenDetails?.symbol?.toLowerCase() || ''
       const tokenName = tokenData.tokenDetails?.name?.toLowerCase() || ''
 
       return searchTokensValue.some(filterToken => {
-        const filterAddress = filterToken.address?.toLowerCase()
+        const filterAddress = filterToken.address?.toLowerCase() || ''
         const filterSymbol = filterToken.symbol.toLowerCase()
         const filterName = filterToken.name.toLowerCase()
 
@@ -67,10 +202,19 @@ export const WrappedStats: React.FC = () => {
         return tokenSymbol.includes(filterSymbol) || tokenName.includes(filterName)
       })
     })
-  }, [tokensList, searchTokensValue])
+  }, [tokensList, searchTokensValue, favouriteTokens, showFavouritesTokens])
 
   const filteredPoolsList = useMemo(() => {
-    return poolsList.filter(poolData => {
+    const poolsListWithFavourites = poolsList.map(poolData => ({
+      ...poolData,
+      isFavourite: favouritePools.has(poolData.poolAddress.toString())
+    }))
+
+    return poolsListWithFavourites.filter(poolData => {
+      if (showFavourites) {
+        if (!poolData.isFavourite) return false
+      }
+
       const isTokenXSelected = searchPoolsValue.some(
         token => token.address.toString() === poolData.tokenX.toString()
       )
@@ -88,7 +232,7 @@ export const WrappedStats: React.FC = () => {
 
       return true
     })
-  }, [isLoadingStats, poolsList, searchPoolsValue])
+  }, [isLoadingStats, poolsList, searchPoolsValue, favouritePools, showFavourites])
 
   const showAPY = useMemo(() => {
     return filteredPoolsList.some(pool => pool.apy !== 0)
@@ -112,108 +256,147 @@ export const WrappedStats: React.FC = () => {
         </Grid>
       ) : (
         <>
-          <Typography className={classes.subheader}>Overview</Typography>
-          <Grid container className={classes.plotsRow}>
-            <Volume
-              volume={volume24h.value}
-              percentVolume={volume24h.change}
-              data={volumePlotData}
-              className={classes.plot}
-              isLoading={isLoadingStats}
-            />
-            <Liquidity
-              liquidityVolume={tvl24h.value}
-              liquidityPercent={tvl24h.change}
-              data={liquidityPlotData}
-              className={classes.plot}
-              isLoading={isLoadingStats}
-            />
-          </Grid>
-          <Grid className={classes.row}>
-            <VolumeBar
-              volume={volume24h.value}
-              percentVolume={volume24h.change}
-              tvlVolume={tvl24h.value}
-              percentTvl={tvl24h.change}
-              feesVolume={fees24h.value}
-              percentFees={fees24h.change}
-              isLoading={isLoadingStats}
-            />
-          </Grid>
-          <Grid className={classes.rowContainer}>
-            <Typography className={classes.subheader} mb={2}>
-              Top tokens
-            </Typography>
-            <FilterSearch
-              networkType={currentNetwork}
-              selectedFilters={searchTokensValue}
-              setSelectedFilters={setSearchTokensValue}
-              filtersAmount={2}
-              closeOnSelect={true}
-            />
-          </Grid>
-          <Grid container className={classes.row}>
-            <TokensList
-              initialLength={tokensList.length}
-              data={filteredTokenList.map(tokenData => ({
-                icon: tokenData.tokenDetails?.logoURI ?? unknownTokenIcon,
-                name: tokenData.tokenDetails?.name ?? tokenData.address.toString(),
-                symbol: tokenData.tokenDetails?.symbol ?? tokenData.address.toString(),
-                price: tokenData.price,
-                // priceChange: tokenData.priceChange,
-                volume: tokenData.volume24,
-                TVL: tokenData.tvl,
-                address: tokenData.address.toString(),
-                isUnknown: tokenData.tokenDetails?.isUnknown ?? false
-              }))}
-              network={currentNetwork}
-              copyAddressHandler={copyAddressHandler}
-              isLoading={isLoadingStats}
-            />
-          </Grid>
+          <Overview
+            feesInterval={feesInterval}
+            isLoadingStats={isLoadingStats}
+            lastStatsTimestamp={lastStatsTimestamp}
+            lastUsedInterval={lastUsedInterval}
+            updateInterval={updateInterval}
+            volumeInterval={volumeInterval}
+            volumePlotData={volumePlotData}
+            liquidityPlotData={liquidityPlotData}
+            feesPlotData={feesPlotData}
+            tvlInterval={tvlInterval}
+            cumulativeVolume={cumulativeVolumeData}
+            cumulativeFees={cumulativeFeesData}
+            setChartType={e => dispatch(actions.setChartType(e))}
+          />
           <Grid className={classes.rowContainer}>
             <Typography className={classes.subheader} mb={2}>
               Top pools
             </Typography>
+            <Box className={classes.headerContainer}>
+              <Button
+                className={classes.showFavouritesButton}
+                onClick={() => {
+                  setShowFavourites(!showFavourites)
+                  dispatch(
+                    navigationActions.setSearch({
+                      section: 'statsPool',
+                      type: 'pageNumber',
+                      pageNumber: 1
+                    })
+                  )
+                }}>
+                <img src={showFavourites ? starFill : star} />
+                {!isMd && (
+                  <Typography className={classes.showFavouritesText}>
+                    {' '}
+                    {!showFavourites ? 'Show' : 'Hide'} favourites
+                  </Typography>
+                )}
+              </Button>
+              <FilterSearch
+                networkType={currentNetwork}
+                setSelectedFilters={setSearchPoolsValue}
+                selectedFilters={searchPoolsValue}
+                filtersAmount={2}
+              />
+            </Box>
+          </Grid>
+          <Grid container className={classes.row}>
+            <PoolList
+              initialLength={poolsList.length}
+              interval={lastUsedInterval ?? IntervalsKeys.Daily}
+              data={filteredPoolsList.map(poolData => ({
+                symbolFrom: poolData.tokenXDetails?.symbol ?? poolData.tokenX.toString(),
+                symbolTo: poolData.tokenYDetails?.symbol ?? poolData.tokenY.toString(),
+                iconFrom: poolData.tokenXDetails?.logoURI ?? unknownTokenIcon,
+                iconTo: poolData.tokenYDetails?.logoURI ?? unknownTokenIcon,
+                volume: poolData.volume24,
+                TVL: poolData.tvl,
+                fee: poolData.fee,
+                addressFrom: poolData.tokenX.toString(),
+                addressTo: poolData.tokenY.toString(),
+                apy: poolData.apy,
+                lockedX: poolData.lockedX,
+                lockedY: poolData.lockedY,
+                liquidityX: poolData.liquidityX,
+                liquidityY: poolData.liquidityY,
+                apyData: {
+                  fees: poolData.apy,
+                  accumulatedFarmsSingleTick: 0,
+                  accumulatedFarmsAvg: 0
+                },
 
-            <FilterSearch
-              networkType={currentNetwork}
-              setSelectedFilters={setSearchPoolsValue}
-              selectedFilters={searchPoolsValue}
-              filtersAmount={2}
+                isUnknownFrom: poolData.tokenXDetails?.isUnknown ?? false,
+                isUnknownTo: poolData.tokenYDetails?.isUnknown ?? false,
+                poolAddress: poolData.poolAddress.toString(),
+                isFavourite: poolData.isFavourite
+              }))}
+              network={currentNetwork}
+              copyAddressHandler={copyAddressHandler}
+              isLoading={isLoadingStats}
+              showAPY={showAPY}
+              filteredTokens={searchPoolsValue}
+              switchFavouritePool={switchFavouritePool}
+              showFavourites={showFavourites}
             />
           </Grid>
-          <PoolList
-            initialLength={poolsList.length}
-            data={filteredPoolsList.map(poolData => ({
-              symbolFrom: poolData.tokenXDetails?.symbol ?? poolData.tokenX.toString(),
-              symbolTo: poolData.tokenYDetails?.symbol ?? poolData.tokenY.toString(),
-              iconFrom: poolData.tokenXDetails?.logoURI ?? unknownTokenIcon,
-              iconTo: poolData.tokenYDetails?.logoURI ?? unknownTokenIcon,
-              volume: poolData.volume24,
-              TVL: poolData.tvl,
-              fee: poolData.fee,
-              addressFrom: poolData.tokenX.toString(),
-              addressTo: poolData.tokenY.toString(),
-              apy: poolData.apy,
-              lockedX: poolData.lockedX,
-              lockedY: poolData.lockedY,
-              liquidityX: poolData.liquidityX,
-              liquidityY: poolData.liquidityY,
-              apyData: {
-                fees: poolData.apy,
-                accumulatedFarmsSingleTick: 0,
-                accumulatedFarmsAvg: 0
-              },
 
-              isUnknownFrom: poolData.tokenXDetails?.isUnknown ?? false,
-              isUnknownTo: poolData.tokenYDetails?.isUnknown ?? false,
-              poolAddress: poolData.poolAddress.toString()
+          <Grid className={classes.rowContainer}>
+            <Typography className={classes.subheader} mb={2}>
+              Top tokens
+            </Typography>
+            <Box className={classes.headerContainer}>
+              <Button
+                className={classes.showFavouritesButton}
+                onClick={() => {
+                  setShowFavouritesTokens(!showFavouritesTokens)
+                  dispatch(
+                    navigationActions.setSearch({
+                      section: 'statsTokens',
+                      type: 'pageNumber',
+                      pageNumber: 1
+                    })
+                  )
+                }}>
+                <img src={showFavouritesTokens ? starFill : star} />
+                {!isMd && (
+                  <Typography className={classes.showFavouritesText}>
+                    {' '}
+                    {!showFavouritesTokens ? 'Show' : 'Hide'} favourites
+                  </Typography>
+                )}
+              </Button>
+              <FilterSearch
+                networkType={currentNetwork}
+                setSelectedFilters={setSearchTokensValue}
+                selectedFilters={searchTokensValue}
+                filtersAmount={2}
+                closeOnSelect={true}
+              />
+            </Box>
+          </Grid>
+          <TokensList
+            initialLength={tokensList.length}
+            data={filteredTokenList.map(tokenData => ({
+              icon: tokenData.tokenDetails?.logoURI ?? unknownTokenIcon,
+              name: tokenData.tokenDetails?.name ?? tokenData.address.toString(),
+              symbol: tokenData.tokenDetails?.symbol ?? tokenData.address.toString(),
+              price: tokenData.price,
+              // priceChange: tokenData.priceChange,
+              volume: tokenData.volume24,
+              TVL: tokenData.tvl,
+              address: tokenData.address.toString(),
+              isFavourite: tokenData.isFavourite,
+              isUnknown: tokenData.tokenDetails?.isUnknown ?? false
             }))}
             network={currentNetwork}
             copyAddressHandler={copyAddressHandler}
             isLoading={isLoadingStats}
-            showAPY={showAPY}
+            interval={lastUsedInterval ?? IntervalsKeys.Daily}
+            switchFavouriteTokens={switchFavouriteToken}
           />
         </>
       )}

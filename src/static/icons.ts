@@ -10,6 +10,8 @@ import closeIcon from './svg/closeIcon.svg'
 import docsIcon from './svg/docsCircle.svg'
 import closeSmallIcon from './svg/closeSmall.svg'
 import closeSmallGreenIcon from './svg/closeSmallGreen.svg'
+import closeSmallRedIcon from './svg/closeSmallRed.svg'
+import closeSmallYellowIcon from './svg/closeSmallYellow.svg'
 import successIcon from './svg/successIcon.svg'
 import xIcon from './svg/xCircle.svg'
 import unknownTokenIcon from './svg/unknownToken.svg'
@@ -20,11 +22,14 @@ import emptyIcon from './svg/empty.svg'
 import plusIcon from './svg/plus.svg'
 import horizontalSwapIcon from './svg/horizontalSwapArrows.svg'
 import swapListIcon from './svg/swap-list.svg'
+import a0LogoIcon from './svg/a0Logo.svg'
+import varaLogoIcon from './svg/VaraLogo.svg'
 import warningIcon from './svg/Warning.svg'
 import circleDiscordIcon from './svg/circle-discord.svg'
 import circleTelegramIcon from './svg/circle-telegram.svg'
-import fogoIcon from './svg/fogo.svg'
+import eclipseIcon from './svg/eclipse.svg'
 import phantomWalletIcon from './svg/phantom.svg'
+import solflareWalletIcon from './svg/solflare.svg'
 import backpackWalletIcon from './svg/backpack.svg'
 import nightlyConnectIcon from './svg/nightlyGlyph.svg'
 import emptyIconAlt from './svg/empty-icon.svg'
@@ -37,6 +42,7 @@ import lockIcon from './svg/lockIcon.svg'
 import lockPositionIcon from './svg/lock.svg'
 import nightlyIcon from './svg/nightly.svg'
 import auditIcon from './svg/audit.svg'
+import auditByLogoIcon from './svg/auditbylogo.svg'
 import warning2Icon from './svg/warning2.svg'
 import closeWarningIcon from './svg/closeWarning.svg'
 import dropdownIcon from './svg/dropdown.svg'
@@ -59,16 +65,13 @@ import mainnetGlowIcon from './svg/mainnetGlow.svg'
 import testnetGlowIcon from './svg/testnetGlow.svg'
 import active2Icon from './svg/active2.svg'
 import solanaGlowIcon from './svg/solanaGlow.svg'
+import sonicGlowIcon from './svg/sonicGlow.svg'
 import eclipseGlowIcon from './svg/eclipseGlow.svg'
-import fogoGlowIcon from './svg/fogoGlow.svg'
 import liquidityEmptyIcon from './svg/liqudity_empty.svg'
 import assetsEmptyIcon from './svg/assets_empty.svg'
 import settings3Icon from './svg/settings3.svg'
 import faucetIcon from './svg/faucet.svg'
 import searchIcon from './svg/lupaDark.svg'
-import allDomainsIcon from '@static/svg/allDomains.svg'
-import turboTapIcon from '@static/svg/turboTap.svg'
-import nucleusIcon from '@static/svg/nucleus.svg'
 import navRightIcon from '@static/svg/navRight.svg'
 import navLeftIcon from '@static/svg/navLeft.svg'
 import checkIcon from '@static/svg/checkFill.svg'
@@ -76,26 +79,51 @@ import disconnectIcon from '@static/svg/disconnect.svg'
 import refreshIcon from '@static/svg/refresh.svg'
 import backIcon from '@static/svg/back-arrow.svg'
 import settingIcon from '@static/svg/settings.svg'
-import activeLiquidityIcon from '@static/svg/activeLiquidity.svg'
-import revertIcon from '@static/svg/revert.svg'
 import unlockIcon from '@static/svg/unlock.svg'
 import swapPositionIcon from '@static/svg/swap-position.svg'
 import handleMaxIcon from '@static/svg/narrowChartMaxHandle.svg'
 import handleMinIcon from '@static/svg/narrowChartMinHandle.svg'
 import zoomInIcon from '@static/svg/zoom-in-icon.svg'
 import zoomOutIcon from '@static/svg/zoom-out-icon.svg'
-import reverseTokensIcon from './svg/reverse-tokens.svg'
-import backArrowIcon from '@static/svg/back-arrow.svg'
 import lockIcon2 from '@static/svg/lock.svg'
 import eyeYellowIcon from './svg/eyeYellow.svg'
 import closeYellowIcon from './svg/closeYellow.svg'
 import scrollArrowIcon from './svg/scrollArrow.svg'
 import snackbarSwapIcon from './svg/snackbarSwap.svg'
+import stakeIcon from './svg/stakeIcon.svg'
+import unstakeIcon from './svg/unstakeIcon.svg'
 import circleDolarIcon from './svg/circleDolar.svg'
 import depositIcon from './svg/depositIcon.svg'
 import withdrawIcon from './svg/withdrawIcon.svg'
+import centerToRangeIcon from './svg/centerToRange.svg'
+import warning3 from './svg/warning3.svg'
+import connectWalletIcon from './svg/connectWalletIcon.svg'
+import star from './svg/star.svg'
+import starFill from './svg/star-fill.svg'
+import swapArrowIcon from './svg/swapArrow.svg'
+import moreIcon from './svg/moreIcon.svg'
+import lqStakingIcon from './svg/lqStakingIcon.svg'
+import warningStroke from './svg/warningStroke.svg'
+import plusDisabled from './svg/plusDisabled.svg'
+import pointsQMarkIcon from './svg/pointsQmark.svg'
+import hornsUSDC from './svg/hornsUSDC.svg'
+import virtualCardIcon from './svg/virtualCard.svg'
+import greenInfoIcon from './svg/greenInfo.svg'
+import swapArrowClean from './svg/swapArrowClean.svg'
+import saleSelectedIcon from './svg/sale-selected.svg'
+import saleUnselectedIcon from './svg/sale-unselected.svg'
+import fogoIcon from './svg/fogo.svg'
+import fogoGlow from './svg/fogoGlow.svg'
 
 export {
+  fogoGlow,
+  fogoIcon,
+  hornsUSDC,
+  warningStroke,
+  plusDisabled,
+  lqStakingIcon,
+  pointsQMarkIcon,
+  moreIcon,
   logoTitleIcon,
   logoShortIcon,
   arrowIcon,
@@ -107,7 +135,9 @@ export {
   closeIcon,
   docsIcon,
   closeSmallIcon,
+  closeSmallRedIcon,
   closeSmallGreenIcon,
+  closeSmallYellowIcon,
   successIcon,
   xIcon,
   unknownTokenIcon,
@@ -118,11 +148,14 @@ export {
   plusIcon,
   horizontalSwapIcon,
   swapListIcon,
+  a0LogoIcon,
+  varaLogoIcon,
   warningIcon,
   circleDiscordIcon,
   circleTelegramIcon,
-  fogoIcon,
+  eclipseIcon,
   phantomWalletIcon,
+  solflareWalletIcon,
   backpackWalletIcon,
   nightlyConnectIcon,
   emptyIconAlt,
@@ -156,6 +189,7 @@ export {
   testnetGlowIcon,
   active2Icon,
   solanaGlowIcon,
+  sonicGlowIcon,
   eclipseGlowIcon,
   liquidityEmptyIcon,
   assetsEmptyIcon,
@@ -163,9 +197,6 @@ export {
   faucetIcon,
   closeYellowIcon,
   searchIcon,
-  allDomainsIcon,
-  turboTapIcon,
-  nucleusIcon,
   navRightIcon,
   navLeftIcon,
   checkIcon,
@@ -173,30 +204,40 @@ export {
   refreshIcon,
   backIcon,
   settingIcon,
-  activeLiquidityIcon,
-  revertIcon,
   unlockIcon,
   swapPositionIcon,
   handleMaxIcon,
   handleMinIcon,
   zoomInIcon,
   zoomOutIcon,
-  reverseTokensIcon,
-  backArrowIcon,
   lockIcon2,
   eyeYellowIcon,
   scrollArrowIcon,
   goldenInfoIcon,
   snackbarSwapIcon,
+  stakeIcon,
+  unstakeIcon,
   circleDolarIcon,
   depositIcon,
-  withdrawIcon
+  virtualCardIcon,
+  withdrawIcon,
+  centerToRangeIcon,
+  warning3,
+  connectWalletIcon,
+  star,
+  starFill,
+  swapArrowIcon,
+  auditByLogoIcon,
+  greenInfoIcon,
+  swapArrowClean,
+  saleSelectedIcon,
+  saleUnselectedIcon
 }
 
 export const chainIcons = {
+  fogoGlow: fogoGlow,
   eclipseGlow: eclipseGlowIcon,
-  solanaGlow: solanaGlowIcon,
-  fogoGlow: fogoGlowIcon
+  solanaGlow: solanaGlowIcon
 }
 
 export const netowrkIcons = {

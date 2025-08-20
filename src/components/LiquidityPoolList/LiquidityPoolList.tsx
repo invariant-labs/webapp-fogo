@@ -2,11 +2,26 @@ import React, { useMemo, useEffect, useState } from 'react'
 import PoolListItem from '@components/Stats/PoolListItem/PoolListItem'
 import { useStyles } from './style'
 import { Grid, useMediaQuery } from '@mui/material'
-import { NetworkType, SortTypePoolList, WFOGO_TEST } from '@store/consts/static'
-import { PaginationList } from '@common/Pagination/Pagination'
+import {
+  BTC_TEST,
+  Intervals,
+  NetworkType,
+  SortTypePoolList,
+  USDC_TEST,
+  WFOGO_TEST
+} from '@store/consts/static'
+import { InputPagination } from '@common/Pagination/InputPagination/InputPagination'
 import { VariantType } from 'notistack'
-import { useNavigate } from 'react-router-dom'
-
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Keypair } from '@solana/web3.js'
+import { EmptyPlaceholder } from '@common/EmptyPlaceholder/EmptyPlaceholder'
+import { ROUTES } from '@utils/utils'
+import { colors, theme } from '@static/theme'
+import { ISearchToken } from '@common/FilterSearch/FilterSearch'
+import { shortenAddress } from '@utils/uiUtils'
+import { actions } from '@store/reducers/navigation'
+import { useDispatch, useSelector } from 'react-redux'
+import { liquiditySearch } from '@store/selectors/navigation'
 export interface PoolListInterface {
   initialLength: number
   data: Array<{
@@ -37,18 +52,15 @@ export interface PoolListInterface {
   copyAddressHandler: (message: string, variant: VariantType) => void
   isLoading: boolean
   showAPY: boolean
+  filteredTokens: ISearchToken[]
+  interval: Intervals
+  switchFavouritePool: (poolAddress: string) => void
+  showFavourites: boolean
 }
-
-import { Keypair } from '@solana/web3.js'
-import classNames from 'classnames'
-import { EmptyPlaceholder } from '@common/EmptyPlaceholder/EmptyPlaceholder'
-import { ROUTES } from '@utils/utils'
-import { colors, theme } from '@static/theme'
-import { TableBoundsLabel } from '@common/TableBoundsLabel/TableBoundsLabel'
 
 const ITEMS_PER_PAGE = 10
 
-const tokens = [WFOGO_TEST]
+const tokens = [BTC_TEST, USDC_TEST, WFOGO_TEST]
 const fees = [0.01, 0.02, 0.1, 0.3, 0.9, 1]
 
 const generateMockData = () => {
@@ -84,15 +96,29 @@ const LiquidityPoolList: React.FC<PoolListInterface> = ({
   initialLength,
   copyAddressHandler,
   isLoading,
-  showAPY
+  showAPY,
+  filteredTokens,
+  interval,
+  switchFavouritePool,
+  showFavourites
 }) => {
-  const [page, setPage] = React.useState(1)
-  const [sortType, setSortType] = React.useState(SortTypePoolList.VOLUME_DESC)
+  const searchParam = useSelector(liquiditySearch)
+  const page = searchParam.pageNumber
+  const [sortType, setSortType] = React.useState(searchParam.sortType)
+
+  const dispatch = useDispatch()
+  const location = useLocation()
   const navigate = useNavigate()
   const [initialDataLength, setInitialDataLength] = useState(initialLength)
   const isCenterAligment = useMediaQuery(theme.breakpoints.down(1280))
-  const height = initialDataLength > ITEMS_PER_PAGE ? (isCenterAligment ? 120 : 90) : 69
-  const { classes } = useStyles()
+  const height = initialDataLength > ITEMS_PER_PAGE ? (isCenterAligment ? 176 : 90) : 69
+  const filteredTokenX = filteredTokens[0] ?? ''
+  const filteredTokenY = filteredTokens[1] ?? ''
+  const { classes, cx } = useStyles()
+  useEffect(() => {
+    dispatch(actions.setSearch({ section: 'liquidityPool', type: 'sortType', sortType }))
+  }, [sortType])
+
   const sortedData = useMemo(() => {
     if (isLoading) {
       return generateMockData()
@@ -111,6 +137,10 @@ const LiquidityPoolList: React.FC<PoolListInterface> = ({
         return data.sort((a, b) => a.fee - b.fee)
       case SortTypePoolList.FEE_DESC:
         return data.sort((a, b) => b.fee - a.fee)
+      case SortTypePoolList.FEE_24_ASC:
+        return data.sort((a, b) => a.fee * a.volume - b.fee * b.volume)
+      case SortTypePoolList.FEE_24_DESC:
+        return data.sort((a, b) => b.fee * b.volume - a.fee * a.volume)
       case SortTypePoolList.VOLUME_ASC:
         return data.sort((a, b) => (a.volume === b.volume ? a.TVL - b.TVL : a.volume - b.volume))
       case SortTypePoolList.VOLUME_DESC:
@@ -132,7 +162,15 @@ const LiquidityPoolList: React.FC<PoolListInterface> = ({
     setInitialDataLength(initialLength)
   }, [initialLength])
 
-  const handleChangePagination = (currentPage: number) => setPage(currentPage)
+  const handleChangePagination = (newPage: number) => {
+    dispatch(
+      actions.setSearch({
+        section: 'liquidityPool',
+        type: 'pageNumber',
+        pageNumber: newPage
+      })
+    )
+  }
 
   const paginator = (currentPage: number) => {
     const page = currentPage || 1
@@ -152,26 +190,42 @@ const LiquidityPoolList: React.FC<PoolListInterface> = ({
     return Math.max(rowNumber - displayedItems, 0)
   }
 
-  useEffect(() => {
-    setPage(1)
-  }, [data, pages])
+  const favouriteEmptyPlaceholderMainTitle = useMemo(() => {
+    if (filteredTokenX && filteredTokenY) {
+      return `You don't have any favourite ${shortenAddress(filteredTokenX.symbol ?? '')}/${shortenAddress(
+        filteredTokenY.symbol ?? ''
+      )} pools yet...`
+    }
+
+    if (filteredTokenX && !filteredTokenY) {
+      return `You don't have any favourite ${shortenAddress(filteredTokenX.symbol ?? '')} pools yet...`
+    }
+
+    if (!filteredTokenX && filteredTokenY) {
+      return `You don't have any favourite ${shortenAddress(filteredTokenY.symbol ?? '')} pools yet...`
+    }
+
+    return `You don't have any favourite pools yet...`
+  }, [filteredTokenX, filteredTokenY])
 
   return (
     <Grid
       container
       classes={{ root: classes.container }}
-      className={classNames({ [classes.loadingOverlay]: isLoading })}>
+      className={cx({ [classes.loadingOverlay]: isLoading })}>
       <PoolListItem
         displayType='header'
         onSort={setSortType}
         sortType={sortType}
         network={network}
         showAPY={showAPY}
+        interval={interval}
       />
       {data.length > 0 || isLoading ? (
         <>
           {paginator(page).map((element, index) => (
             <PoolListItem
+              interval={interval}
               itemNumber={index + 1 + (page - 1) * ITEMS_PER_PAGE}
               displayType='token'
               tokenIndex={index + 1 + (page - 1) * ITEMS_PER_PAGE}
@@ -198,6 +252,8 @@ const LiquidityPoolList: React.FC<PoolListInterface> = ({
               poolAddress={element.poolAddress}
               copyAddressHandler={copyAddressHandler}
               showAPY={showAPY}
+              isFavourite={element.isFavourite}
+              switchFavouritePool={switchFavouritePool}
             />
           ))}
           {getEmptyRowsCount() > 0 &&
@@ -212,23 +268,45 @@ const LiquidityPoolList: React.FC<PoolListInterface> = ({
                       }
                     : {}
                 }
-                className={classNames(classes.emptyRow)}
+                className={cx(classes.emptyRow)}
               />
             ))}
         </>
       ) : (
         <Grid container className={classes.emptyWrapper}>
-          <EmptyPlaceholder
-            height={initialDataLength < ITEMS_PER_PAGE ? initialDataLength * 69 : 690}
-            newVersion
-            mainTitle='Pool not found...'
-            desc={initialDataLength < 3 ? '' : 'You can create it yourself!'}
-            desc2={initialDataLength < 5 ? '' : 'Or try adjusting your search criteria!'}
-            buttonName='Create Pool'
-            onAction={() => navigate(ROUTES.NEW_POSITION)}
-            withButton={true}
-            withImg={initialDataLength > 3}
-          />
+          {showFavourites ? (
+            <EmptyPlaceholder
+              height={initialDataLength < ITEMS_PER_PAGE ? initialDataLength * 69 : 688}
+              newVersion
+              mainTitle={favouriteEmptyPlaceholderMainTitle}
+              desc={'You can add them by clicking the star icon next to the pool!'}
+              withButton={false}
+            />
+          ) : (
+            <EmptyPlaceholder
+              height={initialDataLength < ITEMS_PER_PAGE ? initialDataLength * 69 : 688}
+              newVersion
+              mainTitle={`The ${shortenAddress(filteredTokenX.symbol ?? '')}/${shortenAddress(filteredTokenY.symbol ?? '')} pool was not found...`}
+              desc={initialDataLength < 3 ? '' : 'You can create it yourself!'}
+              desc2={initialDataLength < 5 ? '' : 'Or try adjusting your search criteria!'}
+              buttonName='Create Pool'
+              onAction={() => {
+                dispatch(actions.setNavigation({ address: location.pathname }))
+                navigate(
+                  ROUTES.getNewPositionRoute(
+                    filteredTokenX.address,
+                    filteredTokenY.address,
+                    '0_10'
+                  ),
+                  {
+                    state: { referer: 'stats' }
+                  }
+                )
+              }}
+              withButton={true}
+              withImg={initialDataLength > 3}
+            />
+          )}
         </Grid>
       )}
       <Grid
@@ -237,19 +315,19 @@ const LiquidityPoolList: React.FC<PoolListInterface> = ({
           height: height
         }}>
         {pages > 0 && (
-          <TableBoundsLabel
+          <InputPagination
             borderTop={false}
-            lowerBound={lowerBound}
-            totalItems={totalItems}
-            upperBound={upperBound}>
-            <PaginationList
-              pages={pages}
-              defaultPage={1}
-              handleChangePage={handleChangePagination}
-              variant='center'
-              page={page}
-            />
-          </TableBoundsLabel>
+            pages={pages}
+            defaultPage={page}
+            handleChangePage={handleChangePagination}
+            variant='center'
+            page={page}
+            pagesNumeration={{
+              lowerBound: lowerBound,
+              totalItems: totalItems,
+              upperBound: upperBound
+            }}
+          />
         )}
       </Grid>
     </Grid>

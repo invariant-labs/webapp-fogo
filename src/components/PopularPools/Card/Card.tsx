@@ -5,8 +5,9 @@ import GradientBorder from '@common/GradientBorder/GradientBorder'
 import { colors } from '@static/theme'
 import cardBackgroundBottom from '@static/png/cardBackground1.png'
 import cardBackgroundTop from '@static/png/cardBackground2.png'
-import { backIcon, revertIcon, unknownTokenIcon, warningIcon } from '@static/icons'
-import { shortenAddress } from '@utils/uiUtils'
+import { backIcon, unknownTokenIcon, warningIcon } from '@static/icons'
+
+import { convertAPYValue, shortenAddress } from '@utils/uiUtils'
 import StatsLabel from './StatsLabel/StatsLabel'
 import {
   addressToTicker,
@@ -16,10 +17,13 @@ import {
   parseFeeToPathFee,
   ROUTES
 } from '@utils/utils'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { NetworkType } from '@store/consts/static'
 import { DECIMAL } from '@invariant-labs/sdk-fogo/lib/utils'
+import { useDispatch } from 'react-redux'
 import { Button } from '@common/Button/Button'
+import { ReverseTokensIcon } from '@static/componentIcon/ReverseTokensIcon'
+import { actions } from '@store/reducers/navigation'
 
 export interface ICard extends PopularPoolData {
   isLoading: boolean
@@ -46,8 +50,11 @@ const Card: React.FC<ICard> = ({
   network,
   showAPY
 }) => {
-  const { classes } = useStyles()
   const navigate = useNavigate()
+  const location = useLocation()
+  const dispatch = useDispatch()
+
+  const { classes } = useStyles()
 
   const isXtoY = initialXtoY(addressFrom ?? '', addressTo ?? '')
   const tokenA = isXtoY
@@ -59,6 +66,7 @@ const Card: React.FC<ICard> = ({
 
   const handleOpenPosition = () => {
     if (fee === undefined) return
+    dispatch(actions.setNavigation({ address: location.pathname }))
 
     navigate(
       ROUTES.getNewPositionRoute(
@@ -79,13 +87,14 @@ const Card: React.FC<ICard> = ({
 
   return (
     <Grid className={classes.root}>
-      {isLoading ? (
+      {isLoading || !poolAddress?.toString() ? (
         <Skeleton variant='rounded' animation='wave' className={classes.skeleton} />
       ) : (
         <Grid>
           <GradientBorder
             borderRadius={24}
             borderWidth={2}
+            borderColor={`linear-gradient(to bottom, ${colors.invariant.green}, ${colors.invariant.pink})`}
             backgroundColor={colors.invariant.newDark}
             innerClassName={classes.container}>
             <img
@@ -113,7 +122,7 @@ const Card: React.FC<ICard> = ({
                   />
                   {isUnknownFrom && <img className={classes.warningIcon} src={warningIcon} />}
                 </Box>
-                <img className={classes.swapIcon} src={revertIcon} alt='Token from' />
+                <ReverseTokensIcon className={classes.swapIcon} />
                 <Box className={classes.iconContainer}>
                   <img
                     className={classes.tokenIcon}
@@ -128,22 +137,22 @@ const Card: React.FC<ICard> = ({
               </Grid>
 
               <Box className={classes.symbolsContainer}>
-                {shortenAddress(symbolFrom ?? '')} - {shortenAddress(symbolTo ?? '')}{' '}
+                {shortenAddress(symbolFrom ?? '')} - {shortenAddress(symbolTo ?? '')}
               </Box>
               <Grid container gap='8px'>
                 {apy !== undefined && showAPY && (
-                  <StatsLabel
-                    title='APY'
-                    value={`${convertedApy > 1000 ? '>1000%' : convertedApy === 0 ? '-' : Math.abs(convertedApy).toFixed(2) + '%'}`}
-                  />
+                  <StatsLabel title='APY' value={convertAPYValue(convertedApy, 'APY')} />
                 )}
                 <StatsLabel title='Fee' value={fee + '%'} />
                 {TVL !== undefined && (
                   <StatsLabel title='TVL' value={`$${formatNumberWithSuffix(TVL)}`} />
                 )}
-                {volume !== undefined && (
-                  <StatsLabel title='Volume' value={`$${formatNumberWithSuffix(volume)}`} />
-                )}
+                {
+                  <StatsLabel
+                    title='Volume'
+                    value={volume !== undefined ? `$${formatNumberWithSuffix(volume)}` : '$0'}
+                  />
+                }
               </Grid>
               <Grid container className={classes.footerWrapper}>
                 <Grid className={classes.back} container item onClick={handleOpenSwap}>

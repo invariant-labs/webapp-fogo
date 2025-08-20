@@ -1,10 +1,11 @@
 import { Button, Grid, Typography } from '@mui/material'
 import { noConnectedIcon } from '@static/icons'
-import classNames from 'classnames'
 import { useStyles } from './style'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import ChangeWalletButton from '@components/Header/HeaderButton/ChangeWalletButton'
 import { ROUTES } from '@utils/utils'
+import { useDispatch } from 'react-redux'
+import { actions } from '@store/reducers/navigation'
 
 export interface INoConnected {
   onConnect: () => void
@@ -13,15 +14,15 @@ export interface INoConnected {
 }
 
 export const NoConnected: React.FC<INoConnected> = ({ onConnect, title, descCustomText }) => {
-  const { classes } = useStyles()
-
+  const { classes, cx } = useStyles()
+  const dispatch = useDispatch()
+  const location = useLocation()
   const navigate = useNavigate()
-
   return (
     <>
-      <Grid className={classNames(classes.blur, 'blurLayer')} />
-      <Grid className={classNames(classes.container, 'blurLayer')}>
-        <Grid className={classNames(classes.root, 'blurInfo')}>
+      <Grid className={cx(classes.blur, 'blurLayer')} />
+      <Grid className={cx(classes.container, 'blurLayer')}>
+        <Grid className={cx(classes.root, 'blurInfo')}>
           <Grid height={104}>
             <img className={classes.img} src={noConnectedIcon} alt='Not connected' />
           </Grid>
@@ -33,6 +34,7 @@ export const NoConnected: React.FC<INoConnected> = ({ onConnect, title, descCust
           <Button
             className={classes.buttonPrimary}
             onClick={() => {
+              dispatch(actions.setNavigation({ address: location.pathname }))
               navigate(ROUTES.getNewPositionRoute('0_01'))
             }}
             variant='contained'>

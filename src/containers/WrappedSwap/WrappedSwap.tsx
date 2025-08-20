@@ -3,7 +3,7 @@ import { Swap } from '@components/Swap/Swap'
 import {
   commonTokensForNetworks,
   DEFAULT_SWAP_SLIPPAGE,
-  WFOGO_TEST,
+  WFOGO_MAIN,
   WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import { actions as poolsActions } from '@store/reducers/pools'
@@ -119,7 +119,7 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
     initialTokenFrom && tickerToAddress(networkType, initialTokenFrom)
       ? tickerToAddress(networkType, initialTokenFrom)
       : localStorage.getItem(`INVARIANT_LAST_TOKEN_FROM_${networkType}`) ??
-        WFOGO_TEST.address.toString()
+        WFOGO_MAIN.address.toString()
 
   const lastTokenTo =
     initialTokenTo && tickerToAddress(networkType, initialTokenTo)
@@ -230,12 +230,7 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
     if (addr) {
       setPriceFromLoading(true)
       getTokenPrice(addr, networkType)
-        .then(data => {
-          const price = data
-            ? data
-            : getMockedTokenPrice(tokensDict[tokenFrom.toString()].symbol, networkType).price
-          setTokenFromPriceData({ price })
-        })
+        .then(data => setTokenFromPriceData({ price: data ?? 0 }))
         .catch(() =>
           setTokenFromPriceData(
             getMockedTokenPrice(tokensDict[tokenFrom.toString()].symbol, networkType)
@@ -259,13 +254,7 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
     if (addr) {
       setPriceToLoading(true)
       getTokenPrice(addr, networkType)
-        .then(data => {
-          const price = data
-            ? data
-            : getMockedTokenPrice(tokensDict[tokenTo.toString()].symbol, networkType).price
-
-          setTokenToPriceData({ price })
-        })
+        .then(data => setTokenToPriceData({ price: data ?? 0 }))
         .catch(() =>
           setTokenToPriceData(
             getMockedTokenPrice(tokensDict[tokenTo.toString()].symbol, networkType)
@@ -327,16 +316,18 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
 
   const allAccounts = useSelector(solanaAccounts)
 
-  const wrappedFOGOAccountExist = useMemo(() => {
+  const [wrappedFOGOAccountExist, wrappedFOGOBalance] = useMemo(() => {
     let wrappedFOGOAccountExist = false
+    let wrappedFOGOBalance
 
     Object.entries(allAccounts).map(([address, token]) => {
       if (address === WRAPPED_FOGO_ADDRESS && token.balance.gt(new BN(0))) {
         wrappedFOGOAccountExist = true
+        wrappedFOGOBalance = token.balance
       }
     })
 
-    return wrappedFOGOAccountExist
+    return [wrappedFOGOAccountExist, wrappedFOGOBalance]
   }, [allAccounts])
 
   const unwrapWFOGO = () => {
@@ -441,6 +432,7 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
       network={networkType}
       unwrapWFOGO={unwrapWFOGO}
       wrappedFOGOAccountExist={wrappedFOGOAccountExist}
+      wrappedFOGOBalance={wrappedFOGOBalance}
       isTimeoutError={isTimeoutError}
       deleteTimeoutError={() => {
         dispatch(connectionActions.setTimeoutError(false))

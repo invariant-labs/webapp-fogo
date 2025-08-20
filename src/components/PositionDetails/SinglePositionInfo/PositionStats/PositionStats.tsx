@@ -1,17 +1,24 @@
 import { Box, Skeleton, Typography } from '@mui/material'
 import { useStyles } from './style'
 import { formatNumberWithSuffix } from '@utils/utils'
-import classNames from 'classnames'
+import { convertAPYValue } from '@utils/uiUtils'
 
 type Props = {
   value: number
   pendingFees: number
-  poolApr: number
+  poolApy: number
   isLoading: boolean
+  showPoolDetailsLoader?: boolean
 }
 
-export const PositionStats = ({ value, pendingFees, poolApr, isLoading }: Props) => {
-  const { classes } = useStyles()
+export const PositionStats = ({
+  value,
+  pendingFees,
+  poolApy,
+  isLoading,
+  showPoolDetailsLoader = false
+}: Props) => {
+  const { classes, cx } = useStyles()
 
   return (
     <Box className={classes.container}>
@@ -23,8 +30,11 @@ export const PositionStats = ({ value, pendingFees, poolApr, isLoading }: Props)
           ) : (
             <Typography className={classes.statValue}>
               $
-              {+formatNumberWithSuffix(value, true, 18) < 1000
-                ? (+formatNumberWithSuffix(value, true, 18)).toFixed(2)
+              {+formatNumberWithSuffix(value, { noDecimals: true, decimalsAfterDot: 18 }) < 1000
+                ? (+formatNumberWithSuffix(value, {
+                    noDecimals: true,
+                    decimalsAfterDot: 18
+                  })).toFixed(2)
                 : formatNumberWithSuffix(value)}
             </Typography>
           )}
@@ -36,19 +46,27 @@ export const PositionStats = ({ value, pendingFees, poolApr, isLoading }: Props)
           ) : (
             <Typography className={classes.statValue}>
               $
-              {+formatNumberWithSuffix(pendingFees, true, 18) < 1000
-                ? (+formatNumberWithSuffix(pendingFees, true, 18)).toFixed(2)
+              {+formatNumberWithSuffix(pendingFees, { noDecimals: true, decimalsAfterDot: 18 }) <
+              1000
+                ? (+formatNumberWithSuffix(pendingFees, {
+                    noDecimals: true,
+                    decimalsAfterDot: 18
+                  })).toFixed(2)
                 : formatNumberWithSuffix(pendingFees)}
             </Typography>
           )}
         </Box>
       </Box>
       <Box className={classes.statWrapper}>
-        <Box className={classNames(classes.statContainer, classes.statContainerHiglight)}>
-          <Typography className={classes.statName}>Pool APR:</Typography>
-          <Typography className={classNames(classes.statValue, classes.statValueHiglight)}>
-            {poolApr.toFixed(2)}%
-          </Typography>
+        <Box className={cx(classes.statContainer, classes.statContainerHiglight)}>
+          <Typography className={classes.statName}>Pool APY:</Typography>
+          {showPoolDetailsLoader ? (
+            <Skeleton height={17} width={36} variant='rounded' />
+          ) : (
+            <Typography className={cx(classes.statValue, classes.statValueHiglight)}>
+              {convertAPYValue(poolApy, 'APY')}
+            </Typography>
+          )}
         </Box>
       </Box>
     </Box>

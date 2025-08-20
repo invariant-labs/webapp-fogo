@@ -50,7 +50,6 @@ export const Header: React.FC<IHeader> = ({
 }) => {
   const { classes } = useStyles()
   const navigate = useNavigate()
-
   const isSmDown = useMediaQuery(theme.breakpoints.down('sm'))
 
   const routes = [
@@ -65,7 +64,6 @@ export const Header: React.FC<IHeader> = ({
     liquidity: [/^liquidity\/*/],
     exchange: [/^exchange\/*/],
     portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/]
-
     // ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {})
   }
 
@@ -115,7 +113,7 @@ export const Header: React.FC<IHeader> = ({
           item
           className={classes.routers}
           sx={{
-            display: { lg: 'block' },
+            display: { lg: 'flex' },
             [theme.breakpoints.down(1200)]: {
               display: 'none'
             }
@@ -151,16 +149,16 @@ export const Header: React.FC<IHeader> = ({
               }
             }}
           />
-          <Grid display='flex' gap='12px'>
-            <Bar
-              rpcs={rpcs}
-              activeNetwork={typeOfNetwork}
-              activeRPC={rpc}
-              onNetworkChange={onNetworkSelect}
-              onChainChange={onChainSelect}
-              onFaucet={onFaucet}
-            />
-          </Grid>
+
+          <Bar
+            rpcs={rpcs}
+            activeNetwork={typeOfNetwork}
+            activeRPC={rpc}
+            onNetworkChange={onNetworkSelect}
+            onChainChange={onChainSelect}
+            onFaucet={onFaucet}
+          />
+
           <ChangeWalletButton
             name={
               walletConnected

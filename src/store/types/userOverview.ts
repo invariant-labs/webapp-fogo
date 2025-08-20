@@ -13,6 +13,7 @@ export interface Token {
   decimal: number
   balance: BN
   assetsAddress: string
+  coingeckoId?: string
   icon: string
 }
 
@@ -60,9 +61,5 @@ export interface TokenPositionEntry {
   logo: string
   positionId: string
   isPriceWarning: boolean
-}
-
-export enum LiquidityPools {
-  Standard = 'Standard',
-  Locked = 'Locked'
+  isUnknown?: boolean
 }

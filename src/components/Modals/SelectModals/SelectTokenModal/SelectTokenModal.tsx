@@ -32,9 +32,9 @@ export interface ISelectTokenModal {
   handleClose: () => void
   anchorEl: HTMLButtonElement | null
   centered?: boolean
-  onSelect: (index: number) => void
+  onSelect?: (index: number) => void
   hideBalances?: boolean
-  handleAddToken: (address: string) => void
+  handleAddToken?: (address: string) => void
   initialHideUnknownTokensValue: boolean
   onHideUnknownTokensChange: (val: boolean) => void
   hiddenUnknownTokens: boolean
@@ -106,7 +106,7 @@ const RowItem: React.FC<ListChildComponentProps<RowItemData>> = React.memo(
                 <Typography>
                   {token.assetAddress.toString().slice(0, isXs ? 3 : 4) +
                     '...' +
-                    token.assetAddress.toString().slice(isXs ? -4 : -5, -1)}
+                    token.assetAddress.toString().slice(isXs ? -4 : -5)}
                 </Typography>
                 <img width={8} height={8} src={newTabIcon} alt={'Token address'} />
               </a>
@@ -272,6 +272,8 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
           return ''
         case NetworkType.Testnet:
           return '?cluster=testnet'
+        case NetworkType.Devnet:
+          return '?cluster=devnet'
         default:
           return '?cluster=testnet'
       }
@@ -327,6 +329,7 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
                     className={classes.commonTokenItem}
                     key={token.symbol}
                     onClick={() => {
+                      if (!onSelect) return
                       onSelect(token.index)
                       setValue('')
                       handleClose()
@@ -384,6 +387,8 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
                 itemData={{
                   tokens: filteredTokens,
                   onSelect: (idx: number) => {
+                    if (!onSelect) return
+
                     onSelect(idx)
                     setValue('')
                     handleClose()
@@ -403,6 +408,7 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
           open={isAddOpen}
           handleClose={() => setIsAddOpen(false)}
           addToken={(address: string) => {
+            if (!handleAddToken) return
             handleAddToken(address)
             setIsAddOpen(false)
             setHideUnknown(false)

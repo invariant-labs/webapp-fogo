@@ -13,12 +13,12 @@ import NewPositionPage from './NewPositionPage/NewPositionPage'
 import PortfolioPage from './PortfolioPage/PortfolioPage'
 import RootPage from './RootPage'
 import SinglePositionPage from './SinglePositionPage/SinglePositionPage'
-// import TokenCreatorPage from './TokenCreatorPage/TokenCreatorPage'
+import TokenCreatorPage from './TokenCreatorPage/TokenCreatorPage'
 import StatsPage from './StatsPage/StatsPage'
 import SwapPage from './SwapPage/SwapPage'
 import { ROUTES } from '@utils/utils'
 
-const createRouter = (_currentNetwork: NetworkType) =>
+const createRouter = (currentNetwork: NetworkType) =>
   createBrowserRouter(
     createRoutesFromElements(
       <Route path={ROUTES.ROOT} element={<RootPage />}>
@@ -28,9 +28,9 @@ const createRouter = (_currentNetwork: NetworkType) =>
         <Route path={ROUTES.NEW_POSITION_WITH_PARAMS} element={<NewPositionPage />} />
         <Route path={ROUTES.POSITION_WITH_ID} element={<SinglePositionPage />} />
         <Route path={ROUTES.PORTFOLIO} element={<PortfolioPage />} />
-        {/* {currentNetwork === NetworkType.Testnet && (
+        {currentNetwork === NetworkType.Testnet && (
           <Route path={ROUTES.CREATOR} element={<TokenCreatorPage />} />
-        )} */}
+        )}
         <Route path='*' element={<Navigate to={ROUTES.EXCHANGE} replace />} />
       </Route>
     )

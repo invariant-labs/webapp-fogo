@@ -36,6 +36,37 @@ const useStyles = makeStyles()((theme: Theme) => {
       }
     },
 
+    pointsHeaderButton: {
+      textTransform: 'none',
+      boxSizing: 'border-box',
+      minWidth: '10px',
+      height: '40px',
+      background: colors.invariant.newDark,
+      boxShadow: '0px 0px 5px 5px #2A365C',
+      borderRadius: '14px',
+      fontWeight: 700,
+      fontSize: '16px',
+      lineHeight: '20px',
+      letterSpacing: '-0.03em',
+      textWrap: 'nowrap',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      border: '2px solid transparent',
+      backgroundImage: 'linear-gradient(#2A365C, #2A365C), linear-gradient(0deg, #2EE09A, #EF84F5)',
+      backgroundOrigin: 'border-box',
+      backgroundClip: 'padding-box, border-box',
+      color: colors.invariant.text,
+      transition: '300ms',
+
+      [theme.breakpoints.down(450)]: {
+        padding: '0px 2px'
+      },
+
+      [theme.breakpoints.up(450)]: {
+        padding: '0px 20px'
+      }
+    },
     label: {
       WebkitPaddingBefore: '2px'
     },

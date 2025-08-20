@@ -50,6 +50,7 @@ import { disconnectWallet, getFogoWallet } from '@utils/web3/wallet'
 import { WalletAdapter } from '@utils/web3/adapters/types'
 import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
+
 import { PayloadAction } from '@reduxjs/toolkit'
 
 export function* getWallet(): SagaGenerator<WalletAdapter> {
@@ -57,11 +58,11 @@ export function* getWallet(): SagaGenerator<WalletAdapter> {
   return wallet
 }
 export function* getBalance(pubKey: PublicKey): SagaGenerator<BN> {
-  yield* put(actions.setIsfogoBalanceLoading(true))
+  yield* put(actions.setIsFogoBalanceLoading(true))
   const connection = yield* call(getConnection)
   const balance = yield* call([connection, connection.getBalance], pubKey)
   yield* put(actions.setBalance(new BN(balance)))
-  yield* put(actions.setIsfogoBalanceLoading(false))
+  yield* put(actions.setIsFogoBalanceLoading(false))
 }
 
 export function* handleBalance(): Generator {
@@ -137,7 +138,7 @@ export function* fetchUnknownTokensAccounts(): Generator {
   const connection = yield* call(getConnection)
   const wallet = yield* call(getWallet)
 
-  yield put(actions.setIsUnkownBlanceLoading(true))
+  yield put(actions.setIsUnknownBlanceLoading(true))
 
   const { splTokensAccounts, token2022TokensAccounts } = yield* all({
     splTokensAccounts: call(
@@ -187,7 +188,7 @@ export function* fetchUnknownTokensAccounts(): Generator {
   }
 
   yield put(poolsActions.addTokens(unknownTokens))
-  yield put(actions.setIsUnkownBlanceLoading(false))
+  yield put(actions.setIsUnknownBlanceLoading(false))
 }
 
 export function* handleAirdrop(): Generator {
@@ -265,67 +266,6 @@ export function* handleAirdrop(): Generator {
     )
   }
 }
-
-export function* setEmptyAccounts(collateralsAddresses: PublicKey[]): Generator {
-  const tokensAccounts = yield* select(accounts)
-  const acc: PublicKey[] = []
-  for (const collateral of collateralsAddresses) {
-    const accountAddress = tokensAccounts[collateral.toString()]
-      ? tokensAccounts[collateral.toString()].address
-      : null
-    if (accountAddress == null) {
-      acc.push(collateral)
-    }
-  }
-  if (acc.length !== 0) {
-    yield* call(createMultipleAccounts, acc)
-  }
-}
-
-export function* transferAirdropFOGO(): Generator {
-  const wallet = yield* call(getWallet)
-  const tx = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: airdropAdmin.publicKey,
-      toPubkey: wallet.publicKey,
-      lamports: 10000000
-    })
-  )
-  const connection = yield* call(getConnection)
-  const { blockhash, lastValidBlockHeight } = yield* call([
-    connection,
-    connection.getLatestBlockhash
-  ])
-  tx.feePayer = airdropAdmin.publicKey
-  tx.recentBlockhash = blockhash
-  tx.lastValidBlockHeight = lastValidBlockHeight
-  tx.sign(airdropAdmin as Signer)
-
-  const txid = yield* call(sendAndConfirmRawTransaction, connection, tx.serialize(), {
-    skipPreflight: false
-  })
-
-  if (!txid.length) {
-    yield put(
-      snackbarsActions.add({
-        message: 'Failed to airdrop testnet FOGO. Please try again',
-        variant: 'error',
-        persist: false,
-        txid
-      })
-    )
-  } else {
-    yield put(
-      snackbarsActions.add({
-        message: 'Testnet FOGO airdrop successfully',
-        variant: 'success',
-        persist: false,
-        txid
-      })
-    )
-  }
-}
-
 export function* getCollateralTokenAirdrop(
   collateralsAddresses: PublicKey[],
   collateralsQuantities: number[]
@@ -381,6 +321,100 @@ export function* getCollateralTokenAirdrop(
       })
     )
   }
+}
+export function* setEmptyAccounts(addresses: PublicKey[]): Generator {
+  const tokensAccounts = yield* select(accounts)
+  const acc: PublicKey[] = []
+  for (const address of addresses) {
+    const accountAddress = tokensAccounts[address.toString()]
+      ? tokensAccounts[address.toString()].address
+      : null
+    if (accountAddress == null) {
+      acc.push(address)
+    }
+  }
+  if (acc.length !== 0) {
+    yield* call(createMultipleAccounts, acc)
+  }
+}
+
+export function* transferAirdropFOGO(): Generator {
+  const wallet = yield* call(getWallet)
+  const tx = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: airdropAdmin.publicKey,
+      toPubkey: wallet.publicKey,
+      lamports: 10000000
+    })
+  )
+  const connection = yield* call(getConnection)
+  const { blockhash, lastValidBlockHeight } = yield* call([
+    connection,
+    connection.getLatestBlockhash
+  ])
+  tx.feePayer = airdropAdmin.publicKey
+  tx.recentBlockhash = blockhash
+  tx.lastValidBlockHeight = lastValidBlockHeight
+  tx.sign(airdropAdmin as Signer)
+
+  const txid = yield* call(sendAndConfirmRawTransaction, connection, tx.serialize(), {
+    skipPreflight: false
+  })
+
+  if (!txid.length) {
+    yield put(
+      snackbarsActions.add({
+        message: 'Failed to airdrop testnet FOGO. Please try again',
+        variant: 'error',
+        persist: false,
+        txid
+      })
+    )
+  } else {
+    yield put(
+      snackbarsActions.add({
+        message: 'Testnet FOGO airdrop successfully',
+        variant: 'success',
+        persist: false,
+        txid
+      })
+    )
+  }
+}
+
+export function* getTokenAirdrop(addresses: PublicKey[], quantities: number[]): Generator {
+  const wallet = yield* call(getWallet)
+  const instructions: TransactionInstruction[] = []
+  yield* call(setEmptyAccounts, addresses)
+  const tokensAccounts = yield* select(accounts)
+  for (const [index, address] of addresses.entries()) {
+    instructions.push(
+      createMintToInstruction(
+        address,
+        tokensAccounts[address.toString()].address,
+        airdropAdmin.publicKey,
+        quantities[index],
+        [],
+        TOKEN_PROGRAM_ID
+      )
+    )
+  }
+  const tx = instructions.reduce((tx, ix) => tx.add(ix), new Transaction())
+  const connection = yield* call(getConnection)
+  const { blockhash, lastValidBlockHeight } = yield* call([
+    connection,
+    connection.getLatestBlockhash
+  ])
+  tx.feePayer = wallet.publicKey
+  tx.recentBlockhash = blockhash
+  tx.lastValidBlockHeight = lastValidBlockHeight
+  tx.partialSign(airdropAdmin)
+
+  const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+  yield* call([connection, connection.sendRawTransaction], signedTx.serialize(), {
+    skipPreflight: true
+  })
 }
 
 export function* signAndSend(wallet: WalletAdapter, tx: Transaction): SagaGenerator<string> {
@@ -624,24 +658,24 @@ export function* handleDisconnect(): Generator {
   }
 }
 
-export function* handleunwrapWFOGO(): Generator {
+export function* handleUnwrapWFOGO(): Generator {
   const wallet = yield* call(getWallet)
   const connection = yield* call(getConnection)
   const allAccounts = yield* select(accounts)
 
-  const loaderunwrapWFOGO = createLoaderKey()
+  const loaderUnwrapWFOGO = createLoaderKey()
 
-  const wrappedFOGOAccountPublicKeys: PublicKey[] = []
+  const wrappedFogoAccountPublicKeys: PublicKey[] = []
   Object.entries(allAccounts).map(([address, token]) => {
     if (
       address === WRAPPED_FOGO_ADDRESS &&
-      token.balance.gt(new BN(0) && wrappedFOGOAccountPublicKeys.length < 10)
+      token.balance.gt(new BN(0) && wrappedFogoAccountPublicKeys.length < 10)
     ) {
-      wrappedFOGOAccountPublicKeys.push(token.address)
+      wrappedFogoAccountPublicKeys.push(token.address)
     }
   })
 
-  if (!wrappedFOGOAccountPublicKeys) {
+  if (!wrappedFogoAccountPublicKeys) {
     return
   }
 
@@ -651,15 +685,15 @@ export function* handleunwrapWFOGO(): Generator {
         message: 'Unwraping Wrapped FOGO...',
         variant: 'pending',
         persist: true,
-        key: loaderunwrapWFOGO
+        key: loaderUnwrapWFOGO
       })
     )
 
     const unwrapTx = new Transaction()
 
-    wrappedFOGOAccountPublicKeys.forEach(wrappedFOGOAccountPublicKey => {
+    wrappedFogoAccountPublicKeys.forEach(wrappedFogoAccountPublicKey => {
       const unwrapIx = createCloseAccountInstruction(
-        wrappedFOGOAccountPublicKey,
+        wrappedFogoAccountPublicKey,
         wallet.publicKey,
         wallet.publicKey,
         [],
@@ -716,8 +750,8 @@ export function* handleunwrapWFOGO(): Generator {
     yield* call(handleRpcError, error.message)
   }
 
-  closeSnackbar(loaderunwrapWFOGO)
-  yield put(snackbarsActions.remove(loaderunwrapWFOGO))
+  closeSnackbar(loaderUnwrapWFOGO)
+  yield put(snackbarsActions.remove(loaderUnwrapWFOGO))
 }
 
 export function* changeWalletInExtenstionHandler(): Generator {
@@ -740,7 +774,7 @@ export function* handleBalanceSaga(): Generator {
 }
 
 export function* unwrapWFOGOHandler(): Generator {
-  yield takeLeading(actions.unwrapWFOGO, handleunwrapWFOGO)
+  yield takeLeading(actions.unwrapWFOGO, handleUnwrapWFOGO)
 }
 
 export function* walletSaga(): Generator {

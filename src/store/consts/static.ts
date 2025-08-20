@@ -2,7 +2,14 @@ import { FEE_TIERS, toDecimal } from '@invariant-labs/sdk-fogo/lib/utils'
 import { BN } from '@coral-xyz/anchor'
 import { PublicKey } from '@solana/web3.js'
 import { ISnackbar } from '@store/reducers/snackbars'
-import { Chain, PrefixConfig, Token, TokenPriceData, WalletType } from './types'
+import {
+  Chain,
+  FormatNumberThreshold,
+  PrefixConfig,
+  Token,
+  TokenPriceData,
+  WalletType
+} from './types'
 import { cat1Icon, cat2Icon, dog1Icon, dog2Icon } from '@static/icons'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import fogoTokenIcon from '@static/fogoTokenIcon.jpg'
@@ -13,6 +20,25 @@ export enum NetworkType {
   Devnet = 'Devnet',
   Mainnet = 'Mainnet'
 }
+export enum inputTarget {
+  DEFAULT = 'default',
+  FROM = 'from',
+  TO = 'to'
+}
+export const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+]
 
 export enum DepositOptions {
   Basic = 'Basic',
@@ -24,6 +50,13 @@ const emptyPublicKey = new PublicKey(new Uint8Array(32))
 export enum SwapType {
   Normal,
   WithHop
+}
+
+export const DEFAULT_STRATEGY = {
+  //TODO: Change
+  tokenA: 'FOGO',
+  tokenB: 'USDC',
+  feeTier: '0_09'
 }
 
 export const WFOGO_ADDRESS = {
@@ -69,6 +102,30 @@ export const WFOGO_MAIN: Token = {
   name: 'Fogo',
   logoURI: fogoTokenIcon, // TODO: change
   coingeckoId: ''
+}
+
+export const USDC_MAIN: Token = {
+  //TODO: Change
+  tokenProgram: TOKEN_PROGRAM_ID,
+  symbol: 'USDC',
+  address: new PublicKey('AKEWE7Bgh87GPp171b4cJPSSZfmZwQ3KaqYqXoKLNAEE'),
+  decimals: 6,
+  name: 'USD Coin (Hyperlane)',
+  logoURI:
+    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
+  coingeckoId: 'usd-coin'
+}
+
+export const USDT_MAIN: Token = {
+  //TODO: CHANGE
+  tokenProgram: TOKEN_PROGRAM_ID,
+  symbol: 'USDT',
+  address: new PublicKey('CEBP3CqAbW4zdZA57H2wfaSG1QNdzQ72GiQEbQXyW9Tm'),
+  decimals: 6,
+  name: 'Tether USD (Hyperlane)',
+  logoURI:
+    'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg',
+  coingeckoId: 'tether'
 }
 
 export const WFOGO_TEST: Token = {
@@ -194,6 +251,7 @@ export const airdropQuantities: Record<NetworkType, number[]> = {
 }
 
 export const WRAPPED_FOGO_ADDRESS = 'So11111111111111111111111111111111111111112'
+export const TOKEN_FETCH_DELAY = 60 * 1000 * 60 * 24
 
 // export const WFOGO_MIN_FAUCET_FEE_TEST = new BN(45000)
 
@@ -298,18 +356,19 @@ export const DEFAULT_AUTOSWAP_MAX_PRICE_IMPACT = '0.50'
 export const DEFAULT_AUTOSWAP_MIN_UTILIZATION = '95.00'
 export const DEFAULT_AUTOSWAP_MAX_SLIPPAGE_TOLERANCE_CREATE_POSITION = '2.50'
 export const DEFAULT_AUTOSWAP_MAX_SLIPPAGE_TOLERANCE_SWAP = '0.50'
+export const DEFAULT_AUTOSWAP_MAX_SLIPPAGE_TOLERANCE_ADD_LIQUIDITY = '0.50'
 
 export const CHAINS = [
+  {
+    name: Chain.Fogo,
+    address: 'https://fogo.invariant.app/exchange',
+    iconGlow: 'fogoGlow'
+  },
   { name: Chain.Solana, address: 'https://invariant.app/swap', iconGlow: 'solanaGlow' },
   {
     name: Chain.Eclipse,
     address: 'https://eclipse.invariant.app/exchange',
     iconGlow: 'eclipseGlow'
-  },
-  {
-    name: Chain.Fogo,
-    address: 'https://fogo.invariant.app/exchange',
-    iconGlow: 'fogoGlow'
   }
 ]
 
@@ -318,6 +377,8 @@ export const enum SortTypePoolList {
   NAME_DESC,
   FEE_ASC,
   FEE_DESC,
+  FEE_24_ASC,
+  FEE_24_DESC,
   VOLUME_ASC,
   VOLUME_DESC,
   TVL_ASC,
@@ -390,4 +451,156 @@ export const PRICE_API_URL = 'https://api.invariant.app/price'
 
 export enum AutoswapCustomError {
   FetchError = 0
+}
+
+export const chartPlaceholder = {
+  tickmaps: [
+    { x: 2.33021324081296e-7, y: 0, index: -221810 },
+    { x: 0.9686056247049151, y: 0, index: -69400 },
+    { x: 0.9695746662960968, y: 6188.340066945488, index: -69390 },
+    { x: 0.9881717681706338, y: 6188.340066945488, index: -69200 },
+    { x: 0.9891603846976637, y: 20119.790531945488, index: -69190 },
+    { x: 0.9911405860036346, y: 20119.790531945488, index: -69170 },
+    { x: 0.9921321727081341, y: 28142.450909473402, index: -69160 },
+    { x: 0.9931247514617308, y: 28142.450909473402, index: -69150 },
+    { x: 0.9941183232608597, y: 30289.879997489374, index: -69140 },
+    { x: 0.9951128890397407, y: 30289.879997489374, index: -69130 },
+    { x: 0.9961084498595902, y: 38407.97691696376, index: -69120 },
+    { x: 0.9971050066563205, y: 40591.04743422989, index: -69110 },
+    { x: 0.9981025604929676, y: 57249.16422040085, index: -69100 },
+    { x: 1.0011012140019244, y: 57249.16422040085, index: -69070 },
+    { x: 1.002102765825214, y: 55066.09370313472, index: -69060 },
+    { x: 1.0031053196378097, y: 46947.99678366034, index: -69050 },
+    { x: 1.00410887650822, y: 44800.567695644364, index: -69040 },
+    { x: 1.0071255750875803, y: 44800.567695644364, index: -69010 },
+    { x: 1.00813315394147, y: 36777.90731811645, index: -69000 },
+    { x: 1.0091417408922565, y: 22846.45685311645, index: -68990 },
+    { x: 1.011161942873156, y: 22846.45685311645, index: -68970 },
+    { x: 1.0121735599903756, y: 6188.340066945488, index: -68960 },
+    { x: 1.0254170502871547, y: 6188.340066945488, index: -68830 },
+    { x: 1.0264429288718113, y: 0, index: -68820 },
+    { x: 1.0274698338137271, y: 0, index: -68810 },
+    { x: 4291452183844.2334, y: 0, index: 221810 }
+  ],
+  midPrice: { x: 1, index: -69090 },
+  leftRange: { index: -69160, x: 0.9921321727081341 },
+  rightRange: { index: -69000, x: 1.00813315394147 },
+  plotMin: 0.988931976461467,
+  plotMax: 1.0113333501881372,
+  tickSpacing: 10
+}
+export enum Intervals {
+  Daily = '24H',
+  Weekly = '1W',
+  Monthly = '1M'
+  // Yearly = 'yearly' Don't show year in UI
+}
+
+export const thresholdsWithTokenDecimal = (decimals: number): FormatNumberThreshold[] => [
+  {
+    value: 10,
+    decimals
+  },
+  {
+    value: 10000,
+    decimals: 6
+  },
+  {
+    value: 100000,
+    decimals: 4
+  },
+  {
+    value: 1000000,
+    decimals: 3
+  },
+  {
+    value: 1000000000,
+    decimals: 2,
+    divider: 1000000
+  },
+  {
+    value: Infinity,
+    decimals: 2,
+    divider: 1000000000
+  }
+]
+
+export const defaultThresholds: FormatNumberThreshold[] = [
+  {
+    value: 10,
+    decimals: 4
+  },
+  {
+    value: 1000,
+    decimals: 2
+  },
+  {
+    value: 10000,
+    decimals: 2
+  },
+  {
+    value: 1000000,
+    decimals: 2,
+    divider: 1000
+  },
+  {
+    value: 1000000000,
+    decimals: 2,
+    divider: 1000000
+  },
+  {
+    value: Infinity,
+    decimals: 2,
+    divider: 1000000000
+  }
+]
+export const disabledPools = [
+  {
+    tokenX: new PublicKey('GnBAskb2SQjrLgpTjtgatz4hEugUsYV7XrWU1idV3oqW'),
+    tokenY: new PublicKey('GnBAskb2SQjrLgpTjtgatz4hEugUsYV7XrWU1idV3oqW'),
+    feeTiers: ['0.01']
+  }
+]
+
+export const MAX_PLOT_VISIBLE_TICK_RANGE = 46154 // x100 difference
+
+export const AlternativeFormatConfig = {
+  B: 1000000000,
+  M: 1000000,
+  K: 10000,
+  BDecimals: 9,
+  MDecimals: 6,
+  KDecimals: 3,
+  DecimalsAfterDot: 2
+}
+
+export const NoConfig = {
+  B: 1000000000000000,
+  M: 1000000000000000,
+  K: 1000000000000000,
+  BDecimals: 100,
+  MDecimals: 100,
+  KDecimals: 100,
+  DecimalsAfterDot: 2
+}
+
+export enum ErrorCodeExtractionKeys {
+  ErrorNumber = 'Error Number:',
+  Custom = 'Custom":',
+  ApprovalDenied = 'Approval Denied',
+  UndefinedOnSplit = "Cannot read properties of undefined (reading 'split')",
+  RightBracket = '}',
+  Dot = '.'
+}
+export const COMMON_ERROR_MESSAGE: string = 'Failed to send. Please try again'
+export const APPROVAL_DENIED_MESSAGE: string = 'Transaction approval rejected'
+const SLIPPAGE_ERROR_MESSAGE = 'Price changed – increase slippage or retry'
+
+export const ERROR_CODE_TO_MESSAGE: Record<number, string> = {
+  0x1778: SLIPPAGE_ERROR_MESSAGE,
+  0x1773: SLIPPAGE_ERROR_MESSAGE,
+  0x1795: SLIPPAGE_ERROR_MESSAGE,
+  0x1796: SLIPPAGE_ERROR_MESSAGE,
+  0x1775: SLIPPAGE_ERROR_MESSAGE,
+  0x1785: SLIPPAGE_ERROR_MESSAGE
 }

@@ -2,7 +2,6 @@ import { Box, Button, Input, Typography } from '@mui/material'
 import { active2Icon, netowrkIcons } from '@static/icons'
 import { NetworkType, RECOMMENDED_RPC_ADDRESS } from '@store/consts/static'
 import { useStyles } from './style'
-import classNames from 'classnames'
 import { useRef, useState } from 'react'
 import { ISelectNetwork } from '@store/consts/types'
 import { Separator } from '@common/Separator/Separator'
@@ -15,7 +14,7 @@ type Props = {
 }
 
 export const SelectNetworkAndRPC = ({ rpcs, activeNetwork, activeRPC, onNetworkChange }: Props) => {
-  const { classes } = useStyles()
+  const { classes, cx } = useStyles()
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [isInputFocused, setIsInputFocused] = useState(false)
@@ -27,7 +26,7 @@ export const SelectNetworkAndRPC = ({ rpcs, activeNetwork, activeRPC, onNetworkC
   )
 
   const networks = [
-    //NetworkType.Mainnet,
+    // NetworkType.Mainnet,
     NetworkType.Testnet
   ]
 
@@ -38,7 +37,7 @@ export const SelectNetworkAndRPC = ({ rpcs, activeNetwork, activeRPC, onNetworkC
         <Box className={classes.networkContainer}>
           {networks.map(network => (
             <Box
-              className={classNames(classes.network, {
+              className={cx(classes.network, {
                 [classes.networkActive]: network === activeNetwork
               })}
               key={network}
@@ -53,6 +52,7 @@ export const SelectNetworkAndRPC = ({ rpcs, activeNetwork, activeRPC, onNetworkC
         </Box>
       </Box>
       <Separator isHorizontal />
+
       <Box className={classes.container}>
         <Typography className={classes.title}>
           Select a {activeNetwork.toLowerCase()} RPC to use
@@ -62,7 +62,7 @@ export const SelectNetworkAndRPC = ({ rpcs, activeNetwork, activeRPC, onNetworkC
             .filter(({ networkType }) => networkType === activeNetwork)
             .map(({ rpc, rpcName }) => (
               <Box
-                className={classNames(classes.network, {
+                className={cx(classes.network, {
                   [classes.networkActive]:
                     rpc === activeRPC && !isInputFocused && customAddress == ''
                 })}
@@ -83,7 +83,7 @@ export const SelectNetworkAndRPC = ({ rpcs, activeNetwork, activeRPC, onNetworkC
               </Box>
             ))}
           <Box
-            className={classNames(classes.network, {
+            className={cx(classes.network, {
               [classes.networkActive]: isInputFocused || isCustomRPC || customAddress !== ''
             })}
             onClick={() => inputRef.current?.focus()}>

@@ -1,15 +1,24 @@
 import TokenListItem from '../TokenListItem/TokenListItem'
 import React, { useEffect, useMemo, useState } from 'react'
 import { colors, theme } from '@static/theme'
-import useStyles from './style'
 import { Grid, useMediaQuery } from '@mui/material'
-import { ITEMS_PER_PAGE, NetworkType, SortTypeTokenList, WFOGO_TEST } from '@store/consts/static'
-import { PaginationList } from '@common/Pagination/Pagination'
-import NotFoundPlaceholder from '../NotFoundPlaceholder/NotFoundPlaceholder'
+import {
+  BTC_TEST,
+  Intervals,
+  ITEMS_PER_PAGE,
+  NetworkType,
+  SortTypeTokenList,
+  USDC_TEST,
+  WFOGO_TEST
+} from '@store/consts/static'
+import { InputPagination } from '@common/Pagination/InputPagination/InputPagination'
 import { VariantType } from 'notistack'
 import { Keypair } from '@solana/web3.js'
-import classNames from 'classnames'
-import { TableBoundsLabel } from '@common/TableBoundsLabel/TableBoundsLabel'
+import { useDispatch, useSelector } from 'react-redux'
+import { tokenSearch } from '@store/selectors/navigation'
+import { actions } from '@store/reducers/navigation'
+import { EmptyPlaceholder } from '@common/EmptyPlaceholder/EmptyPlaceholder'
+import { useStyles } from './style'
 
 export interface ITokensListData {
   icon: string
@@ -19,6 +28,7 @@ export interface ITokensListData {
   volume: number
   TVL: number
   address: string
+  isFavourite: boolean
   isUnknown: boolean
 }
 
@@ -28,9 +38,11 @@ export interface ITokensList {
   network: NetworkType
   copyAddressHandler: (message: string, variant: VariantType) => void
   isLoading: boolean
+  interval: Intervals
+  switchFavouriteTokens: (tokenAddress: string) => void
 }
 
-const tokens = [WFOGO_TEST]
+const tokens = [BTC_TEST, USDC_TEST, WFOGO_TEST]
 
 const generateMockData = () => {
   return Array.from({ length: ITEMS_PER_PAGE }, (_, index) => ({
@@ -41,7 +53,8 @@ const generateMockData = () => {
     volume: Math.random() * 10000,
     TVL: Math.random() * 10000,
     address: Keypair.generate().publicKey.toString(),
-    isUnknown: false
+    isUnknown: false,
+    isFavourite: false
   }))
 }
 
@@ -50,12 +63,20 @@ const TokensList: React.FC<ITokensList> = ({
   initialLength,
   network,
   copyAddressHandler,
-  isLoading
+  isLoading,
+  interval,
+  switchFavouriteTokens
 }) => {
   const [initialDataLength, setInitialDataLength] = useState(initialLength)
-  const { classes } = useStyles()
-  const [page, setPage] = useState(1)
-  const [sortType, setSortType] = React.useState(SortTypeTokenList.VOLUME_DESC)
+  const { classes, cx } = useStyles()
+  const dispatch = useDispatch()
+  const searchParams = useSelector(tokenSearch)
+  const page = searchParams.pageNumber
+  const [sortType, setSortType] = React.useState(searchParams.sortType)
+
+  useEffect(() => {
+    dispatch(actions.setSearch({ section: 'statsTokens', type: 'sortType', sortType }))
+  }, [sortType])
 
   const isXsDown = useMediaQuery(theme.breakpoints.down('xs'))
 
@@ -99,8 +120,14 @@ const TokensList: React.FC<ITokensList> = ({
     setInitialDataLength(initialLength)
   }, [initialLength])
 
-  const handleChangePagination = (page: number): void => {
-    setPage(page)
+  const handleChangePagination = (newPage: number) => {
+    dispatch(
+      actions.setSearch({
+        section: 'statsTokens',
+        type: 'pageNumber',
+        pageNumber: newPage
+      })
+    )
   }
 
   const getEmptyRowsCount = () => {
@@ -130,21 +157,22 @@ const TokensList: React.FC<ITokensList> = ({
   const pages = useMemo(() => Math.ceil(data.length / ITEMS_PER_PAGE), [data])
   const isCenterAligment = useMediaQuery(theme.breakpoints.down(1280))
   const height = useMemo(
-    () => (initialDataLength > ITEMS_PER_PAGE ? (isCenterAligment ? 120 : 90) : 69),
+    () => (initialDataLength > ITEMS_PER_PAGE ? (isCenterAligment ? 176 : 90) : 69),
     [initialDataLength, isCenterAligment]
   )
-
-  useEffect(() => {
-    setPage(1)
-  }, [data, pages])
 
   return (
     <Grid
       container
       classes={{ root: classes.container }}
-      className={classNames({ [classes.loadingOverlay]: isLoading })}>
+      className={cx({ [classes.loadingOverlay]: isLoading })}>
       <>
-        <TokenListItem displayType='header' onSort={setSortType} sortType={sortType} />
+        <TokenListItem
+          displayType='header'
+          onSort={setSortType}
+          sortType={sortType}
+          interval={interval}
+        />
         {data.length > 0 || isLoading ? (
           <>
             {paginator(page).data.map((token, index) => {
@@ -164,6 +192,9 @@ const TokensList: React.FC<ITokensList> = ({
                   isUnknown={token.isUnknown}
                   network={network}
                   copyAddressHandler={copyAddressHandler}
+                  interval={interval}
+                  isFavourite={token.isFavourite}
+                  switchFavouriteTokens={switchFavouriteTokens}
                 />
               )
             })}
@@ -177,12 +208,20 @@ const TokensList: React.FC<ITokensList> = ({
                         ? `2px solid ${colors.invariant.light}`
                         : `0px solid ${colors.invariant.light}`
                   }}
-                  className={classNames(classes.emptyRow)}
+                  className={cx(classes.emptyRow)}
                 />
               ))}
           </>
         ) : (
-          <NotFoundPlaceholder title='No tokens found...' isStats />
+          <Grid container className={classes.emptyContainer}>
+            <EmptyPlaceholder
+              height={initialDataLength < ITEMS_PER_PAGE ? initialDataLength * 69 : 688}
+              newVersion
+              mainTitle={`You don't have any favourite tokens yet...`}
+              desc={'You can add them by clicking the star icon next to the token!'}
+              withButton={false}
+            />
+          </Grid>
         )}
         <Grid
           className={classes.pagination}
@@ -190,19 +229,19 @@ const TokensList: React.FC<ITokensList> = ({
             height: height
           }}>
           {pages > 0 && (
-            <TableBoundsLabel
-              lowerBound={lowerBound}
-              totalItems={totalItems}
-              upperBound={upperBound}
-              borderTop={false}>
-              <PaginationList
-                pages={pages}
-                defaultPage={1}
-                handleChangePage={handleChangePagination}
-                variant='center'
-                page={page}
-              />
-            </TableBoundsLabel>
+            <InputPagination
+              pages={pages}
+              defaultPage={page}
+              handleChangePage={handleChangePagination}
+              variant='center'
+              page={page}
+              borderTop={false}
+              pagesNumeration={{
+                lowerBound: lowerBound,
+                totalItems: totalItems,
+                upperBound: upperBound
+              }}
+            />
           )}
         </Grid>
       </>

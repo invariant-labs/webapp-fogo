@@ -1,11 +1,17 @@
 import { BN } from '@coral-xyz/anchor'
 import { formatDate, printBN, trimDecimalZeros, trimZeros } from './utils'
 import { PublicKey } from '@solana/web3.js'
-import { FormatNumberThreshold } from '@store/consts/types'
+import { Intervals, MONTH_NAMES } from '@store/consts/static'
 
 export const toBlur = 'global-blur'
 export const addressTickerMap: { [key: string]: string } = {
-  WFOGO: 'So11111111111111111111111111111111111111112'
+  WETH: 'So11111111111111111111111111111111111111112',
+  BTC: '3JXmQAzBPU66dkVQufSE1ChBMRAdCHp6T7ZMBKAwhmWw',
+  USDC: '5W3bmyYDww6p5XRZnCR6m2c75st6XyCxW1TgGS3wTq7S',
+  EBGR: 'EBGR1Nb8k3ihiwFuRvXXuxotSKbX7FQWwuzfJEVE9wx9',
+  ETH: 'So11111111111111111111111111111111111111112',
+  MOON: 'JChWwuoqpXZZn6WjSCssjaozj4u65qNgvGFsV6eJ2g8S',
+  ECEGG: 'ECEGG4YDbBevPsq5KfL8Vyk6kptY1jhsoeaiG8RMXZ7C'
 }
 
 export const reversedAddressTickerMap = Object.fromEntries(
@@ -80,6 +86,32 @@ export const createButtonActions = (config: MaxButtonConfig) => {
       config.onAmountSet(trimDecimalZeros(printBN(amount, config.tokens[tokenIndex].decimals)))
     },
 
+    maxSale: (
+      tokenIndex: number | null,
+      currentRound: number,
+      deposited: number,
+      whitelistWalletLimit: BN,
+      currentAmount?: BN,
+      targetAmount?: BN
+    ) => {
+      if (tokenIndex === null || currentRound === undefined || currentRound === null) {
+        return
+      }
+
+      const amount = calculateAmount(tokenIndex)
+      const tokenDecimals = config.tokens[tokenIndex].decimals
+      let maxAllowedAmount: BN
+
+      if (currentRound <= 3) {
+        maxAllowedAmount = whitelistWalletLimit.sub(new BN(deposited))
+      } else {
+        maxAllowedAmount = targetAmount.sub(currentAmount)
+      }
+
+      const finalAmount = BN.min(amount, maxAllowedAmount)
+      config.onAmountSet(trimDecimalZeros(printBN(finalAmount, tokenDecimals)))
+    },
+
     half: (tokenIndex: number | null) => {
       if (tokenIndex === null) {
         return
@@ -125,34 +157,6 @@ export const formatLargeNumber = (number: number) => {
   return `${trimZeros(scaledNumber.toFixed(1))}${suffixes[suffixIndex]}`
 }
 
-export const thresholdsWithTokenDecimal = (decimals: number): FormatNumberThreshold[] => [
-  {
-    value: 10,
-    decimals
-  },
-  {
-    value: 10000,
-    decimals: 6
-  },
-  {
-    value: 100000,
-    decimals: 4
-  },
-  {
-    value: 1000000,
-    decimals: 3
-  },
-  {
-    value: 1000000000,
-    decimals: 2,
-    divider: 1000000
-  },
-  {
-    value: Infinity,
-    decimals: 2,
-    divider: 1000000000
-  }
-]
 export const shortenDate = (timestamp: number | string): string => {
   if (typeof timestamp === 'string') {
     return timestamp.slice(0, 6) + timestamp.slice(-2)
@@ -161,4 +165,152 @@ export const shortenDate = (timestamp: number | string): string => {
     const [day, month, year] = formatedDate.split('.')
     return `${day}.${month}.${year.slice(-2)}`
   }
+}
+
+export const mapIntervalToPrecision = (interval: Intervals): string => {
+  switch (interval) {
+    case Intervals.Daily:
+      return 'every 1 day'
+    case Intervals.Weekly:
+      return 'every 1 week'
+    case Intervals.Monthly:
+      return 'every 1 month'
+    // case Intervals.Yearly:
+    //   return 'every 1 year'
+  }
+}
+
+export const mapIntervalToString = (interval: Intervals): string => {
+  switch (interval) {
+    case Intervals.Daily:
+      return '24H'
+    case Intervals.Weekly:
+      return '1W'
+    case Intervals.Monthly:
+      return '1M'
+    // case Intervals.Yearly:
+    //   return '1Y'
+  }
+}
+
+export const formatPlotDataLabels = (
+  time: number,
+  entries: number,
+  interval: Intervals,
+  reduceLabels: boolean = false
+): string => {
+  const date = new Date(time)
+  const day = date.getDate()
+  const month = date.getMonth() + 1
+
+  switch (interval) {
+    case Intervals.Monthly: {
+      const monthName = MONTH_NAMES[month - 1].slice(0, 3)
+      return monthName
+    }
+    case Intervals.Daily: {
+      const dayMod =
+        Math.floor(time / (1000 * 60 * 60 * 24)) % (entries >= 8 ? (reduceLabels ? 4 : 2) : 1)
+      return dayMod === 0 ? `${day < 10 ? '0' : ''}${day}/${month < 10 ? '0' : ''}${month}` : ''
+    }
+    case Intervals.Weekly: {
+      const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, etc.
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+      const weekStart = new Date(date)
+      weekStart.setDate(date.getDate() + mondayOffset)
+
+      const weekNumber = Math.floor(weekStart.getTime() / (1000 * 60 * 60 * 24 * 7))
+      const weekMod = weekNumber % (entries >= 8 ? (reduceLabels ? 4 : 2) : 1)
+
+      if (weekMod !== 0) return ''
+
+      const startDay = weekStart.getDate()
+      const startMonth = weekStart.getMonth() + 1
+      return `${startDay < 10 ? '0' : ''}${startDay}/${startMonth < 10 ? '0' : ''}${startMonth}`
+    }
+  }
+}
+
+export const getLabelDate = (
+  interval: Intervals,
+  timestamp: number,
+  latestTimestamp: number
+): string => {
+  const date = new Date(timestamp)
+  const now = new Date(latestTimestamp)
+  const day = date.getDate()
+  const month = date.getMonth() + 1
+  const year = date.getFullYear()
+  const monthName = MONTH_NAMES[month - 1].slice(0, 3)
+
+  const formatDay = (d: number) => `${d < 10 ? '0' : ''}${d}`
+
+  if (interval === Intervals.Daily) {
+    return `${day < 10 ? '0' : ''}${day} ${monthName}`
+  } else if (interval === Intervals.Weekly) {
+    // Calculate start of week (Monday-based)
+    const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, etc.
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+
+    const weekStart = new Date(date)
+    weekStart.setDate(date.getDate() + mondayOffset)
+
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const weekStartDate = new Date(
+      weekStart.getFullYear(),
+      weekStart.getMonth(),
+      weekStart.getDate()
+    )
+    const weekEndDate = new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate())
+
+    if (weekStartDate <= todayStart && todayStart <= weekEndDate) {
+      weekEnd.setTime(now.getTime())
+    }
+
+    const startDay = weekStart.getDate()
+    const startMonth = weekStart.getMonth()
+    const startMonthName = MONTH_NAMES[startMonth].slice(0, 3)
+
+    const endDay = weekEnd.getDate()
+    const endMonth = weekEnd.getMonth()
+    const endMonthName = MONTH_NAMES[endMonth].slice(0, 3)
+
+    if (startMonth === endMonth && startDay === endDay) {
+      return `${formatDay(startDay)} ${startMonthName}`
+    } else {
+      return `${formatDay(startDay)} ${startMonthName} - ${formatDay(endDay)} ${endMonthName}`
+    }
+  } else if (interval === Intervals.Monthly) {
+    const monthEnd = new Date(year, date.getMonth() + 1, 0)
+
+    if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) {
+      monthEnd.setTime(now.getTime())
+      const startDay = 1
+      const endDay = monthEnd.getDate()
+      if (startDay === endDay) {
+        return `${formatDay(startDay)} ${monthName}`
+      }
+
+      return `${formatDay(startDay)} ${monthName} - ${formatDay(endDay)} ${monthName}`
+    } else {
+      return MONTH_NAMES[month - 1] + ' ' + year
+    }
+  }
+
+  return `${day < 10 ? '0' : ''}${day} ${monthName}`
+}
+
+type RateType = 'APY' | 'APR'
+
+export const convertAPYValue = (apy: number, type: RateType) => {
+  return apy > 9999
+    ? '>9999%'
+    : apy === 0
+      ? type === 'APY'
+        ? '-'
+        : ''
+      : Math.abs(apy).toFixed(2) + '%'
 }

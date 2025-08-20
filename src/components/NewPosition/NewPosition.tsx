@@ -3,20 +3,25 @@ import Slippage from '@components/Modals/Slippage/Slippage'
 import Refresher from '@common/Refresher/Refresher'
 import { Box, Button, Grid, Hidden, Typography, useMediaQuery } from '@mui/material'
 import {
+  ADDRESSES_TO_REVERT_TOKEN_PAIRS,
   ALL_FEE_TIERS_DATA,
   autoSwapPools,
   DepositOptions,
   NetworkType,
   PositionTokenBlock,
-  REFRESHER_INTERVAL
+  REFRESHER_INTERVAL,
+  USDC_MAIN,
+  USDT_MAIN
 } from '@store/consts/static'
 import {
   addressToTicker,
   calcPriceByTickIndex,
+  calculateConcentration,
   calculateConcentrationRange,
   convertBalanceToBN,
   determinePositionTokenBlock,
   getConcentrationIndex,
+  initialXtoY,
   parseFeeToPathFee,
   printBN,
   ROUTES,
@@ -27,7 +32,7 @@ import { PlotTickData } from '@store/reducers/positions'
 import { blurContent, unblurContent } from '@utils/uiUtils'
 import { VariantType } from 'notistack'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import ConcentrationTypeSwitch from './ConcentrationTypeSwitch/ConcentrationTypeSwitch'
 import DepositSelector from './DepositSelector/DepositSelector'
 import MarketIdLabel from './MarketIdLabel/MarketIdLabel'
@@ -42,6 +47,7 @@ import { InitMidPrice } from '@common/PriceRangePlot/PriceRangePlot'
 import { PublicKey } from '@solana/web3.js'
 import { BN } from '@coral-xyz/anchor'
 import {
+  DECIMAL,
   fromFee,
   getConcentrationArray,
   getMaxTick,
@@ -52,6 +58,7 @@ import { theme } from '@static/theme'
 import { PoolWithAddress } from '@store/reducers/pools'
 import { Tick, Tickmap } from '@invariant-labs/sdk-fogo/lib/market'
 import { Button as MuiButton } from '@mui/material'
+import { useConfirm } from '@components/Modals/ConfirmModal/useConfirm'
 
 export interface INewPosition {
   initialTokenFrom: string
@@ -154,6 +161,9 @@ export interface INewPosition {
   onMaxSlippageToleranceCreatePositionChange: (val: string) => void
   initialMaxSlippageToleranceCreatePosition: string
   updateLiquidity: (lq: BN) => void
+  suggestedPrice: number
+  handleBack: () => void
+  oraclePrice: number | null
 }
 
 export const NewPosition: React.FC<INewPosition> = ({
@@ -226,7 +236,10 @@ export const NewPosition: React.FC<INewPosition> = ({
   onMaxSlippageToleranceSwapChange,
   initialMaxSlippageToleranceSwap,
   onMaxSlippageToleranceCreatePositionChange,
-  initialMaxSlippageToleranceCreatePosition
+  initialMaxSlippageToleranceCreatePosition,
+  suggestedPrice,
+  handleBack,
+  oraclePrice
 }) => {
   const { classes } = useStyles()
   const navigate = useNavigate()
@@ -239,6 +252,10 @@ export const NewPosition: React.FC<INewPosition> = ({
     initialOpeningPositionMethod
   )
 
+  const [ConfirmDialog, confirm] = useConfirm(
+    'Are you sure',
+    `Please ensure you’re opening your position within the correct price range. Opening a position in an incorrect range on this pool can result in a loss of value - essentially, it’s like selling your tokens below the market price or buying them above it.`
+  )
   const [leftRange, setLeftRange] = useState(getMinTick(tickSpacing))
   const [rightRange, setRightRange] = useState(getMaxTick(tickSpacing))
 
@@ -263,10 +280,13 @@ export const NewPosition: React.FC<INewPosition> = ({
 
   const [shouldReversePlot, setShouldReversePlot] = useState(false)
 
-  const concentrationArray = useMemo(() => {
+  const concentrationArray: number[] = useMemo(() => {
     const validatedMidPrice = validConcentrationMidPriceTick(midPrice.index, isXtoY, tickSpacing)
 
-    return getConcentrationArray(tickSpacing, 2, validatedMidPrice).sort((a, b) => a - b)
+    const array = getConcentrationArray(tickSpacing, 2, validatedMidPrice).sort((a, b) => a - b)
+    const maxConcentrationArray = [...array, calculateConcentration(0, tickSpacing)]
+
+    return maxConcentrationArray
   }, [tickSpacing, midPrice.index])
 
   const [concentrationIndex, setConcentrationIndex] = useState(
@@ -275,6 +295,15 @@ export const NewPosition: React.FC<INewPosition> = ({
       +initialConcentration < 2 ? 2 : initialConcentration ? +initialConcentration : 34
     )
   )
+
+  const bestFeeIndex = useMemo(() => {
+    const feeTiersTVLValues = Object.values(feeTiersWithTvl)
+    const bestFee = feeTiersTVLValues.length > 0 ? Math.max(...feeTiersTVLValues) : 0
+    const bestTierIndex = ALL_FEE_TIERS_DATA.findIndex(tier => {
+      return feeTiersWithTvl[+printBN(tier.tier.fee, DECIMAL - 2)] === bestFee && bestFee > 0
+    })
+    return bestTierIndex
+  }, [ALL_FEE_TIERS_DATA, feeTiersWithTvl])
 
   useEffect(() => {
     if (isLoadingTicksOrTickmap || isWaitingForNewPool) return
@@ -391,6 +420,7 @@ export const NewPosition: React.FC<INewPosition> = ({
 
     setLeftRange(leftRange)
     setRightRange(rightRange)
+
     if (
       tokenAIndex !== null &&
       tokenADeposit !== '0' &&
@@ -508,7 +538,7 @@ export const NewPosition: React.FC<INewPosition> = ({
     if (positionOpeningMethod === 'range') {
       onChangeRange(leftRange, rightRange)
     }
-  }, [midPrice.index, leftRange, rightRange, currentPriceSqrt])
+  }, [midPrice.index, leftRange, rightRange, currentPriceSqrt.toString()])
 
   const handleClickSettings = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget)
@@ -561,37 +591,32 @@ export const NewPosition: React.FC<INewPosition> = ({
               ? '&range=true'
               : '&range=false'
 
-        urlUpdateTimeoutRef.current = setTimeout(
-          () =>
-            navigate(
-              ROUTES.getNewPositionRoute(
-                token1Symbol,
-                token2Symbol,
-                parsedFee + concParam + rangeParam
-              ),
-              {
-                replace: true
-              }
+        urlUpdateTimeoutRef.current = setTimeout(() => {
+          navigate(
+            ROUTES.getNewPositionRoute(
+              token1Symbol,
+              token2Symbol,
+              parsedFee + concParam + rangeParam
             ),
-          500
-        )
+            {
+              replace: true
+            }
+          )
+        }, 500)
       } else if (index1 != null) {
         const tokenSymbol = addressToTicker(network, tokens[index1].assetAddress.toString())
-        urlUpdateTimeoutRef.current = setTimeout(
-          () => navigate(ROUTES.getNewPositionRoute(tokenSymbol, parsedFee), { replace: true }),
-          500
-        )
+        urlUpdateTimeoutRef.current = setTimeout(() => {
+          navigate(ROUTES.getNewPositionRoute(tokenSymbol, parsedFee), { replace: true })
+        }, 500)
       } else if (index2 != null) {
         const tokenSymbol = addressToTicker(network, tokens[index2].assetAddress.toString())
-        urlUpdateTimeoutRef.current = setTimeout(
-          () => navigate(ROUTES.getNewPositionRoute(tokenSymbol, parsedFee), { replace: true }),
-          500
-        )
+        urlUpdateTimeoutRef.current = setTimeout(() => {
+          navigate(ROUTES.getNewPositionRoute(tokenSymbol, parsedFee), { replace: true })
+        }, 500)
       } else if (fee != null) {
-        urlUpdateTimeoutRef.current = setTimeout(
-          () => navigate(ROUTES.getNewPositionRoute(parsedFee), { replace: true }),
-          500
-        )
+        urlUpdateTimeoutRef.current = setTimeout(() => {
+          navigate(ROUTES.getNewPositionRoute(parsedFee), { replace: true })
+        }, 500)
       }
     }
   }
@@ -637,6 +662,8 @@ export const NewPosition: React.FC<INewPosition> = ({
         return ''
       case NetworkType.Testnet:
         return '?cluster=testnet'
+      case NetworkType.Devnet:
+        return '?cluster=devnet'
       default:
         return '?cluster=testnet'
     }
@@ -769,14 +796,149 @@ export const NewPosition: React.FC<INewPosition> = ({
     updateLiquidity(liquidityBasedOnTokenB)
   }, [alignment])
 
+  const [wasRefreshed, setWasRefreshed] = useState(false)
+
+  useEffect(() => {
+    if (isWaitingForNewPool) {
+      setWasRefreshed(true)
+    }
+  }, [isWaitingForNewPool])
+
+  const usdcPrice = useMemo(() => {
+    if (tokenAIndex === null || tokenBIndex === null) return null
+
+    const revertDenominator = initialXtoY(
+      tokens[tokenAIndex].assetAddress.toString(),
+      tokens[tokenBIndex].assetAddress.toString()
+    )
+
+    if (
+      tokens[tokenAIndex].assetAddress.equals(USDC_MAIN.address) ||
+      tokens[tokenBIndex].assetAddress.equals(USDC_MAIN.address) ||
+      tokens[tokenAIndex].assetAddress.equals(USDT_MAIN.address) ||
+      tokens[tokenBIndex].assetAddress.equals(USDT_MAIN.address)
+    ) {
+      return null
+    }
+
+    const shouldDisplayPrice =
+      ADDRESSES_TO_REVERT_TOKEN_PAIRS.includes(tokens[tokenAIndex].assetAddress.toString()) ||
+      ADDRESSES_TO_REVERT_TOKEN_PAIRS.includes(tokens[tokenBIndex].assetAddress.toString())
+
+    if (!shouldDisplayPrice) {
+      return null
+    }
+
+    const ratioToDenominator = revertDenominator ? midPrice.x : 1 / midPrice.x
+    const denominatorPrice = revertDenominator ? tokenBPriceData?.price : tokenAPriceData?.price
+
+    if (!denominatorPrice) {
+      return null
+    }
+
+    return {
+      token: revertDenominator ? tokens[tokenAIndex].symbol : tokens[tokenBIndex].symbol,
+      price: ratioToDenominator * denominatorPrice
+    }
+  }, [midPrice.x, priceALoading, priceBLoading])
+
+  const oracleDiffPercentage = useMemo(() => {
+    if (oraclePrice === null || midPrice.x === 0) {
+      return 0
+    }
+    return Math.abs((oraclePrice - midPrice.x) / midPrice.x) * 100
+  }, [oraclePrice, midPrice.x])
+
+  const oraclePriceWarning = useMemo(() => {
+    if (shouldReversePlot) {
+      return false
+    }
+
+    return oraclePrice !== 0 && oracleDiffPercentage > 10
+  }, [oracleDiffPercentage, shouldReversePlot, oraclePrice])
+
+  const diffPercentage = useMemo(() => {
+    return Math.abs((suggestedPrice - midPrice.x) / midPrice.x) * 100
+  }, [suggestedPrice, midPrice.x])
+
+  const showPriceWarning = useMemo(() => {
+    if (shouldReversePlot) {
+      return false
+    }
+    return (diffPercentage > 10 && !oraclePrice) || (diffPercentage > 10 && oraclePriceWarning)
+  }, [diffPercentage, oraclePriceWarning, oraclePrice, shouldReversePlot])
+
+  const blocked =
+    tokenAIndex === null ||
+    tokenBIndex === null ||
+    tokenAIndex === tokenBIndex ||
+    data.length === 0 ||
+    isWaitingForNewPool
+
+  const isPriceWarningVisible =
+    (showPriceWarning || oraclePriceWarning) && !blocked && !isLoadingTicksOrTickmap
+
+  const onAddLiquidity = async () => {
+    if (isPriceWarningVisible) {
+      blurContent()
+      const ok = await confirm()
+      if (!ok) return
+    }
+    if (tokenAIndex !== null && tokenBIndex !== null) {
+      const tokenADecimals = tokens[tokenAIndex].decimals
+      const tokenBDecimals = tokens[tokenBIndex].decimals
+      addLiquidityHandler(
+        leftRange,
+        rightRange,
+        isXtoY
+          ? convertBalanceToBN(tokenADeposit, tokenADecimals)
+          : convertBalanceToBN(tokenBDeposit, tokenBDecimals),
+        isXtoY
+          ? convertBalanceToBN(tokenBDeposit, tokenBDecimals)
+          : convertBalanceToBN(tokenADeposit, tokenADecimals),
+        fromFee(new BN(Number(+slippTolerance * 1000)))
+      )
+    }
+  }
+  const onSwapAndAddLiquidity = async (
+    xAmount,
+    yAmount,
+    swapAmount,
+    xToY,
+    byAmountIn,
+    estimatedPriceAfterSwap,
+    crossedTicks,
+    swapSlippage,
+    positionSlippage,
+    minUtilizationPercentage
+  ) => {
+    if (isPriceWarningVisible) {
+      blurContent()
+      const ok = await confirm()
+      if (!ok) return
+    }
+    swapAndAddLiquidityHandler(
+      xAmount,
+      yAmount,
+      swapAmount,
+      xToY,
+      byAmountIn,
+      estimatedPriceAfterSwap,
+      crossedTicks,
+      swapSlippage,
+      positionSlippage,
+      minUtilizationPercentage,
+      leftRange,
+      rightRange
+    )
+  }
+
   return (
     <Grid container className={classes.wrapper}>
-      <Link to={ROUTES.PORTFOLIO} style={{ textDecoration: 'none', maxWidth: 'fit-content' }}>
-        <Grid className={classes.back} container item>
-          <img className={classes.backIcon} src={backIcon} alt='back' />
-          <Typography className={classes.backText}>Positions</Typography>
-        </Grid>
-      </Link>
+      <Grid onClick={() => handleBack()} className={classes.back} container item>
+        <img className={classes.backIcon} src={backIcon} alt='back' />
+        <Typography className={classes.backText}>Back</Typography>
+      </Grid>
 
       <Grid container className={classes.headerContainer}>
         <Box className={classes.titleContainer}>
@@ -820,7 +982,7 @@ export const NewPosition: React.FC<INewPosition> = ({
                 <TooltipHover title='Open pool in explorer'>
                   <Grid width={'12px'} height={'24px'}>
                     <a
-                      href={`https://explorer.fogo.io/address/${poolAddress}${networkUrl}`}
+                      href={`https://fogoscan.xyz/account/${poolAddress}${networkUrl}`}
                       target='_blank'
                       rel='noopener noreferrer'
                       onClick={event => {
@@ -934,50 +1096,8 @@ export const NewPosition: React.FC<INewPosition> = ({
                 positionOpeningMethod === 'range'
             }
           }}
-          onAddLiquidity={() => {
-            if (tokenAIndex !== null && tokenBIndex !== null) {
-              const tokenADecimals = tokens[tokenAIndex].decimals
-              const tokenBDecimals = tokens[tokenBIndex].decimals
-              addLiquidityHandler(
-                leftRange,
-                rightRange,
-                isXtoY
-                  ? convertBalanceToBN(tokenADeposit, tokenADecimals)
-                  : convertBalanceToBN(tokenBDeposit, tokenBDecimals),
-                isXtoY
-                  ? convertBalanceToBN(tokenBDeposit, tokenBDecimals)
-                  : convertBalanceToBN(tokenADeposit, tokenADecimals),
-                fromFee(new BN(Number(+slippTolerance * 1000)))
-              )
-            }
-          }}
-          onSwapAndAddLiquidity={(
-            xAmount,
-            yAmount,
-            swapAmount,
-            xToY,
-            byAmountIn,
-            estimatedPriceAfterSwap,
-            crossedTicks,
-            swapSlippage,
-            positionSlippage,
-            minUtilizationPercentage
-          ) => {
-            swapAndAddLiquidityHandler(
-              xAmount,
-              yAmount,
-              swapAmount,
-              xToY,
-              byAmountIn,
-              estimatedPriceAfterSwap,
-              crossedTicks,
-              swapSlippage,
-              positionSlippage,
-              minUtilizationPercentage,
-              leftRange,
-              rightRange
-            )
-          }}
+          onAddLiquidity={onAddLiquidity}
+          onSwapAndAddLiquidity={onSwapAndAddLiquidity}
           tokenAInputState={{
             value:
               tokenAIndex !== null &&
@@ -1151,6 +1271,10 @@ export const NewPosition: React.FC<INewPosition> = ({
         tokenAIndex === tokenBIndex ||
         isWaitingForNewPool ? (
           <RangeSelector
+            oracleDiffPercentage={oracleDiffPercentage}
+            diffPercentage={diffPercentage}
+            showPriceWarning={showPriceWarning}
+            oraclePriceWarning={oraclePriceWarning}
             updatePath={(concIndex: number) =>
               updatePath(
                 tokenAIndex,
@@ -1163,13 +1287,7 @@ export const NewPosition: React.FC<INewPosition> = ({
             initialConcentration={initialConcentration}
             poolIndex={poolIndex}
             onChangeRange={onChangeRange}
-            blocked={
-              tokenAIndex === null ||
-              tokenBIndex === null ||
-              tokenAIndex === tokenBIndex ||
-              data.length === 0 ||
-              isWaitingForNewPool
-            }
+            blocked={blocked}
             blockerInfo={setRangeBlockerInfo()}
             {...(tokenAIndex === null ||
             tokenBIndex === null ||
@@ -1203,6 +1321,11 @@ export const NewPosition: React.FC<INewPosition> = ({
             unblockUpdatePriceRange={unblockUpdatePriceRange}
             onlyUserPositions={onlyUserPositions}
             setOnlyUserPositions={setOnlyUserPositions}
+            usdcPrice={usdcPrice}
+            suggestedPrice={suggestedPrice}
+            oraclePrice={oraclePrice}
+            currentFeeIndex={currentFeeIndex}
+            bestFeeIndex={bestFeeIndex}
           />
         ) : (
           <PoolInit
@@ -1214,6 +1337,7 @@ export const NewPosition: React.FC<INewPosition> = ({
             tokenASymbol={tokenAIndex !== null ? tokens[tokenAIndex].symbol : 'ABC'}
             tokenBSymbol={tokenBIndex !== null ? tokens[tokenBIndex].symbol : 'XYZ'}
             midPriceIndex={midPrice.index}
+            midPriceSqrtPrice={midPrice.sqrtPrice}
             onChangeMidPrice={onChangeMidPrice}
             currentPairReversed={currentPairReversed}
             positionOpeningMethod={positionOpeningMethod}
@@ -1232,9 +1356,15 @@ export const NewPosition: React.FC<INewPosition> = ({
               )
             }
             currentFeeIndex={currentFeeIndex}
+            suggestedPrice={suggestedPrice}
+            wasRefreshed={wasRefreshed}
+            setWasRefreshed={setWasRefreshed}
+            bestFeeIndex={bestFeeIndex}
           />
         )}
       </Grid>
+
+      {ConfirmDialog}
     </Grid>
   )
 }

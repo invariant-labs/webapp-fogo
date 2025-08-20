@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react'
 import { unknownTokenIcon, warningIcon } from '@static/icons'
-import classNames from 'classnames'
 import useStyles from './style'
 import { blurContent, unblurContent } from '@utils/uiUtils'
 import { Box, Button } from '@mui/material'
@@ -15,16 +14,18 @@ export interface ISelectModal {
   current: SwapToken | null
   centered?: boolean
   tokens: SwapToken[]
-  onSelect: (index: number) => void
+  onSelect?: (index: number) => void
   className?: string
   hideBalancesInModal?: boolean
-  handleAddToken: (address: string) => void
+  handleAddToken?: (address: string) => void
   sliceName?: boolean
   commonTokens: PublicKey[]
   initialHideUnknownTokensValue: boolean
   onHideUnknownTokensChange: (val: boolean) => void
   hiddenUnknownTokens: boolean
   network: NetworkType
+  hideSelect?: boolean
+  notRoundIcon?: boolean
 }
 
 export const Select: React.FC<ISelectModal> = ({
@@ -41,13 +42,17 @@ export const Select: React.FC<ISelectModal> = ({
   initialHideUnknownTokensValue,
   onHideUnknownTokensChange,
   hiddenUnknownTokens,
-  network
+  network,
+  hideSelect = false,
+  notRoundIcon = false
 }) => {
-  const { classes } = useStyles()
+  const { classes, cx } = useStyles({ hideSelect, notRoundIcon })
   const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null)
   const [open, setOpen] = React.useState<boolean>(false)
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (hideSelect) return
+
     setAnchorEl(event.currentTarget)
     blurContent()
     setOpen(true)
@@ -69,7 +74,7 @@ export const Select: React.FC<ISelectModal> = ({
   return (
     <>
       <Button
-        className={classNames(classes.button, className)}
+        className={cx(classes.button, className)}
         color='primary'
         variant='contained'
         onClick={handleClick}
@@ -90,7 +95,7 @@ export const Select: React.FC<ISelectModal> = ({
             </Box>
           )
         }
-        endIcon={<ExpandMoreIcon />}
+        endIcon={!hideSelect && <ExpandMoreIcon />}
         classes={{
           endIcon: 'selectArrow'
         }}
