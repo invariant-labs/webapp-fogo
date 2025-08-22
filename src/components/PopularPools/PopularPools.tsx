@@ -50,7 +50,9 @@ const PopularPools: React.FC<IPopularPools> = ({
           setInterval={updateInterval}
         />
       </Box>
-      <div style={{ height: showAPY ? 398 : 330 }} className={classes.cardsContainer}>
+      <div
+        style={{ height: isLoading ? 398 : showAPY ? 398 : 330 }}
+        className={classes.cardsContainer}>
         <Slider
           dots={isLgDown}
           draggable={isLgDown}

@@ -18,6 +18,47 @@ import { ChartSwitch } from '@store/consts/types'
 import { useSelector } from 'react-redux'
 import { columnChartType } from '@store/selectors/stats'
 
+type SeriesPoint = { timestamp: number; value: number }
+
+const CHART_MARGIN = { top: 30, bottom: 30, left: 30, right: 4 }
+const DAY_MS = 86_400_000
+
+function resampleByInterval(data: SeriesPoint[], interval: IntervalsKeys): SeriesPoint[] {
+  const buckets = new Map<number, number>()
+  for (const pt of data) {
+    const ms = pt.timestamp
+    let bucket: number
+    if (interval === IntervalsKeys.Daily) {
+      bucket = Math.floor(ms / DAY_MS) * DAY_MS
+    } else {
+      const d = new Date(ms)
+      if (interval === IntervalsKeys.Weekly) {
+        const dow = d.getUTCDay() || 7
+        const startOfDay = Math.floor(ms / DAY_MS) * DAY_MS
+        const mondayOffset = dow - 1
+        bucket = startOfDay - mondayOffset * DAY_MS
+      } else {
+        bucket = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)
+      }
+    }
+    buckets.set(bucket, (buckets.get(bucket) ?? 0) + (pt.value || 0))
+  }
+  return Array.from(buckets.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([timestamp, value]) => ({ timestamp, value }))
+}
+
+const MAX_BUCKETS: Record<IntervalsKeys, number> = {
+  [IntervalsKeys.Daily]: 30,
+  [IntervalsKeys.Weekly]: 26,
+  [IntervalsKeys.Monthly]: 12
+}
+
+function limitBuckets(points: SeriesPoint[], interval: IntervalsKeys): SeriesPoint[] {
+  const max = MAX_BUCKETS[interval]
+  return points.length > max ? points.slice(points.length - max) : points
+}
+
 interface StatsInterface {
   volume: number | null
   fees: number | null
@@ -46,11 +87,12 @@ const ColumnChart: React.FC<StatsInterface> = ({
   const [hoveredBarPosition, setHoveredBarPosition] = useState<{ x: number; width: number } | null>(
     null
   )
+  const [isSticky, setIsSticky] = useState(false)
 
   const chartType = useSelector(columnChartType)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const chartContainerRef = useRef<HTMLDivElement>(null)
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const rafRef = useRef<number | null>(null)
 
   const intervalSuffix = mapIntervalToString(interval)
 
@@ -60,75 +102,57 @@ const ColumnChart: React.FC<StatsInterface> = ({
   const isLgDown = useMediaQuery(theme.breakpoints.down('lg'))
   const isTablet = isMdUp && isLgDown
 
-  const hideTooltip = useCallback((immediate = false) => {
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current)
-    }
-
-    if (immediate) {
-      setHoveredBar(null)
-      setHoveredBarPosition(null)
-    } else {
-      hideTimeoutRef.current = setTimeout(() => {
-        setHoveredBar(null)
-        setHoveredBarPosition(null)
-      }, 50)
-    }
+  const hideTooltip = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    setHoveredBar(null)
+    setHoveredBarPosition(null)
+    setIsSticky(false)
   }, [])
 
-  const showTooltip = useCallback(
-    (barData: any, event: MouseEvent, barPosition: { x: number; width: number }) => {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current)
-      }
-      setHoveredBar(barData)
-      setHoveredBarPosition(barPosition)
-      setMousePosition({ x: event.clientX, y: event.clientY })
-    },
-    []
-  )
-
-  const handleGlobalMouseMove = useCallback(
-    (event: MouseEvent) => {
-      if (!chartContainerRef.current || !hoveredBar) return
-
-      const rect = chartContainerRef.current.getBoundingClientRect()
-      const margin = { top: 30, bottom: 30, left: 30, right: 4 } // Same as chart margins
-
-      const barAreaLeft = rect.left + margin.left
-      const barAreaRight = rect.right - margin.right
-      const barAreaTop = rect.top + margin.top
-      const barAreaBottom = rect.bottom - margin.bottom
-
-      const isInsideBarArea =
-        event.clientX >= barAreaLeft &&
-        event.clientX <= barAreaRight &&
-        event.clientY >= barAreaTop &&
-        event.clientY <= barAreaBottom
-
-      if (!isInsideBarArea) {
-        hideTooltip(true)
-      } else {
-        setMousePosition({ x: event.clientX, y: event.clientY })
-      }
-    },
-    [hoveredBar, hideTooltip]
-  )
-
   useEffect(() => {
-    if (hoveredBar) {
-      document.addEventListener('mousemove', handleGlobalMouseMove)
-      return () => {
-        document.removeEventListener('mousemove', handleGlobalMouseMove)
+    if (!hoveredBar) return
+
+    const onPointerDownDoc = (e: PointerEvent) => {
+      const host = chartContainerRef.current
+      if (!host) return
+      if (!host.contains(e.target as Node)) {
+        hideTooltip()
       }
     }
-  }, [hoveredBar, handleGlobalMouseMove])
+    const onPointerMoveGuard = (e: PointerEvent) => {
+      if (isSticky) return
+      const host = chartContainerRef.current
+      if (!host) return
+      const rect = host.getBoundingClientRect()
+      const inside =
+        e.clientX >= rect.left + CHART_MARGIN.left &&
+        e.clientX <= rect.right - CHART_MARGIN.right &&
+        e.clientY >= rect.top + CHART_MARGIN.top &&
+        e.clientY <= rect.bottom - CHART_MARGIN.bottom
+      if (!inside) hideTooltip()
+    }
+    const onHide = () => hideTooltip()
+
+    document.addEventListener('pointerdown', onPointerDownDoc, true)
+    window.addEventListener('pointermove', onPointerMoveGuard, { passive: true, capture: true })
+    window.addEventListener('scroll', onHide, { passive: true, capture: true })
+    window.addEventListener('wheel', onHide, { passive: true })
+    window.addEventListener('blur', onHide)
+    window.addEventListener('resize', onHide)
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDownDoc, true)
+      window.removeEventListener('pointermove', onPointerMoveGuard, { capture: true } as any)
+      window.removeEventListener('scroll', onHide, { capture: true } as any)
+      window.removeEventListener('wheel', onHide as any)
+      window.removeEventListener('blur', onHide as any)
+      window.removeEventListener('resize', onHide as any)
+    }
+  }, [hoveredBar, isSticky, hideTooltip])
 
   useEffect(() => {
     return () => {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current)
-      }
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
   }, [])
 
@@ -143,6 +167,84 @@ const ColumnChart: React.FC<StatsInterface> = ({
   }
 
   const CustomHoverLayer = ({ bars, innerHeight, innerWidth }: any) => {
+    const pickBarByX = (x: number) => {
+      for (let i = 0; i < bars.length; i++) {
+        const b = bars[i]
+        if (x >= b.x && x <= b.x + b.width) return b
+      }
+      return null
+    }
+
+    const updateFromCoords = (clientX: number, clientY: number, target: SVGRectElement) => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      const rect = target.getBoundingClientRect()
+      const localX = clientX - rect.left
+
+      rafRef.current = requestAnimationFrame(() => {
+        const b = pickBarByX(localX)
+        if (!b) {
+          if (!isSticky && hoveredBar) hideTooltip()
+          return
+        }
+        const barData = {
+          timestamp: b.data.indexValue || b.data.timestamp,
+          value: b.data.value,
+          ...b.data
+        }
+        if (
+          !hoveredBarPosition ||
+          hoveredBarPosition.x !== b.x ||
+          hoveredBarPosition.width !== b.width
+        ) {
+          setHoveredBar(barData)
+          setHoveredBarPosition({ x: b.x, width: b.width })
+        }
+        setMousePosition({ x: clientX, y: clientY })
+      })
+    }
+
+    const onPointerMove = (e: React.PointerEvent<SVGRectElement>) => {
+      if (isSticky) return
+      updateFromCoords(e.clientX, e.clientY, e.currentTarget)
+    }
+
+    const onPointerDown = (e: React.PointerEvent<SVGRectElement>) => {
+      const isMouse = (e.pointerType as string) === 'mouse'
+      if (isMouse) return
+
+      const target = e.currentTarget
+      const rect = target.getBoundingClientRect()
+      const localX = e.clientX - rect.left
+      const b = pickBarByX(localX)
+
+      if (b) {
+        if (
+          isSticky &&
+          hoveredBarPosition &&
+          hoveredBarPosition.x === b.x &&
+          hoveredBarPosition.width === b.width
+        ) {
+          hideTooltip()
+        } else {
+          setIsSticky(true)
+          const barData = {
+            timestamp: b.data.indexValue || b.data.timestamp,
+            value: b.data.value,
+            ...b.data
+          }
+          setHoveredBar(barData)
+          setHoveredBarPosition({ x: b.x, width: b.width })
+          setMousePosition({ x: e.clientX, y: e.clientY })
+        }
+      } else {
+        if (isSticky) hideTooltip()
+      }
+    }
+
+    const onPointerLeave = () => {
+      if (!isSticky) hideTooltip()
+    }
+
     return (
       <g>
         {hoveredBarPosition && (
@@ -156,93 +258,42 @@ const ColumnChart: React.FC<StatsInterface> = ({
             style={{ pointerEvents: 'none' }}
           />
         )}
-
         <rect
           x={0}
           y={0}
           width={innerWidth}
           height={innerHeight}
           fill='transparent'
-          onMouseEnter={() => {
-            hideTooltip()
+          onPointerMove={onPointerMove}
+          onPointerDown={onPointerDown}
+          onPointerLeave={onPointerLeave}
+          style={{
+            pointerEvents: 'all',
+            touchAction: 'manipulation'
           }}
-          style={{ pointerEvents: 'all' }}
         />
-
-        {bars.map((bar: any) => {
-          const barData = {
-            timestamp: bar.data.indexValue || bar.data.timestamp,
-            value: bar.data.value,
-            ...bar.data
-          }
-
-          const hoverWidth = bar.width + 2
-          const hoverX = bar.x - 1
-
-          return (
-            <rect
-              key={bar.key}
-              x={hoverX}
-              y={0}
-              width={hoverWidth}
-              height={innerHeight}
-              fill='transparent'
-              onMouseEnter={event => {
-                showTooltip(barData, event.nativeEvent, { x: bar.x, width: bar.width })
-              }}
-              onMouseMove={event => {
-                setMousePosition({ x: event.nativeEvent.clientX, y: event.nativeEvent.clientY })
-              }}
-              onMouseLeave={() => {
-                hideTooltip()
-              }}
-              style={{ pointerEvents: 'all' }}
-            />
-          )
-        })}
       </g>
     )
   }
 
   const CustomTooltip = () => {
     if (!hoveredBar) return null
-
     const timestamp = hoveredBar.timestamp || hoveredBar.indexValue
     const date = getLabelDate(interval, timestamp, lastStatsTimestamp)
 
-    const getTooltipPosition = () => {
-      if (!isMobile) {
-        return {
-          left: mousePosition.x + 10,
-          top: mousePosition.y + 10
-        }
-      }
-
-      const tooltipWidth = 170
-      const screenWidth = window.innerWidth
-      const margin = -15
-
-      let left = mousePosition.x - 85
-      if (left < margin) {
-        left = margin
-      } else if (left + tooltipWidth > screenWidth - margin) {
-        left = screenWidth - tooltipWidth - margin
-      }
-
-      return {
-        left: left,
-        top: 0
-      }
-    }
-
-    const tooltipPosition = getTooltipPosition()
+    const tooltipWidth = 170
+    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
+    const margin = 10
+    let left = mousePosition.x + 10
+    left = Math.max(margin, Math.min(left, screenWidth - tooltipWidth - margin))
+    const top = mousePosition.y + 10
 
     return (
       <div
         style={{
-          position: isMobile ? 'absolute' : 'fixed',
-          left: tooltipPosition.left,
-          top: tooltipPosition.top,
+          position: 'fixed',
+          left,
+          top,
           borderRadius: '4px',
           padding: '8px',
           pointerEvents: 'none',
@@ -259,13 +310,14 @@ const ColumnChart: React.FC<StatsInterface> = ({
     )
   }
 
-  const [data, value] = useMemo(() => {
-    if (chartType === ChartSwitch.volume) {
-      return [volumeData, volume || 0]
-    } else {
-      return [feesData, fees || 0]
-    }
-  }, [chartType, volume, fees])
+  const [rawData, headerValue] = useMemo(() => {
+    return chartType === ChartSwitch.volume ? [volumeData, volume || 0] : [feesData, fees || 0]
+  }, [chartType, volumeData, feesData, volume, fees])
+
+  const chartData = useMemo(() => {
+    const resampled = resampleByInterval(rawData as SeriesPoint[], interval)
+    return limitBuckets(resampled, interval)
+  }, [rawData, interval])
 
   return (
     <Grid className={cx(classes.container, className)}>
@@ -281,10 +333,9 @@ const ColumnChart: React.FC<StatsInterface> = ({
             dark
           />
         </Grid>
-
         <div className={classes.volumePercentContainer}>
           <Typography className={classes.volumePercentHeader}>
-            ${formatNumberWithoutSuffix(isLoading ? Math.random() * 10000 : value)}
+            ${formatNumberWithoutSuffix(isLoading ? Math.random() * 10000 : headerValue)}
           </Typography>
         </div>
       </Box>
@@ -293,13 +344,15 @@ const ColumnChart: React.FC<StatsInterface> = ({
         ref={chartContainerRef}
         className={classes.barContainer}
         style={{ position: 'relative' }}
-        onMouseLeave={() => hideTooltip(true)}>
+        onPointerLeave={() => {
+          if (!isSticky) hideTooltip()
+        }}>
         <ResponsiveBar
           layout='vertical'
-          key={`${interval}-${isLoading}`}
+          key={`${interval}-${chartType}-${isLoading}-${chartData.length}`}
           animate={false}
-          margin={{ top: 30, bottom: 30, left: 30, right: 4 }}
-          data={data as Array<{ timestamp: number; value: number }>}
+          margin={CHART_MARGIN}
+          data={chartData as Array<{ timestamp: number; value: number }>}
           keys={['value']}
           indexBy='timestamp'
           axisBottom={{
@@ -309,7 +362,7 @@ const ColumnChart: React.FC<StatsInterface> = ({
             format: time =>
               isLoading
                 ? ''
-                : formatPlotDataLabels(time, data.length, interval, isMobile || isTablet)
+                : formatPlotDataLabels(time, chartData.length, interval, isMobile || isTablet)
           }}
           axisLeft={{
             tickSize: 0,
