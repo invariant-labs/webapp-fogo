@@ -370,7 +370,7 @@ export const AddLiquidity: React.FC<IProps> = ({
 
     const addr = tokens[tokenAIndex].address.toString()
     setPriceALoading(true)
-    getTokenPrice(addr, currentNetwork)
+    getTokenPrice(currentNetwork, addr)
       .then(data => setTokenAPriceData({ price: data ?? 0 }))
       .catch(() =>
         setTokenAPriceData(getMockedTokenPrice(tokens[tokenAIndex].symbol, currentNetwork))
@@ -387,7 +387,7 @@ export const AddLiquidity: React.FC<IProps> = ({
 
     const addr = tokens[tokenBIndex].address.toString()
     setPriceBLoading(true)
-    getTokenPrice(addr, currentNetwork)
+    getTokenPrice(currentNetwork, addr)
       .then(data => setTokenBPriceData({ price: data ?? 0 }))
       .catch(() =>
         setTokenBPriceData(getMockedTokenPrice(tokens[tokenBIndex].symbol, currentNetwork))
