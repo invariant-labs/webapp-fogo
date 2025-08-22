@@ -3133,7 +3133,6 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
 
   const positionsData = yield* select(positionsWithPoolsData)
   const position = positionsData[data.positionIndex]
-
   if (
     position.poolData.tokenX.toString() === WRAPPED_FOGO_ADDRESS ||
     position.poolData.tokenY.toString() === WRAPPED_FOGO_ADDRESS
@@ -3380,12 +3379,12 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
 
 function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>): Generator {
   const data = action.payload
-
   const positionsData = yield* select(positionsWithPoolsData)
   const position = positionsData[data.positionIndex]
 
   const loaderAddLiquidity = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
+
   try {
     yield put(
       snackbarsActions.add({
@@ -3424,14 +3423,12 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
         ? data.xAmount
         : data.yAmount
 
-    console.log(fogoAmount)
     const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
       wrappedFogoAccount.publicKey,
       wallet.publicKey,
       net,
       fogoAmount ? fogoAmount : new BN(0)
     )
-    console.log(1)
 
     let userTokenX =
       allTokens[position.poolData.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
@@ -3443,7 +3440,6 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
     if (userTokenX === null) {
       userTokenX = yield* call(createAccount, position.poolData.tokenX)
     }
-    console.log(2)
 
     let userTokenY =
       allTokens[position.poolData.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
@@ -3455,7 +3451,6 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
     if (userTokenY === null) {
       userTokenY = yield* call(createAccount, position.poolData.tokenY)
     }
-    console.log(3)
 
     const poolSigners: Keypair[] = []
 
@@ -3476,7 +3471,6 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
       accountX: userTokenX,
       accountY: userTokenY
     })
-    console.log(4)
 
     combinedTransaction.add(changeLiquidityIx)
     combinedTransaction.add(unwrapIx)
@@ -3485,7 +3479,6 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
       connection,
       connection.getLatestBlockhash
     ])
-    console.log(5)
 
     combinedTransaction.recentBlockhash = blockhash
     combinedTransaction.lastValidBlockHeight = lastValidBlockHeight
@@ -3494,7 +3487,6 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     combinedTransaction.partialSign(wrappedFogoAccount)
-    console.log(6)
 
     if (poolSigners.length) {
       combinedTransaction.partialSign(...poolSigners)
@@ -3504,15 +3496,22 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
       [wallet, wallet.signTransaction],
       combinedTransaction
     )) as Transaction
-    console.log(7)
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
+    console.table({
+      fogoAmount: fogoAmount?.toString(),
+      isXWrapped:
+        allTokens[position.poolData.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS,
+      isYWrapped:
+        allTokens[position.poolData.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS,
+      userTokenX: userTokenX?.toString(),
+      userTokenY: userTokenY?.toString()
+    })
 
     const txId = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
       skipPreflight: false
     })
-    console.log(8)
 
     if (!txId.length) {
       yield put(actions.setChangeLiquiditySuccess(false))

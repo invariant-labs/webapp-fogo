@@ -117,8 +117,9 @@ export interface IProps {
     liquidity: BN,
     slippage: BN,
     isAddLiquidity: boolean,
-    xAmount: BN,
-    yAmount: BN
+    isClosePosition: boolean,
+    xAmount?: BN,
+    yAmount?: BN
   ) => void
   swapAndAddLiquidity: (
     xAmount: BN,
@@ -803,7 +804,7 @@ export const AddLiquidity: React.FC<IProps> = ({
       setProgress('progress')
     }
 
-    changeLiquidity(liquidity, slippage, true, xAmount, yAmount)
+    changeLiquidity(liquidity, slippage, true, false, xAmount, yAmount)
   }
 
   const onAddLiquidity = async (xAmount, yAmount) => {

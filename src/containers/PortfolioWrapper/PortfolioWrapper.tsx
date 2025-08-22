@@ -743,6 +743,8 @@ const PortfolioWrapper = () => {
         }
 
         if (isAddLiquidity) {
+          console.log(xAmount)
+          console.log(yAmount)
           dispatch(
             actions.addLiquidity({
               positionIndex: position.positionIndex,
