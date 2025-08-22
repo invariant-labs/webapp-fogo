@@ -209,7 +209,7 @@ export const tokensPrices: Record<NetworkType, Record<string, TokenPriceData>> =
 export const tokens: Record<NetworkType, Token[]> = {
   Devnet: [],
   Mainnet: [],
-  Testnet: [USDC_TEST, BTC_TEST, ETH_TEST],
+  Testnet: [USDC_TEST, BTC_TEST, ETH_TEST, WFOGO_TEST],
   Local: []
 }
 
@@ -329,7 +329,11 @@ export const defaultPrefixConfig: PrefixConfig = {
 export const getAddressTickerMap = (network: NetworkType): { [k: string]: string } => {
   if (network !== NetworkType.Mainnet) {
     return {
-      WFOGO: WFOGO_ADDRESS[network].toString()
+      WFOGO: WFOGO_ADDRESS[network].toString(),
+      SOL: SOL_ADDRESS[network].toString(),
+      ETH: ETH_ADDRESS[network].toString(),
+      BTC: BTC_ADDRESS[network].toString(),
+      USDC: USDC_ADDRESS[network].toString()
     }
   } else {
     return {

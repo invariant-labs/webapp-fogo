@@ -40,7 +40,6 @@ const PopularPools: React.FC<IPopularPools> = ({
   }, [isMdDown, isLgDown, isSmDown])
 
   const { classes } = useStyles()
-  console.log(pools)
   return (
     <Grid container mb={'72px'}>
       <Box display='flex' alignItems='center' justifyContent='space-between' width='100%' mb='16px'>
