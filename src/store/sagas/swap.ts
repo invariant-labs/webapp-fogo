@@ -8,6 +8,7 @@ import { createAccount, getWallet } from './wallet'
 import { IWallet, Pair, routingEssentials } from '@invariant-labs/sdk-fogo'
 import { getConnection, handleRpcError } from './connection'
 import {
+  ComputeBudgetProgram,
   Keypair,
   PublicKey,
   sendAndConfirmRawTransaction,
@@ -59,6 +60,8 @@ import {
 import { PoolWithAddress } from '@store/reducers/pools'
 import nacl from 'tweetnacl'
 import { computeUnitsInstruction } from '@invariant-labs/sdk-fogo/src'
+import { getSession } from '@store/hooks/sessions'
+import { useSession } from '@fogo/sessions-sdk-react'
 
 export function* handleSwapWithFOGO(): Generator {
   const loaderSwappingTokens = createLoaderKey()
@@ -1267,356 +1270,155 @@ export function* handleTwoHopSwap(): Generator {
   }
 }
 
+import {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountIdempotentInstruction
+} from '@solana/spl-token'
+
 export function* handleSwap(): Generator {
-  const loaderSwappingTokens = createLoaderKey()
-  const loaderSigningTx = createLoaderKey()
-  const tickmaps = yield* select(tickMaps)
+  const session = getSession()
+  if (!session) {
+    yield put(swapActions.setSwapSuccess(false))
+    yield put(
+      snackbarsActions.add({ message: 'Session is required', variant: 'error', persist: false })
+    )
+    return
+  }
 
   try {
-    const allTokens = yield* select(tokens)
-    const allPools = yield* select(poolsArraySortedByFees)
     const {
       slippage,
       tokenFrom,
       tokenTo,
       amountIn,
-      firstPair,
+      amountOut,
       estimatedPriceAfterSwap,
-      tokenBetween,
       byAmountIn,
-      amountOut
+      firstPair
     } = yield* select(swap)
+    if (!firstPair) return
 
-    if (tokenBetween) {
-      return yield* call(handleTwoHopSwap)
-    }
-
-    if (
-      tokenFrom.toString() === WRAPPED_FOGO_ADDRESS ||
-      tokenTo.toString() === WRAPPED_FOGO_ADDRESS
-    ) {
-      return yield* call(handleSwapWithFOGO)
-    }
-
-    // Should never be trigerred
-    if (!firstPair) {
-      return
-    }
-
-    const wallet = yield* call(getWallet)
-    const tokensAccounts = yield* select(accounts)
+    const allPools = yield* select(poolsArraySortedByFees)
+    const tickmaps = yield* select(tickMaps)
+    const allTokens = yield* select(tokens)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    const connection = yield* call(getConnection)
+
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
+
+    const sessionPk: PublicKey =
+      session.walletPublicKey instanceof PublicKey
+        ? session.walletPublicKey
+        : new PublicKey(session.walletPublicKey)
+
+    marketProgram.setWallet({
+      publicKey: sessionPk,
+      signTransaction: async (tx: any) => tx,
+      signAllTransactions: async (txs: any) => txs
+    } as IWallet)
 
     const swapPool = allPools.find(
-      pool =>
+      (pool: any) =>
         (tokenFrom.equals(pool.tokenX) &&
           tokenTo.equals(pool.tokenY) &&
-          firstPair?.feeTier.fee.eq(pool.fee)) ||
+          firstPair.feeTier.fee.eq(pool.fee)) ||
         (tokenFrom.equals(pool.tokenY) &&
           tokenTo.equals(pool.tokenX) &&
-          firstPair?.feeTier.fee.eq(pool.fee))
+          firstPair.feeTier.fee.eq(pool.fee))
     )
-
-    if (!swapPool) {
-      return
-    }
-
-    yield put(
-      snackbarsActions.add({
-        message: 'Swapping tokens...',
-        variant: 'pending',
-        persist: true,
-        key: loaderSwappingTokens
-      })
-    )
+    if (!swapPool) return
 
     const isXtoY = tokenFrom.equals(swapPool.tokenX)
 
-    let fromAddress = tokensAccounts[tokenFrom.toString()]
-      ? tokensAccounts[tokenFrom.toString()].address
-      : null
-    if (fromAddress === null) {
-      fromAddress = yield* call(createAccount, tokenFrom)
-    }
-    let toAddress = tokensAccounts[tokenTo.toString()]
-      ? tokensAccounts[tokenTo.toString()].address
-      : null
-    if (toAddress === null) {
-      toAddress = yield* call(createAccount, tokenTo)
-    }
+    const tokenInMint = isXtoY ? swapPool.tokenX : swapPool.tokenY
+    const tokenOutMint = isXtoY ? swapPool.tokenY : swapPool.tokenX
 
-    const swapPair = new Pair(tokenFrom, tokenTo, {
-      fee: swapPool.fee,
-      tickSpacing: swapPool.tickSpacing
-    })
+    const tokenInProgram = allTokens[tokenInMint.toString()].tokenProgram
+    const tokenOutProgram = allTokens[tokenOutMint.toString()].tokenProgram
 
-    const tickIndexes = marketProgram.findTickIndexesForSwap(
-      swapPool,
-      tickmaps[swapPool.tickmap.toString()],
-      isXtoY,
-      MAX_CROSSES_IN_SINGLE_TX_WITH_LUTS
+    const ataIn: PublicKey = yield* call(
+      getAssociatedTokenAddress,
+      tokenInMint,
+      sessionPk,
+      false,
+      tokenInProgram
+    )
+    const ataOut: PublicKey = yield* call(
+      getAssociatedTokenAddress,
+      tokenOutMint,
+      sessionPk,
+      false,
+      tokenOutProgram
     )
 
-    const luts = getLookupTableAddresses(
-      marketProgram,
-      new Pair(tokenFrom, tokenTo, {
-        fee: swapPool.fee,
-        tickSpacing: swapPool.tickSpacing
-      }),
-      tickIndexes
+    const ixs: TransactionInstruction[] = []
+
+    ixs.push(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }))
+
+    ixs.push(
+      createAssociatedTokenAccountIdempotentInstruction(
+        sessionPk,
+        sessionPk,
+        tokenInMint,
+        tokenInProgram || new PublicKey('')
+      ),
+      createAssociatedTokenAccountIdempotentInstruction(
+        sessionPk,
+        sessionPk,
+        tokenOutMint,
+        tokenOutProgram || new PublicKey('')
+      )
     )
 
-    let txid: string
+    const swapIx: TransactionInstruction = yield* call(
+      [marketProgram, marketProgram.swapIx],
+      {
+        pair: new Pair(tokenInMint, tokenOutMint, {
+          fee: swapPool.fee,
+          tickSpacing: swapPool.tickSpacing
+        }),
+        xToY: isXtoY,
+        amount: byAmountIn ? amountIn : amountOut,
+        estimatedPriceAfterSwap,
+        slippage,
+        accountX: isXtoY ? ataIn : ataOut,
+        accountY: isXtoY ? ataOut : ataIn,
+        byAmountIn,
+        owner: sessionPk
+      },
+      {
+        pool: swapPool,
+        tickmap: tickmaps[swapPool.tickmap.toString()],
+        tokenXProgram: tokenInProgram,
+        tokenYProgram: tokenOutProgram
+      },
+      { tickCrosses: MAX_CROSSES_IN_SINGLE_TX }
+    )
 
-    if (luts.length !== 0) {
-      const swapTx = yield* call(
-        [marketProgram, marketProgram.versionedSwapTx],
-        {
-          pair: swapPair,
-          xToY: isXtoY,
-          amount: byAmountIn ? amountIn : amountOut,
-          estimatedPriceAfterSwap,
-          slippage: slippage,
-          accountX: isXtoY ? fromAddress : toAddress,
-          accountY: isXtoY ? toAddress : fromAddress,
-          byAmountIn: byAmountIn,
-          owner: wallet.publicKey
-        },
-        {
-          pool: swapPool,
-          tickmap: tickmaps[swapPool.tickmap.toString()],
-          tokenXProgram: allTokens[swapPool.tokenX.toString()].tokenProgram,
-          tokenYProgram: allTokens[swapPool.tokenY.toString()].tokenProgram
-        },
-        { tickIndexes },
-        [],
-        [],
-        luts
-      )
+    ixs.push(swapIx)
 
-      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+    const res: any = yield* call([session, session.sendTransaction], ixs)
+    const signature = res?.signature ?? res
 
-      const initialSignedTx = (yield* call(
-        [wallet, wallet.signTransaction],
-        swapTx
-      )) as VersionedTransaction
-
-      closeSnackbar(loaderSigningTx)
-      yield put(snackbarsActions.remove(loaderSigningTx))
-
-      txid = yield* call([connection, connection.sendRawTransaction], initialSignedTx.serialize(), {
-        skipPreflight: false
+    yield put(swapActions.setSwapSuccess(true))
+    yield put(
+      snackbarsActions.add({
+        message: 'Tokens swapped',
+        variant: 'success',
+        persist: false,
+        txid: signature
       })
-
-      yield* call([connection, connection.confirmTransaction], txid)
-    } else {
-      const setCuIx = computeUnitsInstruction(1_400_000, wallet.publicKey)
-      const swapIx = yield* call(
-        [marketProgram, marketProgram.swapIx],
-        {
-          pair: swapPair,
-          xToY: isXtoY,
-          amount: byAmountIn ? amountIn : amountOut,
-          estimatedPriceAfterSwap,
-          slippage: slippage,
-          accountX: isXtoY ? fromAddress : toAddress,
-          accountY: isXtoY ? toAddress : fromAddress,
-          byAmountIn: byAmountIn,
-          owner: wallet.publicKey
-        },
-        {
-          pool: swapPool,
-          tickmap: tickmaps[swapPool.tickmap.toString()],
-          tokenXProgram: allTokens[swapPool.tokenX.toString()].tokenProgram,
-          tokenYProgram: allTokens[swapPool.tokenY.toString()].tokenProgram
-        },
-        { tickCrosses: MAX_CROSSES_IN_SINGLE_TX }
-      )
-      const tx = new Transaction().add(setCuIx).add(swapIx)
-
-      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-      const { blockhash, lastValidBlockHeight } = yield* call([
-        connection,
-        connection.getLatestBlockhash
-      ])
-      tx.recentBlockhash = blockhash
-      tx.lastValidBlockHeight = lastValidBlockHeight
-      tx.feePayer = wallet.publicKey
-
-      const initialSignedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
-      closeSnackbar(loaderSigningTx)
-      yield put(snackbarsActions.remove(loaderSigningTx))
-
-      txid = yield* call(sendAndConfirmRawTransaction, connection, initialSignedTx.serialize(), {
-        skipPreflight: false
-      })
-    }
-
-    yield put(swapActions.setSwapSuccess(!!txid.length))
-
-    if (!txid.length) {
-      yield put(
-        snackbarsActions.add({
-          message: 'Tokens swapping failed. Please try again',
-          variant: 'error',
-          persist: false,
-          txid
-        })
-      )
-    } else {
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
-        maxSupportedTransactionVersion: 0
-      })
-
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(swapActions.setSwapSuccess(false))
-
-            closeSnackbar(loaderSwappingTokens)
-            yield put(snackbarsActions.remove(loaderSwappingTokens))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
-
-        yield put(
-          snackbarsActions.add({
-            message: 'Tokens swapped successfully',
-            variant: 'success',
-            persist: false,
-            txid
-          })
-        )
-
-        const meta = txDetails.meta
-        if (meta?.innerInstructions) {
-          try {
-            const tokenIn =
-              allTokens[isXtoY ? swapPool.tokenX.toString() : swapPool.tokenY.toString()]
-            const tokenOut =
-              allTokens[isXtoY ? swapPool.tokenY.toString() : swapPool.tokenX.toString()]
-
-            const amountIn = getAmountFromSwapInstruction(
-              meta,
-              marketProgram.programAuthority.address.toString(),
-              tokenIn.address.toString(),
-              SwapTokenType.TokenIn
-            )
-            const amountOut = getAmountFromSwapInstruction(
-              meta,
-              marketProgram.programAuthority.address.toString(),
-              tokenOut.address.toString(),
-              SwapTokenType.TokenOut
-            )
-
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'swap',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(amountIn, tokenIn.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountOut, tokenOut.decimals)),
-                  tokenXIcon: tokenIn.logoURI,
-                  tokenYIcon: tokenOut.logoURI,
-                  tokenXSymbol: tokenIn.symbol ?? tokenIn.address.toString(),
-                  tokenYSymbol: tokenOut.symbol ?? tokenOut.address.toString()
-                },
-                persist: false
-              })
-            )
-          } catch {
-            // Sanity wrapper, should never be triggered
-          }
-        }
-      } else {
-        yield put(
-          snackbarsActions.add({
-            message: 'Tokens swapped successfully',
-            variant: 'success',
-            persist: false,
-            txid
-          })
-        )
-      }
-    }
-
-    closeSnackbar(loaderSwappingTokens)
-    yield put(snackbarsActions.remove(loaderSwappingTokens))
-  } catch (e: unknown) {
-    const error = ensureError(e)
-    console.log(error)
-
-    let msg: string = ''
-    if (error instanceof SendTransactionError) {
-      const err = error.transactionError
-      try {
-        const errorCode = extractRuntimeErrorCode(err)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      }
-    } else {
-      try {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
-      }
-    }
-
+    )
+  } catch (e) {
+    console.log(e)
     yield put(swapActions.setSwapSuccess(false))
-
-    closeSnackbar(loaderSwappingTokens)
-    yield put(snackbarsActions.remove(loaderSwappingTokens))
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (error instanceof TransactionExpiredTimeoutError) {
-      yield put(
-        snackbarsActions.add({
-          message: TIMEOUT_ERROR_MESSAGE,
-          variant: 'info',
-          persist: true,
-          txid: error.signature
-        })
-      )
-      yield put(connectionActions.setTimeoutError(true))
-      yield put(RPCAction.setRpcStatus(RpcStatus.Error))
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: msg,
-          variant: 'error',
-          persist: false
-        })
-      )
-    }
-
-    yield* call(handleRpcError, error.message)
+    yield put(
+      snackbarsActions.add({
+        message: 'Swap failed',
+        variant: 'error',
+        persist: false
+      })
+    )
   }
 }
 

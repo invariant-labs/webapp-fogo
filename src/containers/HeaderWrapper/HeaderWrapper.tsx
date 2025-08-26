@@ -3,12 +3,11 @@ import { RPC, CHAINS, RECOMMENDED_RPC_ADDRESS, NetworkType } from '@store/consts
 import { actions, RpcStatus } from '@store/reducers/solanaConnection'
 import { Status, actions as walletActions } from '@store/reducers/solanaWallet'
 import { network, rpcAddress, rpcStatus } from '@store/selectors/solanaConnection'
-import { address, balance, status, thankYouModalShown } from '@store/selectors/solanaWallet'
+import { balance, status, thankYouModalShown } from '@store/selectors/solanaWallet'
 import { nightlyConnectAdapter } from '@utils/web3/selector'
 import React, { useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { Chain, WalletType } from '@store/consts/types'
 import { RpcErrorModal } from '@components/RpcErrorModal/RpcErrorModal'
 import { ThankYouModal } from '@components/Modals/ThankYouModal/ThankYouModal'
@@ -24,7 +23,6 @@ export const HeaderWrapper: React.FC = () => {
   const isThankYouModalShown = useSelector(thankYouModalShown)
   const walletBalance = useSelector(balance)
   const location = useLocation()
-  const walletAddress = useSelector(address)
   const navigate = useNavigate()
 
   const hideThankYouModal = () => {
@@ -170,7 +168,6 @@ export const HeaderWrapper: React.FC = () => {
         )}
       {isThankYouModalShown && <ThankYouModal hideModal={hideThankYouModal} />}
       <Header
-        address={walletAddress}
         onNetworkSelect={(network, rpcAddress) => {
           if (rpcAddress && rpcAddress !== currentRpc) {
             localStorage.setItem(`INVARIANT_RPC_Fogo_${network}`, rpcAddress)
@@ -196,7 +193,6 @@ export const HeaderWrapper: React.FC = () => {
           dispatch(walletActions.connect(false))
         }}
         landing={location.pathname.substring(1)}
-        walletConnected={walletStatus === Status.Initialized}
         onDisconnectWallet={() => {
           dispatch(walletActions.disconnect())
         }}
@@ -204,17 +200,6 @@ export const HeaderWrapper: React.FC = () => {
         typeOfNetwork={currentNetwork}
         rpc={currentRpc}
         defaultTestnetRPC={defaultTestnetRPC}
-        onCopyAddress={() => {
-          navigator.clipboard.writeText(walletAddress.toString())
-
-          dispatch(
-            snackbarsActions.add({
-              message: 'Wallet address copied',
-              variant: 'success',
-              persist: false
-            })
-          )
-        }}
         activeChain={activeChain}
         onChainSelect={chain => {
           if (chain.name !== activeChain.name) {

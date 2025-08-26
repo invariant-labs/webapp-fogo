@@ -1,32 +1,28 @@
 import NavbarButton from '@components/Navbar/NavbarButton'
-import DotIcon from '@mui/icons-material/FiberManualRecordRounded'
-import { CardMedia, Grid, useMediaQuery } from '@mui/material'
+import { CardMedia, Grid } from '@mui/material'
 import { logoShortIcon, logoTitleIcon } from '@static/icons'
 import { theme } from '@static/theme'
 import { RPC, NetworkType } from '@store/consts/static'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import ChangeWalletButton from './HeaderButton/ChangeWalletButton'
 import useStyles from './style'
 import { ISelectChain, ISelectNetwork } from '@store/consts/types'
 import { RpcStatus } from '@store/reducers/solanaConnection'
-import { PublicKey } from '@solana/web3.js'
 import { BN } from '@coral-xyz/anchor'
 import { Bar } from '@components/Bar/Bar'
 import { ROUTES } from '@utils/utils'
+import { isEstablished, SessionButton, useSession } from '@fogo/sessions-sdk-react'
+import { SendTxInput, setSession } from '@store/hooks/sessions'
 
 export interface IHeader {
-  address: PublicKey
   onNetworkSelect: (networkType: NetworkType, rpcAddress: string, rpcName?: string) => void
   onConnectWallet: () => void
-  walletConnected: boolean
   landing: string
   typeOfNetwork: NetworkType
   rpc: string
   onFaucet: () => void
   onDisconnectWallet: () => void
   defaultTestnetRPC: string
-  onCopyAddress: () => void
   activeChain: ISelectChain
   onChainSelect: (chain: ISelectChain) => void
   network: NetworkType
@@ -36,22 +32,17 @@ export interface IHeader {
 }
 
 export const Header: React.FC<IHeader> = ({
-  address,
   onNetworkSelect,
   onConnectWallet,
-  walletConnected,
   landing,
   typeOfNetwork,
   rpc,
   onFaucet,
   onDisconnectWallet,
-  onCopyAddress,
   onChainSelect
 }) => {
   const { classes } = useStyles()
   const navigate = useNavigate()
-  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'))
-
   const routes = [
     'exchange',
     'liquidity',
@@ -66,6 +57,20 @@ export const Header: React.FC<IHeader> = ({
     portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/]
     // ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {})
   }
+  const session = useSession()
+  useEffect(() => {
+    if (isEstablished(session)) {
+      setSession({
+        type: 'Established',
+        walletPublicKey: session.walletPublicKey,
+        sessionPublicKey: session.sessionPublicKey,
+        payer: session.payer,
+        sendTransaction: (input: SendTxInput) => session.sendTransaction(input as any)
+      })
+    } else {
+      setSession(null)
+    }
+  }, [session])
 
   const [activePath, setActive] = useState('exchange')
 
@@ -107,7 +112,6 @@ export const Header: React.FC<IHeader> = ({
             }}
           />
         </Grid>
-
         <Grid
           container
           item
@@ -138,7 +142,6 @@ export const Header: React.FC<IHeader> = ({
             </Link>
           ))}
         </Grid>
-
         <Grid container item className={classes.buttons}>
           <CardMedia
             className={classes.logoShort}
@@ -158,29 +161,7 @@ export const Header: React.FC<IHeader> = ({
             onChainChange={onChainSelect}
             onFaucet={onFaucet}
           />
-
-          <ChangeWalletButton
-            name={
-              walletConnected
-                ? `${address.toString().slice(0, 4)}...${
-                    !isSmDown
-                      ? address
-                          .toString()
-                          .slice(address.toString().length - 4, address.toString().length)
-                      : ''
-                  }`
-                : isSmDown
-                  ? 'Connect'
-                  : 'Connect wallet'
-            }
-            onConnect={onConnectWallet}
-            connected={walletConnected}
-            onDisconnect={onDisconnectWallet}
-            startIcon={
-              walletConnected ? <DotIcon className={classes.connectedWalletIcon} /> : undefined
-            }
-            onCopyAddress={onCopyAddress}
-          />
+          <SessionButton />
         </Grid>
       </Grid>
     </Grid>
