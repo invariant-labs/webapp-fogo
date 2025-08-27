@@ -16,7 +16,7 @@ function App() {
         <SnackbarProvider maxSnack={99}>
           <FogoSessionProvider
             endpoint='https://testnet.fogo.io/'
-            tokens={[NATIVE_MINT]}
+            tokens={[NATIVE_MINT, USDC_TEST.address, SOL_TEST.address]}
             defaultRequestedLimits={
               new Map([
                 [NATIVE_MINT, 1_500_000_000n],

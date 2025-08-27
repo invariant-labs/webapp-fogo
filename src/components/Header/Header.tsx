@@ -33,12 +33,12 @@ export interface IHeader {
 
 export const Header: React.FC<IHeader> = ({
   onNetworkSelect,
-  onConnectWallet,
+  // onConnectWallet,
   landing,
   typeOfNetwork,
   rpc,
   onFaucet,
-  onDisconnectWallet,
+  // onDisconnectWallet,
   onChainSelect
 }) => {
   const { classes } = useStyles()

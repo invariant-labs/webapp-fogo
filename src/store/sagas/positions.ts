@@ -27,8 +27,7 @@ import {
   PublicKey,
   ParsedInstruction,
   SendTransactionError,
-  ComputeBudgetProgram,
-  TransactionInstruction
+  ComputeBudgetProgram
 } from '@solana/web3.js'
 import {
   APPROVAL_DENIED_MESSAGE,
