@@ -27,6 +27,7 @@ import {
   balance,
   accounts as solanaAccounts
 } from '@store/selectors/solanaWallet'
+import { BN } from '@coral-xyz/anchor'
 import { swap as swapPool, accounts, isLoading } from '@store/selectors/swap'
 import { PublicKey } from '@solana/web3.js'
 import { useEffect, useMemo, useState } from 'react'
@@ -42,12 +43,11 @@ import {
 import { TokenPriceData } from '@store/consts/types'
 import { getCurrentSolanaConnection } from '@utils/web3/connection'
 import { VariantType } from 'notistack'
-import { BN } from '@coral-xyz/anchor'
 import { useLocation } from 'react-router-dom'
 import { getMarketProgramSync } from '@utils/web3/programs/amm'
 import { getFogoWallet } from '@utils/web3/wallet'
-import { IWallet } from '@invariant-labs/sdk-fogo'
 import { actions as swapActions } from '@store/reducers/swap'
+import { IWallet } from '@utils/sdk/lib'
 
 type Props = {
   initialTokenFrom: string

@@ -48,14 +48,16 @@ export const Header: React.FC<IHeader> = ({
     'liquidity',
     'portfolio',
     // ...(typeOfNetwork === NetworkType.Testnet ? ['creator'] : []),
-    'statistics'
+    'statistics',
+    'wrapper'
   ]
 
   const otherRoutesToHighlight: Record<string, RegExp[]> = {
     liquidity: [/^liquidity\/*/],
     exchange: [/^exchange\/*/],
-    portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/]
+    portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/],
     // ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {})
+    wrapper: [/^wrapper\/*/]
   }
   const session = useSession()
   useEffect(() => {

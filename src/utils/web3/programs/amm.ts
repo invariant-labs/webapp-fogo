@@ -1,8 +1,8 @@
-import { getMarketAddress, IWallet, Market } from '@invariant-labs/sdk-fogo'
 import { PublicKey } from '@solana/web3.js'
 import { NetworkType } from '@store/consts/static'
 import { getSolanaConnection, networkTypetoProgramNetwork } from '../connection'
 import { Locker } from '@invariant-labs/locker-fogo-sdk'
+import { getMarketAddress, IWallet, Market } from '@utils/sdk/src'
 let _market: Market
 let _locker: Locker
 

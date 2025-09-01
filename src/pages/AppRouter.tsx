@@ -17,12 +17,16 @@ import TokenCreatorPage from './TokenCreatorPage/TokenCreatorPage'
 import StatsPage from './StatsPage/StatsPage'
 import SwapPage from './SwapPage/SwapPage'
 import { ROUTES } from '@utils/utils'
+import WrapperPage from './WrapperPage/SwapPage'
 
 const createRouter = (currentNetwork: NetworkType) =>
   createBrowserRouter(
     createRoutesFromElements(
       <Route path={ROUTES.ROOT} element={<RootPage />}>
         <Route path={ROUTES.EXCHANGE_WITH_PARAMS} element={<SwapPage />} />
+
+        <Route path={ROUTES.WRAPPER} element={<WrapperPage />} />
+
         <Route path={ROUTES.LIQUIDITY} element={<ListPage />} />
         <Route path={ROUTES.STATISTICS} element={<StatsPage />} />
         <Route path={ROUTES.NEW_POSITION_WITH_PARAMS} element={<NewPositionPage />} />

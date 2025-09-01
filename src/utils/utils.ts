@@ -2229,14 +2229,13 @@ export const ROUTES = {
   EXCHANGE_WITH_PARAMS: '/exchange/:item1?/:item2?',
   LIQUIDITY: '/liquidity',
   STATISTICS: '/statistics',
-  SALE: '/presale',
   NEW_POSITION: '/newPosition',
   NEW_POSITION_WITH_PARAMS: '/newPosition/:item1?/:item2?/:item3?',
   POSITION: '/position',
   POSITION_WITH_ID: '/position/:id',
   PORTFOLIO: '/portfolio',
   CREATOR: '/creator',
-  STAKE: '/stake',
+  WRAPPER: '/wrapper',
 
   getExchangeRoute: (item1?: string, item2?: string): string => {
     const parts = [item1, item2].filter(Boolean)

@@ -32,7 +32,8 @@ const RootPage: React.FC = memo(() => {
     [ROUTES.NEW_POSITION, 'Invariant | New Position'],
     [ROUTES.POSITION, 'Invariant | Position Details'],
     [ROUTES.STATISTICS, 'Invariant | Statistics'],
-    [ROUTES.CREATOR, 'Invariant | Creator']
+    [ROUTES.CREATOR, 'Invariant | Creator'],
+    [ROUTES.WRAPPER, 'Invariant | Wrapper']
   ])
 
   useEffect(() => {

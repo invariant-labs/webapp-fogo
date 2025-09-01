@@ -57,6 +57,13 @@ export const FooterNavbar = () => {
       url: 'statistics',
       width: 30,
       isLink: true
+    },
+    {
+      label: 'Wrapper',
+      icon: statsIcon,
+      url: 'wrapper',
+      width: 30,
+      isLink: true
     }
   ]
 
@@ -73,7 +80,8 @@ export const FooterNavbar = () => {
   const otherRoutesToHighlight: Record<string, RegExp[]> = {
     liquidity: [/^liquidity\/*/],
     exchange: [/^exchange\/*/],
-    portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/]
+    portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/],
+    wrapper: [/^wrapper\/*/]
 
     // ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {}),
   }
