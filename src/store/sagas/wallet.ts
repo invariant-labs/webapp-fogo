@@ -52,6 +52,7 @@ import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
 
 import { PayloadAction } from '@reduxjs/toolkit'
+import { getSession } from '@store/hooks/session'
 
 export function* getWallet(): SagaGenerator<WalletAdapter> {
   const wallet = yield* call(getFogoWallet)
@@ -433,25 +434,27 @@ export function* signAndSend(wallet: WalletAdapter, tx: Transaction): SagaGenera
 
 export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey> {
   const wallet = yield* call(getWallet)
-  const connection = yield* call(getConnection)
-  const programId = yield* call(getTokenProgramId, connection, new PublicKey(tokenAddress))
+  const session = getSession()
+  if (!session) throw Error('No session provided')
+
   const associatedAccount = yield* call(
     getAssociatedTokenAddress,
     tokenAddress,
     wallet.publicKey,
     false,
-    programId,
+    TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
   )
   const ix = createAssociatedTokenAccountInstruction(
-    wallet.publicKey,
+    session.sessionPublicKey,
     associatedAccount,
     wallet.publicKey,
     tokenAddress,
-    programId,
+    TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
   )
-  yield* call(signAndSend, wallet, new Transaction().add(ix))
+  yield* call([session, session.sendTransaction], [ix])
+
   const token = yield* call(getTokenDetails, tokenAddress.toString())
   yield* put(
     actions.addTokenAccount({

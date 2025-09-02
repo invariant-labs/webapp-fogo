@@ -5,9 +5,9 @@ import { theme } from '@static/theme'
 import { ThemeProvider } from '@mui/material/styles'
 import Notifier from '@containers/Notifier/Notifier'
 import { AppRouter } from '@pages/AppRouter'
-// import { filterConsoleMessages, messagesToHide } from './hideErrors'
-
-// filterConsoleMessages(messagesToHide)
+import { FogoSessionProvider } from '@fogo/sessions-sdk-react'
+import { NATIVE_MINT } from '@solana/spl-token'
+import { SOL_TEST, USDC_TEST } from '@store/consts/static'
 
 function App() {
   return (
@@ -15,10 +15,25 @@ function App() {
       <Provider store={store}>
         <ThemeProvider theme={theme}>
           <SnackbarProvider maxSnack={99}>
-            <>
-              <Notifier />
-              <AppRouter />
-            </>
+            <FogoSessionProvider
+              endpoint='https://testnet.fogo.io/'
+              enableUnlimited
+              domain={
+                process.env.NODE_ENV === 'production' ? undefined : 'https://fogo.invariant.app'
+              }
+              tokens={[NATIVE_MINT, USDC_TEST.address, SOL_TEST.address]}
+              defaultRequestedLimits={
+                new Map([
+                  [NATIVE_MINT, 1_500_000_000n],
+                  [USDC_TEST.address, 1_500_000_000n],
+                  [SOL_TEST.address, 1_500_000_000n]
+                ])
+              }>
+              <>
+                <Notifier />
+                <AppRouter />
+              </>
+            </FogoSessionProvider>
           </SnackbarProvider>
         </ThemeProvider>
       </Provider>
