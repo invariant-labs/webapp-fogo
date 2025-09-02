@@ -25,7 +25,7 @@ const createRouter = (currentNetwork: NetworkType) =>
       <Route path={ROUTES.ROOT} element={<RootPage />}>
         <Route path={ROUTES.EXCHANGE_WITH_PARAMS} element={<SwapPage />} />
 
-        <Route path={ROUTES.WRAPPER} element={<WrapperPage />} />
+        {/* <Route path={ROUTES.WRAPPER} element={<WrapperPage />} /> */}
 
         <Route path={ROUTES.LIQUIDITY} element={<ListPage />} />
         <Route path={ROUTES.STATISTICS} element={<StatsPage />} />

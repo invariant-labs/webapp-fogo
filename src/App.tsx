@@ -17,6 +17,9 @@ function App() {
           <FogoSessionProvider
             endpoint='https://testnet.fogo.io/'
             enableUnlimited
+            domain={
+              process.env.NODE_ENV === 'production' ? undefined : 'https://fogo.invariant.app'
+            }
             tokens={[NATIVE_MINT, USDC_TEST.address, SOL_TEST.address]}
             defaultRequestedLimits={
               new Map([
