@@ -134,7 +134,7 @@ const useStyles = makeStyles()((theme: Theme) => {
     tokenList: {
       background: colors.invariant.component,
       borderTop: `1px solid ${colors.invariant.light}`,
-      width: 451,
+      width: '100%',
       height: 400,
       paddingTop: 8,
       [theme.breakpoints.down('sm')]: {
@@ -157,7 +157,8 @@ const useStyles = makeStyles()((theme: Theme) => {
       marginBottom: 4,
       borderRadius: 24,
       cursor: 'pointer',
-      padding: '0 12px',
+      paddingLeft: '12px',
+      paddingRight: '18px',
       position: 'relative',
       overflow: 'hidden',
       transition: '300ms',
@@ -466,6 +467,22 @@ const useStyles = makeStyles()((theme: Theme) => {
       gap: '6px',
       alignItems: 'center',
       flexWrap: 'nowrap'
+    },
+
+    scrollList: {
+      '&::-webkit-scrollbar': {
+        width: '6px'
+      },
+      '&::-webkit-scrollbar-track': {
+        background: colors.invariant.newDark,
+        borderRadius: '3px'
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: colors.invariant.pink,
+        borderRadius: '3px'
+      },
+      scrollbarWidth: 'thin',
+      scrollbarColor: `${colors.invariant.pink} ${colors.invariant.newDark}`
     }
   }
 })
