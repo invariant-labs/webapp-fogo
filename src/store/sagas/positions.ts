@@ -404,6 +404,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
   const loaderCreatePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
   const session = getSession()
+  console.log(session?.walletPublicKey.toBase58())
   if (!session) throw Error('No session provided')
   try {
     const allTokens = yield* select(tokens)
@@ -417,7 +418,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
       })
     )
 
-    const connection = yield* call(getConnection)
+    // const connection = yield* call(getConnection)
     const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
@@ -456,121 +457,82 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
       userTokenY = yield* call(createAccount, action.payload.tokenY)
     }
 
-    let tx: Transaction
-    let createPoolTx: Transaction | null = null
-    let poolSigners: Keypair[] = []
+    let tx
 
-    if (action.payload.initPool) {
-      const txs = yield* call(
-        [marketProgram, marketProgram.createPoolWithSqrtPriceAndPositionTx],
-        session,
-        {
-          pair,
-          userTokenX,
-          userTokenY,
-          lowerTick: action.payload.lowerTick,
-          upperTick: action.payload.upperTick,
-          liquidityDelta: action.payload.liquidityDelta,
-          owner: wallet.publicKey,
-          slippage: action.payload.slippage,
-          knownPrice: action.payload.knownPrice
-        },
-        undefined,
-        {
-          tokenXProgramAddress: allTokens[action.payload.tokenX.toString()].tokenProgram,
-          tokenYProgramAddress: allTokens[action.payload.tokenY.toString()].tokenProgram,
-          positionsList: !userPositionList.loading ? userPositionList : undefined
-        }
-      )
-      tx = txs.createPositionTx
-      createPoolTx = txs.createPoolTx
-      poolSigners = txs.createPoolSigners
-    } else {
-      tx = yield* call(
-        [marketProgram, marketProgram.createPositionTx],
-        session,
-        {
-          pair,
-          userTokenX,
-          userTokenY,
-          lowerTick: action.payload.lowerTick,
-          upperTick: action.payload.upperTick,
-          liquidityDelta: action.payload.liquidityDelta,
-          owner: wallet.publicKey,
-          slippage: action.payload.slippage,
-          knownPrice: action.payload.knownPrice
-        },
-        {
-          lowerTickExists:
-            !ticks.hasError &&
-            !ticks.loading &&
-            ticks.rawTickIndexes.find(t => t === action.payload.lowerTick) !== undefined
-              ? true
-              : undefined,
-          upperTickExists:
-            !ticks.hasError &&
-            !ticks.loading &&
-            ticks.rawTickIndexes.find(t => t === action.payload.upperTick) !== undefined
-              ? true
-              : undefined,
-          pool: action.payload.poolIndex !== null ? allPools[action.payload.poolIndex] : undefined,
-          tokenXProgramAddress: allTokens[action.payload.tokenX.toString()].tokenProgram,
-          tokenYProgramAddress: allTokens[action.payload.tokenY.toString()].tokenProgram,
-          positionsList: !userPositionList.loading ? userPositionList : undefined
-        }
-      )
-    }
-
-    if (createPoolTx) {
-      createPoolTx.feePayer = wallet.publicKey
-      const { blockhash, lastValidBlockHeight } = yield* call([
-        connection,
-        connection.getLatestBlockhash
-      ])
-      createPoolTx.recentBlockhash = blockhash
-      createPoolTx.lastValidBlockHeight = lastValidBlockHeight
-
-      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-      if (poolSigners.length) {
-        createPoolTx.partialSign(...poolSigners)
+    tx = yield* call(
+      [marketProgram, marketProgram.createPositionIx],
+      session,
+      {
+        pair,
+        userTokenX,
+        userTokenY,
+        lowerTick: action.payload.lowerTick,
+        upperTick: action.payload.upperTick,
+        liquidityDelta: action.payload.liquidityDelta,
+        owner: wallet.publicKey,
+        slippage: action.payload.slippage,
+        knownPrice: action.payload.knownPrice
+      },
+      {
+        lowerTickExists:
+          !ticks.hasError &&
+          !ticks.loading &&
+          ticks.rawTickIndexes.find(t => t === action.payload.lowerTick) !== undefined
+            ? true
+            : undefined,
+        upperTickExists:
+          !ticks.hasError &&
+          !ticks.loading &&
+          ticks.rawTickIndexes.find(t => t === action.payload.upperTick) !== undefined
+            ? true
+            : undefined,
+        pool: action.payload.poolIndex !== null ? allPools[action.payload.poolIndex] : undefined,
+        tokenXProgramAddress: allTokens[action.payload.tokenX.toString()].tokenProgram,
+        tokenYProgramAddress: allTokens[action.payload.tokenY.toString()].tokenProgram,
+        positionsList: !userPositionList.loading ? userPositionList : undefined
       }
-      const signedTx = (yield* call([wallet, wallet.signTransaction], createPoolTx)) as Transaction
+    )
 
-      closeSnackbar(loaderSigningTx)
+    // if (createPoolTx) {
+    //   createPoolTx.feePayer = wallet.publicKey
+    //   const { blockhash, lastValidBlockHeight } = yield* call([
+    //     connection,
+    //     connection.getLatestBlockhash
+    //   ])
+    //   createPoolTx.recentBlockhash = blockhash
+    //   createPoolTx.lastValidBlockHeight = lastValidBlockHeight
 
-      yield put(snackbarsActions.remove(loaderSigningTx))
+    //   yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+    //   if (poolSigners.length) {
+    //     createPoolTx.partialSign(...poolSigners)
+    //   }
+    //   const signedTx = (yield* call([wallet, wallet.signTransaction], createPoolTx)) as Transaction
 
-      yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-        skipPreflight: false
-      })
-    }
+    //   closeSnackbar(loaderSigningTx)
+
+    //   yield put(snackbarsActions.remove(loaderSigningTx))
+
+    //   yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+    //     skipPreflight: false
+    //   })
+    // }    txid = yield* call([session, session.sendTransaction], [setCuIx, swapIx])
+
+    const txid = yield* call([session, session.sendTransaction], [tx])
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    tx.recentBlockhash = blockhash
-    tx.lastValidBlockHeight = lastValidBlockHeight
-    tx.feePayer = wallet.publicKey
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
+    yield put(actions.setInitPositionSuccess(!!txid.signature.length))
 
-    yield put(actions.setInitPositionSuccess(!!txid.length))
-
-    if (!txid.length) {
+    if (!txid.signature.length) {
       yield put(
         snackbarsActions.add({
           message: 'Position adding failed. Please try again',
           variant: 'error',
           persist: false,
-          txid
+          txid: txid.signature
         })
       )
     } else {
@@ -579,69 +541,69 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
           message: 'Position added successfully',
           variant: 'success',
           persist: false,
-          txid
+          txid: txid.signature
         })
       )
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      // const txDetails = yield* call([connection, connection.getParsedTransaction], txid.signature)
 
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(actions.setInitPositionSuccess(false))
+      // if (txDetails) {
+      //   if (txDetails.meta?.err) {
+      //     if (txDetails.meta.logMessages) {
+      //       const errorLog = txDetails.meta.logMessages.find(log =>
+      //         log.includes(ErrorCodeExtractionKeys.ErrorNumber)
+      //       )
+      //       const errorCode = errorLog
+      //         ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
+      //         .split(ErrorCodeExtractionKeys.Dot)[0]
+      //         .trim()
+      //       const message = mapErrorCodeToMessage(Number(errorCode))
+      //       yield put(actions.setInitPositionSuccess(false))
 
-            closeSnackbar(loaderCreatePosition)
-            yield put(snackbarsActions.remove(loaderCreatePosition))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
+      //       closeSnackbar(loaderCreatePosition)
+      //       yield put(snackbarsActions.remove(loaderCreatePosition))
+      //       closeSnackbar(loaderSigningTx)
+      //       yield put(snackbarsActions.remove(loaderSigningTx))
 
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
+      //       yield put(
+      //         snackbarsActions.add({
+      //           message,
+      //           variant: 'error',
+      //           persist: false
+      //         })
+      //       )
+      //       return
+      //     }
+      //   }
 
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
+      //   const meta = txDetails.meta
+      //   if (meta?.innerInstructions && meta.innerInstructions) {
+      //     try {
+      //       const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
+      //       const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
 
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
+      //       const tokenX = allTokens[pair.tokenX.toString()]
+      //       const tokenY = allTokens[pair.tokenY.toString()]
 
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'deposit',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
-                  tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
-                  tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
-                },
-                persist: false
-              })
-            )
-          } catch {
-            // Should never be triggered
-          }
-        }
-      }
+      //       yield put(
+      //         snackbarsActions.add({
+      //           tokensDetails: {
+      //             ikonType: 'deposit',
+      //             tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
+      //             tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
+      //             tokenXIcon: tokenX.logoURI,
+      //             tokenYIcon: tokenY.logoURI,
+      //             tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
+      //             tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
+      //           },
+      //           persist: false
+      //         })
+      //       )
+      //     } catch {
+      //       // Should never be triggered
+      //     }
+      //   }
+      // }
 
       yield put(actions.getPositionsList())
     }

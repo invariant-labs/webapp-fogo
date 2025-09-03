@@ -433,14 +433,13 @@ export function* signAndSend(wallet: WalletAdapter, tx: Transaction): SagaGenera
 }
 
 export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey> {
-  const wallet = yield* call(getWallet)
   const session = getSession()
   if (!session) throw Error('No session provided')
 
   const associatedAccount = yield* call(
     getAssociatedTokenAddress,
     tokenAddress,
-    wallet.publicKey,
+    session.walletPublicKey,
     false,
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
@@ -448,7 +447,7 @@ export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey
   const ix = createAssociatedTokenAccountInstruction(
     session.sessionPublicKey,
     associatedAccount,
-    wallet.publicKey,
+    session.walletPublicKey,
     tokenAddress,
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
