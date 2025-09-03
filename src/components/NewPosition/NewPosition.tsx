@@ -556,7 +556,7 @@ export const NewPosition: React.FC<INewPosition> = ({
     onSlippageChange(slippage)
   }
 
-  const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
+  const urlUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const updatePath = (
     index1: number | null,
@@ -568,7 +568,7 @@ export const NewPosition: React.FC<INewPosition> = ({
     if (canNavigate) {
       const parsedFee = parseFeeToPathFee(+ALL_FEE_TIERS_DATA[fee].tier.fee)
 
-      clearTimeout(urlUpdateTimeoutRef.current)
+      if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
 
       if (index1 != null && index2 != null) {
         const token1Symbol = addressToTicker(network, tokens[index1].assetAddress.toString())
