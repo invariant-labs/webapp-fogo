@@ -460,7 +460,7 @@ export function* handleSwap(): Generator {
     const setCuIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 })
     const swapIx = yield* call(
       [marketProgram, marketProgram.swapIx],
-      session.sessionPublicKey,
+      session,
       {
         pair: swapPair,
         xToY: isXtoY,
@@ -469,8 +469,7 @@ export function* handleSwap(): Generator {
         slippage: slippage,
         accountX: isXtoY ? fromAddress : toAddress,
         accountY: isXtoY ? toAddress : fromAddress,
-        byAmountIn: byAmountIn,
-        owner: session.sessionPublicKey
+        byAmountIn: byAmountIn
       },
       {
         pool: swapPool,
@@ -488,19 +487,19 @@ export function* handleSwap(): Generator {
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    yield put(swapActions.setSwapSuccess(!!txid.length))
-
-    if (!txid.length) {
+    const txSig = txid.signature
+    yield put(swapActions.setSwapSuccess(!!txSig))
+    if (!txid.signature.length) {
       yield put(
         snackbarsActions.add({
           message: 'Tokens swapping failed. Please try again',
           variant: 'error',
           persist: false,
-          txid
+          txid: txSig
         })
       )
     } else {
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txSig, {
         maxSupportedTransactionVersion: 0
       })
 
@@ -587,7 +586,7 @@ export function* handleSwap(): Generator {
             message: 'Tokens swapped successfully',
             variant: 'success',
             persist: false,
-            txid
+            txid: txSig
           })
         )
       }
