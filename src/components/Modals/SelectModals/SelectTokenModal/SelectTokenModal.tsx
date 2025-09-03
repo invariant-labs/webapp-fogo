@@ -358,9 +358,9 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
                 width='100%'
                 className={classes.scrollList}
                 itemSize={66}
-                itemCount={2 * filteredTokens.length}
+                itemCount={filteredTokens.length}
                 itemData={{
-                  tokens: [...filteredTokens, ...filteredTokens],
+                  tokens: filteredTokens,
                   onSelect: (idx: number) => {
                     if (!onSelect) return
                     onSelect(idx)

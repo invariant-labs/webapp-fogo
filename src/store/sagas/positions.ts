@@ -27,7 +27,8 @@ import {
   PublicKey,
   ParsedInstruction,
   SendTransactionError,
-  ComputeBudgetProgram
+  ComputeBudgetProgram,
+  TransactionInstruction
 } from '@solana/web3.js'
 import {
   APPROVAL_DENIED_MESSAGE,
@@ -77,10 +78,13 @@ import { parseTick, Position } from '@invariant-labs/sdk-fogo/lib/market'
 import { getAssociatedTokenAddressSync, NATIVE_MINT } from '@solana/spl-token'
 import { unknownTokenIcon } from '@static/icons'
 import { calculateClaimAmount } from '@invariant-labs/sdk-fogo/lib/utils'
+import { getSession } from '@store/hooks/session'
 
 export function* handleSwapAndInitPosition(
   action: PayloadAction<SwapAndCreatePosition>
 ): Generator {
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   const loaderCreatePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
@@ -159,6 +163,7 @@ export function* handleSwapAndInitPosition(
         : undefined
     const tx = yield* call(
       [marketProgram, marketProgram.versionedSwapAndCreatePositionTx],
+      session,
       {
         amountX: action.payload.xAmount,
         amountY: action.payload.yAmount,
@@ -399,7 +404,8 @@ export function* handleSwapAndInitPosition(
 export function* handleInitPosition(action: PayloadAction<InitPositionData>): Generator {
   const loaderCreatePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
-
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   try {
     const allTokens = yield* select(tokens)
 
@@ -458,6 +464,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     if (action.payload.initPool) {
       const txs = yield* call(
         [marketProgram, marketProgram.createPoolWithSqrtPriceAndPositionTx],
+        session,
         {
           pair,
           userTokenX,
@@ -482,6 +489,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     } else {
       tx = yield* call(
         [marketProgram, marketProgram.createPositionTx],
+        session,
         {
           pair,
           userTokenX,
@@ -943,7 +951,8 @@ export function* handleGetPositionsList() {
 export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked: boolean }>) {
   const loaderClaimFee = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
-
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   try {
     const allTokens = yield* select(tokens)
     const data = action.payload.isLocked ? lockedPositionsWithPoolsData : positionsWithPoolsData
@@ -1011,6 +1020,7 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
     } else {
       const ix = yield* call(
         [marketProgram, marketProgram.claimFeeIx],
+        session,
         {
           pair,
           userTokenX,
@@ -1164,7 +1174,8 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
 export function* handleClaimAllFees() {
   const loaderClaimAllFees = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
-
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   try {
     const connection = yield* call(getConnection)
     const networkType = yield* select(network)
@@ -1254,7 +1265,7 @@ export function* handleClaimAllFees() {
       }
     }
 
-    const txs = yield* call([marketProgram, marketProgram.claimAllFeesTxs], {
+    const txs = yield* call([marketProgram, marketProgram.claimAllFeesTxs], session, {
       owner: wallet.publicKey,
       positions: formattedPositions
     } as ClaimAllFee)
@@ -1444,6 +1455,9 @@ export function* handleClaimAllFees() {
 }
 
 export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
+  const session = getSession()
+  if (!session) throw Error('No session provided')
+
   const loaderClosePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
@@ -1494,6 +1508,7 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
 
     const ix = yield* call(
       [marketProgram, marketProgram.removePositionIx],
+      session,
       {
         pair,
         owner: wallet.publicKey,
@@ -2143,6 +2158,8 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
 export function* handleSwapAndAddLiquidity(
   action: PayloadAction<SwapAndAddLiquidityData>
 ): Generator {
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   const loaderAddPosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
@@ -2207,6 +2224,7 @@ export function* handleSwapAndAddLiquidity(
 
     const tx = yield* call(
       [marketProgram, marketProgram.versionedSwapAndIncreaseLiquidityTx],
+      session,
       {
         amountX: action.payload.xAmount,
         amountY: action.payload.yAmount,
