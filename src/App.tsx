@@ -10,6 +10,10 @@ import { NATIVE_MINT } from '@solana/spl-token'
 import { SOL_TEST, USDC_TEST } from '@store/consts/static'
 
 function App() {
+  const isPreviewHost =
+    typeof window !== 'undefined' && /\.vercel\.app$/.test(window.location.hostname)
+
+  const shouldOverrideDomain = isPreviewHost || process.env.NODE_ENV !== 'production'
   return (
     <>
       <Provider store={store}>
@@ -18,9 +22,7 @@ function App() {
             <FogoSessionProvider
               endpoint='https://testnet.fogo.io/'
               enableUnlimited
-              domain={
-                process.env.NODE_ENV === 'production' ? undefined : 'https://fogo.invariant.app'
-              }
+              domain={shouldOverrideDomain ? 'https://fogo.invariant.app' : undefined}
               tokens={[NATIVE_MINT, USDC_TEST.address, SOL_TEST.address]}
               defaultRequestedLimits={
                 new Map([
