@@ -172,7 +172,8 @@ const useStyles = makeStyles()((theme: Theme) => {
       boxShadow: 'none'
     },
     startIcon: {
-      marginTop: 3
+      marginTop: 3,
+      color: colors.invariant.green
     },
     endIcon: {
       marginBottom: 3

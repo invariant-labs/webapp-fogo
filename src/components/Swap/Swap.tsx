@@ -48,6 +48,7 @@ import { auditIcon, refreshIcon, settingIcon, swapArrowsIcon, warningIcon } from
 import { useNavigate } from 'react-router-dom'
 import { FetcherRecords, Pair, SimulationTwoHopResult } from '@invariant-labs/sdk-fogo'
 import { theme } from '@static/theme'
+import { isSessionActive } from '@store/hooks/session'
 
 export interface Pools {
   tokenX: PublicKey
@@ -177,6 +178,7 @@ export const Swap: React.FC<ISwap> = ({
   swapIsLoading
 }) => {
   const { classes, cx } = useStyles()
+  const activeSession = isSessionActive()
 
   const [tokenFromIndex, setTokenFromIndex] = React.useState<number | null>(null)
   const [tokenToIndex, setTokenToIndex] = React.useState<number | null>(null)
@@ -645,7 +647,7 @@ export const Swap: React.FC<ISwap> = ({
     if (tokenFromIndex !== null && tokenToIndex !== null && amountFrom === '' && amountTo === '') {
       return 'Enter amount'
     }
-    if (walletStatus !== Status.Initialized) {
+    if (!activeSession) {
       return 'Connect a wallet'
     }
 
@@ -1258,14 +1260,14 @@ export const Swap: React.FC<ISwap> = ({
                 network={network}
               />
             </Box>
-            {walletStatus !== Status.Initialized && getStateMessage() !== 'Loading' ? (
+            {!activeSession ? (
               <ChangeWalletButton
                 height={48}
                 name='Connect wallet'
-                onConnect={onConnectWallet}
-                connected={false}
-                onDisconnect={onDisconnectWallet}
                 isSwap={true}
+                width={'100%'}
+                walletConnected={activeSession}
+                isSmDown={false}
               />
             ) : getStateMessage() === 'Insufficient FOGO' ? (
               <TooltipHover

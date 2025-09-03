@@ -50,31 +50,32 @@ import { disconnectWallet, getFogoWallet } from '@utils/web3/wallet'
 import { WalletAdapter } from '@utils/web3/adapters/types'
 import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
-
 import { PayloadAction } from '@reduxjs/toolkit'
-import { getSession } from '@store/hooks/session'
+import { getSession, isSessionActive } from '@store/hooks/session'
 
 export function* getWallet(): SagaGenerator<WalletAdapter> {
   const wallet = yield* call(getFogoWallet)
+
   return wallet
 }
 export function* getBalance(pubKey: PublicKey): SagaGenerator<BN> {
   yield* put(actions.setIsFogoBalanceLoading(true))
   const connection = yield* call(getConnection)
   const balance = yield* call([connection, connection.getBalance], pubKey)
+
   yield* put(actions.setBalance(new BN(balance)))
   yield* put(actions.setIsFogoBalanceLoading(false))
 }
 
 export function* handleBalance(): Generator {
-  const wallet = yield* call(getWallet)
+  const session = getSession()
 
-  if (!wallet) {
+  if (!session?.walletPublicKey) {
     return
   }
 
-  yield* put(actions.setAddress(wallet.publicKey))
-  yield* call(getBalance, wallet.publicKey)
+  yield* put(actions.setAddress(session?.walletPublicKey))
+  yield* call(getBalance, session?.walletPublicKey)
   yield* call(fetchTokensAccounts)
   yield* call(fetchUnknownTokensAccounts)
 }
@@ -95,20 +96,24 @@ interface TokenAccountInfo {
 
 export function* fetchTokensAccounts(): Generator {
   const connection = yield* call(getConnection)
-  const wallet = yield* call(getWallet)
+  const session = getSession()
+  if (!session) {
+    return
+  }
+
   yield* put(actions.setIsTokenBalanceLoading(true))
 
   const { splTokensAccounts, token2022TokensAccounts } = yield* all({
     splTokensAccounts: call(
       [connection, connection.getParsedTokenAccountsByOwner],
-      wallet.publicKey,
+      session.walletPublicKey,
       {
         programId: TOKEN_PROGRAM_ID
       }
     ),
     token2022TokensAccounts: call(
       [connection, connection.getParsedTokenAccountsByOwner],
-      wallet.publicKey,
+      session.walletPublicKey,
       {
         programId: TOKEN_2022_PROGRAM_ID
       }
@@ -137,19 +142,23 @@ export function* fetchTokensAccounts(): Generator {
 
 export function* fetchUnknownTokensAccounts(): Generator {
   const connection = yield* call(getConnection)
-  const wallet = yield* call(getWallet)
+
+  const session = getSession()
+  if (!session) {
+    return
+  }
 
   yield put(actions.setIsUnknownBlanceLoading(true))
 
   const { splTokensAccounts, token2022TokensAccounts } = yield* all({
     splTokensAccounts: call(
       [connection, connection.getParsedTokenAccountsByOwner],
-      wallet.publicKey,
+      session?.walletPublicKey,
       { programId: TOKEN_PROGRAM_ID }
     ),
     token2022TokensAccounts: call(
       [connection, connection.getParsedTokenAccountsByOwner],
-      wallet.publicKey,
+      session?.walletPublicKey,
       { programId: TOKEN_2022_PROGRAM_ID }
     )
   })
@@ -340,11 +349,14 @@ export function* setEmptyAccounts(addresses: PublicKey[]): Generator {
 }
 
 export function* transferAirdropFOGO(): Generator {
-  const wallet = yield* call(getWallet)
+  const session = getSession()
+  if (!session) {
+    return
+  }
   const tx = new Transaction().add(
     SystemProgram.transfer({
       fromPubkey: airdropAdmin.publicKey,
-      toPubkey: wallet.publicKey,
+      toPubkey: session.walletPublicKey,
       lamports: 10000000
     })
   )
@@ -549,34 +561,13 @@ export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerato
   return associatedAccs
 }
 
-export function* init(isEagerConnect: boolean): Generator {
+export function* init(): Generator {
+  const sessionActive = isSessionActive()
+
   try {
-    if (isEagerConnect) {
-      yield* delay(500)
-    }
+    if (sessionActive) {
+      yield* put(actions.setStatus(Status.Init))
 
-    const wallet = yield* call(getWallet)
-    if (!wallet.connected) {
-      yield* delay(500)
-    }
-
-    const wallet2 = yield* call(getWallet)
-
-    if (!wallet2.connected) {
-      yield* put(actions.setStatus(Status.Uninitialized))
-      return
-    }
-    yield* put(actions.setStatus(Status.Init))
-
-    if (isEagerConnect) {
-      yield* put(
-        snackbarsActions.add({
-          message: 'Wallet reconnected',
-          variant: 'success',
-          persist: false
-        })
-      )
-    } else {
       yield* put(
         snackbarsActions.add({
           message: 'Wallet connected',
@@ -584,7 +575,11 @@ export function* init(isEagerConnect: boolean): Generator {
           persist: false
         })
       )
+    } else {
+      yield* put(actions.setStatus(Status.Uninitialized))
+      return
     }
+
     yield* put(actions.setStatus(Status.Initialized))
     yield* call(handleBalance)
   } catch (e: unknown) {
@@ -612,19 +607,6 @@ export function* sendSol(amount: BN, recipient: PublicKey): SagaGenerator<string
 
 export function* handleConnect(action: PayloadAction<boolean>): Generator {
   try {
-    const walletStatus = yield* select(status)
-    const wallet = yield* call(getWallet)
-
-    if (walletStatus === Status.Initialized && wallet.connected) {
-      yield* put(
-        snackbarsActions.add({
-          message: 'Wallet already connected',
-          variant: 'info',
-          persist: false
-        })
-      )
-      return
-    }
     yield* call(init, action.payload)
   } catch (e: unknown) {
     const error = ensureError(e)
