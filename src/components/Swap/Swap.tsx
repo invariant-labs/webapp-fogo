@@ -273,14 +273,14 @@ export const Swap: React.FC<ISwap> = ({
     }
   }, [isTimeoutError])
 
-  const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
+  const urlUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!tokens.length) return
     if (tokenFromIndex === null || tokenToIndex === null) return
     if (!tokens[tokenFromIndex] || !tokens[tokenToIndex]) return
 
-    clearTimeout(urlUpdateTimeoutRef.current)
+    if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
     urlUpdateTimeoutRef.current = setTimeout(() => {
       const fromTicker = addressToTicker(network, tokens[tokenFromIndex].assetAddress.toString())
       const toTicker = addressToTicker(network, tokens[tokenToIndex].assetAddress.toString())
@@ -291,7 +291,9 @@ export const Swap: React.FC<ISwap> = ({
       }
     }, 500)
 
-    return () => clearTimeout(urlUpdateTimeoutRef.current)
+    return () => {
+      if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
+    }
   }, [
     tokenFromIndex,
     tokenToIndex,
