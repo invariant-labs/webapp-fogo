@@ -30,7 +30,7 @@ const ChangeWalletButton: React.FC<IProps> = ({
   walletConnected,
   isSmDown,
   defaultVariant = 'pink',
-  height = 48,
+  height = 40,
   isDisabled,
   // isSwap,
   // noUnblur,

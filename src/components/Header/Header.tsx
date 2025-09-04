@@ -98,6 +98,7 @@ export const Header: React.FC<IHeader> = ({
       dispatch(walletActions.connect(false))
     } else {
       setSession(null)
+      dispatch(walletActions.resetState())
     }
   }, [session])
 
