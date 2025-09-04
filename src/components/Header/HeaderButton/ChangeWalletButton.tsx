@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { JSX } from 'react'
 import useStyles from './style'
 import { Box, Typography } from '@mui/material'
 import { blurContent, unblurContent } from '@utils/uiUtils'

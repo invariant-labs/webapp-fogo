@@ -234,9 +234,9 @@ export const NewPositionWrapper: React.FC<IProps> = ({
     return ROUTES.getNewPositionRoute(initialFee)
   }
 
-  const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
+  const urlUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  clearTimeout(urlUpdateTimeoutRef.current)
+  if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
 
   useEffect(() => {
     const path = constructNavigationPath()

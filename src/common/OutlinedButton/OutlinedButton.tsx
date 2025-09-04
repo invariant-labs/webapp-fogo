@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react'
+import React, { JSX, ReactElement } from 'react'
 import useStyles from './style'
 import { Button, ButtonOwnProps } from '@mui/material'
 
