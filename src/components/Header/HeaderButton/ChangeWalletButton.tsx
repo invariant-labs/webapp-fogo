@@ -21,6 +21,7 @@ export interface IProps {
   isDisabled?: boolean
   hideArrow?: boolean
   enableModal?: boolean
+  margin?: string
 }
 
 const ChangeWalletButton: React.FC<IProps> = ({
@@ -29,15 +30,16 @@ const ChangeWalletButton: React.FC<IProps> = ({
   walletConnected,
   isSmDown,
   defaultVariant = 'pink',
-  height,
+  height = 48,
   isDisabled,
-  isSwap,
-  noUnblur,
-  startIcon,
+  // isSwap,
+  // noUnblur,
+  // startIcon,
   textClassName,
   width,
   hideArrow,
-  enableModal
+  enableModal,
+  margin
 }) => {
   const { classes, cx } = useStyles()
 
@@ -67,7 +69,8 @@ const ChangeWalletButton: React.FC<IProps> = ({
         }}
         onClick={isDisabled ? () => {} : handleClick}
         width={width}
-        height={height}>
+        height={height}
+        margin={margin}>
         <Box className={classes.headerButtonContainer}>
           {walletConnected && (
             <Box className={classes.startIcon}>

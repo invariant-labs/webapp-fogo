@@ -1,7 +1,6 @@
 import {
   all,
   call,
-  delay,
   put,
   SagaGenerator,
   select,

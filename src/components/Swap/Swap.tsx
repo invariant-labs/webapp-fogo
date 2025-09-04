@@ -48,7 +48,8 @@ import { auditIcon, refreshIcon, settingIcon, swapArrowsIcon, warningIcon } from
 import { useNavigate } from 'react-router-dom'
 import { FetcherRecords, Pair, SimulationTwoHopResult } from '@invariant-labs/sdk-fogo'
 import { theme } from '@static/theme'
-import { isSessionActive } from '@store/hooks/session'
+import { getSession, isSessionActive } from '@store/hooks/session'
+import { useSession } from '@fogo/sessions-sdk-react'
 
 export interface Pools {
   tokenX: PublicKey
@@ -178,7 +179,8 @@ export const Swap: React.FC<ISwap> = ({
   swapIsLoading
 }) => {
   const { classes, cx } = useStyles()
-  const activeSession = isSessionActive()
+
+  const session = getSession()
 
   const [tokenFromIndex, setTokenFromIndex] = React.useState<number | null>(null)
   const [tokenToIndex, setTokenToIndex] = React.useState<number | null>(null)
@@ -206,8 +208,17 @@ export const Swap: React.FC<ISwap> = ({
   const [hideUnknownTokens, setHideUnknownTokens] = React.useState<boolean>(
     initialHideUnknownTokensValue
   )
+  const [walletConnected, setWalletConnected] = useState(false)
   const txDown = useMediaQuery(theme.breakpoints.down(483))
   const txDown2 = useMediaQuery(theme.breakpoints.down(360))
+
+  useEffect(() => {
+    if (!!session) {
+      setWalletConnected(true)
+    } else {
+      setWalletConnected(false)
+    }
+  }, [session])
 
   const [simulateResult, setSimulateResult] = React.useState<{
     amountOut: BN
@@ -647,7 +658,7 @@ export const Swap: React.FC<ISwap> = ({
     if (tokenFromIndex !== null && tokenToIndex !== null && amountFrom === '' && amountTo === '') {
       return 'Enter amount'
     }
-    if (!activeSession) {
+    if (!walletConnected) {
       return 'Connect a wallet'
     }
 
@@ -1260,13 +1271,13 @@ export const Swap: React.FC<ISwap> = ({
                 network={network}
               />
             </Box>
-            {!activeSession ? (
+            {!walletConnected ? (
               <ChangeWalletButton
                 height={48}
                 name='Connect wallet'
                 isSwap={true}
                 width={'100%'}
-                walletConnected={activeSession}
+                walletConnected={walletConnected}
                 isSmDown={false}
               />
             ) : getStateMessage() === 'Insufficient FOGO' ? (

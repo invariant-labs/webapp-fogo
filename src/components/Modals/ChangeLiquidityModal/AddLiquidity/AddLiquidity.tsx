@@ -78,6 +78,7 @@ import { InputState } from '@components/NewPosition/DepositSelector/DepositSelec
 import { Tick, Tickmap } from '@invariant-labs/sdk-fogo/lib/market'
 import { Info } from '@static/componentIcon/Info'
 import { Settings } from '@static/componentIcon/Settings'
+import { getSession } from '@store/hooks/session'
 
 export interface IProps {
   tokenFrom: PublicKey
@@ -103,8 +104,6 @@ export interface IProps {
   currentNetwork: NetworkType
   ticksLoading: boolean
   getCurrentPlotTicks: () => void
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   getPoolData: (pair: Pair) => void
   setShouldNotUpdateRange: () => void
   autoSwapPoolData: PoolWithAddress | null
@@ -155,8 +154,6 @@ export const AddLiquidity: React.FC<IProps> = ({
   ticksLoading,
   isBalanceLoading,
   getCurrentPlotTicks,
-  onConnectWallet,
-  onDisconnectWallet,
   getPoolData,
   setShouldNotUpdateRange,
   autoSwapPoolData,
@@ -174,6 +171,7 @@ export const AddLiquidity: React.FC<IProps> = ({
   tokenYLiquidity
 }) => {
   const dispatch = useDispatch()
+  const session = getSession()
 
   const isLoadingTicksOrTickmap = useMemo(
     () => ticksLoading || isLoadingAutoSwapPoolTicksOrTickMap || isLoadingAutoSwapPool,
@@ -1798,16 +1796,12 @@ export const AddLiquidity: React.FC<IProps> = ({
         </Box>
       </Box>
       <Box width='100%'>
-        {walletStatus !== Status.Initialized ? (
+        {!session ? (
           <ChangeWalletButton
-            margin={'24px 0 0 0'}
+            walletConnected={!!session}
             width={'100%'}
             height={40}
             name='Connect wallet'
-            onConnect={onConnectWallet}
-            connected={false}
-            onDisconnect={onDisconnectWallet}
-            noUnblur
           />
         ) : getButtonMessage() === 'Insufficient FOGO' ? (
           <TooltipHover

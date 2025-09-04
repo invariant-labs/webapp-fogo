@@ -13,7 +13,7 @@ import { BN } from '@coral-xyz/anchor'
 import { Bar } from '@components/Bar/Bar'
 import { ROUTES } from '@utils/utils'
 import { isEstablished, useSession } from '@fogo/sessions-sdk-react'
-import { SendTxInput, setSession } from '@store/hooks/session'
+import { getSession, SendTxInput, setSession } from '@store/hooks/session'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { useDispatch } from 'react-redux'
 
@@ -75,6 +75,7 @@ export const Header: React.FC<IHeader> = ({
   }, [landing])
 
   const session = useSession()
+  const hookSession = getSession()
 
   useEffect(() => {
     if (isEstablished(session)) {
@@ -187,9 +188,9 @@ export const Header: React.FC<IHeader> = ({
           />
 
           <ChangeWalletButton
-            address={session?.walletPublicKey?.toString()}
+            address={hookSession?.walletPublicKey?.toString()}
             isSmDown={isSmDown}
-            walletConnected={!!session?.walletPublicKey?.toString()}
+            walletConnected={session.type === 7}
             name=''
             enableModal
           />
