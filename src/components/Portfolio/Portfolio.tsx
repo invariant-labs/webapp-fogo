@@ -100,8 +100,6 @@ interface IProps {
   min: number
   max: number
   ticksLoading: boolean
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   getPoolData: (pair: Pair) => void
   setShouldNotUpdateRange: () => void
   autoSwapPoolData: PoolWithAddress | null
@@ -186,8 +184,6 @@ const Portfolio: React.FC<IProps> = ({
   min,
   max,
   ticksLoading,
-  onConnectWallet,
-  onDisconnectWallet,
   getPoolData,
   setShouldNotUpdateRange,
   autoSwapPoolData,
@@ -467,8 +463,6 @@ const Portfolio: React.FC<IProps> = ({
         ticksLoading={ticksLoading}
         isTimeoutError={isTimeoutError}
         getCurrentPlotTicks={reloadHandler}
-        onConnectWallet={onConnectWallet}
-        onDisconnectWallet={onDisconnectWallet}
         getPoolData={getPoolData}
         setShouldNotUpdateRange={setShouldNotUpdateRange}
         autoSwapPoolData={autoSwapPoolData}

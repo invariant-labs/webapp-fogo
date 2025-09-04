@@ -143,8 +143,6 @@ export interface INewPosition {
   isLoadingTokens: boolean
   fogoBalance: BN
   walletStatus: Status
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   canNavigate: boolean
   feeTiersWithTvl: Record<number, number>
   totalTvl: number
@@ -219,8 +217,6 @@ export const NewPosition: React.FC<INewPosition> = ({
   isLoadingTokens,
   fogoBalance,
   walletStatus,
-  onConnectWallet,
-  onDisconnectWallet,
   canNavigate,
   feeTiersWithTvl,
   totalTvl,
@@ -1217,8 +1213,6 @@ export const NewPosition: React.FC<INewPosition> = ({
           network={network}
           fogoBalance={fogoBalance}
           walletStatus={walletStatus}
-          onConnectWallet={onConnectWallet}
-          onDisconnectWallet={onDisconnectWallet}
           canNavigate={canNavigate}
           isCurrentPoolExisting={isCurrentPoolExisting}
           feeTiersWithTvl={feeTiersWithTvl}

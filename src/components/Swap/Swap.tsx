@@ -48,8 +48,7 @@ import { auditIcon, refreshIcon, settingIcon, swapArrowsIcon, warningIcon } from
 import { useNavigate } from 'react-router-dom'
 import { FetcherRecords, Pair, SimulationTwoHopResult } from '@invariant-labs/sdk-fogo'
 import { theme } from '@static/theme'
-import { getSession, isSessionActive } from '@store/hooks/session'
-import { useSession } from '@fogo/sessions-sdk-react'
+import { getSession } from '@store/hooks/session'
 
 export interface Pools {
   tokenX: PublicKey
@@ -95,8 +94,6 @@ export interface ISwap {
   progress: ProgressState
   poolTicks: { [x: string]: Tick[] }
   isWaitingForNewPool: boolean
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   initialTokenFromIndex: number | null
   initialTokenToIndex: number | null
   handleAddToken: (address: string) => void
@@ -149,8 +146,6 @@ export const Swap: React.FC<ISwap> = ({
   progress,
   poolTicks,
   isWaitingForNewPool,
-  onConnectWallet,
-  onDisconnectWallet,
   initialTokenFromIndex,
   initialTokenToIndex,
   handleAddToken,

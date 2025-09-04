@@ -581,14 +581,6 @@ const PortfolioWrapper = () => {
     }
   }, [position?.id])
 
-  const onConnectWallet = () => {
-    dispatch(walletActions.connect(false))
-  }
-
-  const onDisconnectWallet = () => {
-    dispatch(walletActions.disconnect())
-  }
-
   const getPoolData = (pair: Pair) => {
     dispatch(poolsActions.getPoolData(pair))
   }
@@ -652,9 +644,6 @@ const PortfolioWrapper = () => {
       showNoConnected={walletStatus !== Status.Initialized}
       itemsPerPage={POSITIONS_PER_PAGE}
       noConnectedBlockerProps={{
-        onConnect: () => {
-          dispatch(walletActions.connect(false))
-        },
         title: 'Start exploring liquidity pools right now!',
         descCustomText: 'Or, connect your wallet to see existing positions, and create a new one!'
       }}
@@ -711,8 +700,6 @@ const PortfolioWrapper = () => {
       min={min}
       max={max}
       ticksLoading={ticksLoading || !position}
-      onConnectWallet={onConnectWallet}
-      onDisconnectWallet={onDisconnectWallet}
       getPoolData={getPoolData}
       setShouldNotUpdateRange={setShouldNotUpdateRange}
       autoSwapPoolData={autoSwapPoolData}
@@ -843,7 +830,6 @@ const PortfolioWrapper = () => {
         desc='No liquidity positions to show'
         withButton={false}
         connectButton={true}
-        onAction2={() => dispatch(walletActions.connect(false))}
       />
     </Grid>
   )

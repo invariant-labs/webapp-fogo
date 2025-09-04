@@ -525,14 +525,6 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
   const tokens = useSelector(poolTokens)
   const isBalanceLoading = useSelector(balanceLoading)
 
-  const onConnectWallet = () => {
-    dispatch(walletActions.connect(false))
-  }
-
-  const onDisconnectWallet = () => {
-    dispatch(walletActions.disconnect())
-  }
-
   const getPoolData = (pair: Pair) => {
     dispatch(poolsActions.getPoolData(pair))
   }
@@ -767,8 +759,6 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
         allPools={poolsList}
         isBalanceLoading={isBalanceLoading}
         isTimeoutError={isTimeoutError}
-        onConnectWallet={onConnectWallet}
-        onDisconnectWallet={onDisconnectWallet}
         getPoolData={getPoolData}
         setShouldNotUpdateRange={setShouldNotUpdateRange}
         autoSwapPoolData={autoSwapPoolData}
@@ -814,7 +804,6 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
           desc='No liquidity positions to show'
           withButton={false}
           connectButton={true}
-          onAction2={() => dispatch(walletActions.connect(false))}
         />
       </Grid>
     )

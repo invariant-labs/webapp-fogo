@@ -1009,12 +1009,6 @@ export const NewPositionWrapper: React.FC<IProps> = ({
       isLoadingTokens={isCurrentlyLoadingTokens}
       fogoBalance={fogoBalance}
       walletStatus={walletStatus}
-      onConnectWallet={() => {
-        dispatch(walletActions.connect(false))
-      }}
-      onDisconnectWallet={() => {
-        dispatch(walletActions.disconnect())
-      }}
       calcAmount={calcAmount}
       isLoadingTicksOrTickmap={isLoadingTicksOrTickmap}
       progress={progress}
