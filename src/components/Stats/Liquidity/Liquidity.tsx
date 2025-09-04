@@ -131,7 +131,7 @@ const Liquidity: React.FC<LiquidityInterface> = ({
                 <text
                   style={{ fill: colors.invariant.textGrey, ...typography.tiny2 }}
                   textAnchor='start'
-                  dominantBaseline='center'>
+                  dominantBaseline='central'>
                   {trimZeros(formatLargeNumber(value))}
                 </text>
               </g>
@@ -183,28 +183,22 @@ const Liquidity: React.FC<LiquidityInterface> = ({
               lastStatsTimestamp
             )
 
-            const pointIndex = point.index
-
+            const pointTime = (point.data.x as Date).getTime()
+            const pointIndex = data.findIndex(d => d.timestamp === pointTime)
             const totalPoints = data.length
-            const relativePosition = pointIndex / (totalPoints - 1)
+            const relativePosition =
+              totalPoints > 1 && pointIndex >= 0 ? pointIndex / (totalPoints - 1) : 0.5
 
-            let transformStyle
-
-            if (relativePosition < 0.1) {
-              transformStyle = 'translateX(40%)'
-            } else if (relativePosition > 0.85) {
-              transformStyle = 'translateX(-40%)'
-            }
+            let transformStyle: string | undefined
+            if (relativePosition < 0.1) transformStyle = 'translateX(40%)'
+            else if (relativePosition > 0.85) transformStyle = 'translateX(-40%)'
 
             return (
               <Grid
                 className={classes.tooltip}
                 style={
                   relativePosition < 0.1 || (relativePosition > 0.85 && isMobile)
-                    ? {
-                        transform: transformStyle,
-                        position: 'relative'
-                      }
+                    ? { transform: transformStyle, position: 'relative' }
                     : {}
                 }>
                 <Typography className={classes.tooltipDate}>{date}</Typography>

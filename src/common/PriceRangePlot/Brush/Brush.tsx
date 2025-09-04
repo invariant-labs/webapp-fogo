@@ -1,4 +1,3 @@
-import { CustomLayerProps } from '@nivo/line'
 import { colors } from '@static/theme'
 import React, {
   useState,
@@ -9,6 +8,24 @@ import React, {
   MouseEventHandler
 } from 'react'
 import { MaxHandle, MinHandle } from './svgHandles'
+
+type NivoLayerPropsBase = {
+  innerWidth: number
+  innerHeight: number
+  width: number
+  height: number
+  margin: { top: number; right: number; bottom: number; left: number }
+} & Record<string, unknown>
+
+export interface InnerBrushProps extends NivoLayerPropsBase {
+  leftPosition?: number
+  rightPosition?: number
+  onLeftDrop: (position: number) => void
+  onRightDrop: (position: number) => void
+  plotMin: number
+  plotMax: number
+  disabled: boolean
+}
 
 export interface HandleProps {
   plotWidth: number
@@ -237,7 +254,7 @@ export const Handle: React.FC<HandleProps> = ({
   )
 }
 
-export interface InnerBrushProps extends CustomLayerProps {
+export interface InnerBrushProps extends NivoLayerPropsBase {
   leftPosition?: number
   rightPosition?: number
   onLeftDrop: (position: number) => void
@@ -331,7 +348,7 @@ export const Brush =
     plotMin: number,
     plotMax: number,
     disabled: boolean = false
-  ): React.FC<CustomLayerProps> =>
+  ): React.FC<NivoLayerPropsBase> =>
   layerProps => (
     <InnerBrush
       leftPosition={leftPosition}

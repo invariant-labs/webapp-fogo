@@ -1,6 +1,6 @@
 import { Grid, Typography, useMediaQuery } from '@mui/material'
 import { linearGradientDef } from '@nivo/core'
-import { Layer, ResponsiveLine } from '@nivo/line'
+import { LineCustomSvgLayer, ResponsiveLine } from '@nivo/line'
 import ZoomInIcon from '@static/svg/zoom-in-icon.svg'
 import ZoomOutIcon from '@static/svg/zoom-out-icon.svg'
 import { colors, theme } from '@static/theme'
@@ -19,6 +19,8 @@ import loader from '@static/gif/loader.gif'
 import { chartPlaceholder } from '@store/consts/static'
 
 export type TickPlotPositionData = Omit<PlotTickData, 'y'>
+type RawSerie = { id: string; data: { x: number; y: number }[] }
+type CustomLayer = LineCustomSvgLayer<RawSerie>
 
 export type InitMidPrice = TickPlotPositionData & { sqrtPrice: BN }
 
@@ -246,7 +248,7 @@ export const PriceRangePlot: React.FC<IPriceRangePlot> = ({
     return pointsOmitter(rangeData)
   }, [disabled, data, rightRange, plotMin, plotMax, pointsOmitter])
 
-  const currentLayer: Layer = ({ innerWidth, innerHeight }) => {
+  const currentLayer: CustomLayer = ({ innerWidth, innerHeight }) => {
     if (typeof midPrice === 'undefined') {
       return null
     }
@@ -272,7 +274,7 @@ export const PriceRangePlot: React.FC<IPriceRangePlot> = ({
     )
   }
 
-  const bottomLineLayer: Layer = ({ innerWidth, innerHeight }) => {
+  const bottomLineLayer: CustomLayer = ({ innerWidth, innerHeight }) => {
     const bottomLine = innerHeight
     return <rect x={0} y={bottomLine} width={innerWidth} height={1} fill={colors.invariant.light} />
   }
@@ -313,7 +315,7 @@ export const PriceRangePlot: React.FC<IPriceRangePlot> = ({
     plotMin,
     plotMax,
     disabled
-  )
+  ) as unknown as CustomLayer
 
   const highlightLayer = ({ innerWidth, innerHeight }) => {
     const unitLen = innerWidth / (plotMax - plotMin)
