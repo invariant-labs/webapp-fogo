@@ -8,6 +8,7 @@ import { AppRouter } from '@pages/AppRouter'
 import { FogoSessionProvider } from '@fogo/sessions-sdk-react'
 import { NATIVE_MINT } from '@solana/spl-token'
 import { SOL_TEST, USDC_TEST } from '@store/consts/static'
+import { PublicKey } from '@solana/web3.js'
 
 function App() {
   const isPreviewHost =
@@ -20,8 +21,8 @@ function App() {
         <ThemeProvider theme={theme}>
           <SnackbarProvider maxSnack={99}>
             <FogoSessionProvider
+              sponsor={new PublicKey('B7g4WMqgNrn39sgKef23GKtqpWD7JvNj3waLx3RmTco2')}
               endpoint='https://testnet.fogo.io/'
-              enableUnlimited
               domain={shouldOverrideDomain ? 'https://fogo.invariant.app' : undefined}
               tokens={[NATIVE_MINT, USDC_TEST.address, SOL_TEST.address]}
               defaultRequestedLimits={

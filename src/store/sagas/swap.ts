@@ -8,7 +8,6 @@ import { createAccount, getWallet } from './wallet'
 import { IWallet, Pair, routingEssentials } from '@invariant-labs/sdk-fogo'
 import { getConnection, handleRpcError } from './connection'
 import {
-  ComputeBudgetProgram,
   PublicKey,
   SendTransactionError,
   TransactionExpiredTimeoutError
@@ -458,7 +457,6 @@ export function* handleSwap(): Generator {
 
     let txid
 
-    const setCuIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 })
     const swapIx = yield* call(
       [marketProgram, marketProgram.swapIx],
       session,
@@ -481,7 +479,7 @@ export function* handleSwap(): Generator {
       { tickCrosses: MAX_CROSSES_IN_SINGLE_TX }
     )
 
-    txid = yield* call([session, session.sendTransaction], [setCuIx, swapIx])
+    txid = yield* call([session, session.sendTransaction], [swapIx])
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
