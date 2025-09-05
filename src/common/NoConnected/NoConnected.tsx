@@ -6,18 +6,20 @@ import ChangeWalletButton from '@components/Header/HeaderButton/ChangeWalletButt
 import { ROUTES } from '@utils/utils'
 import { useDispatch } from 'react-redux'
 import { actions } from '@store/reducers/navigation'
+import { getSession } from '@store/hooks/session'
 
 export interface INoConnected {
-  onConnect: () => void
   title?: string
   descCustomText?: string
 }
 
-export const NoConnected: React.FC<INoConnected> = ({ onConnect, title, descCustomText }) => {
+export const NoConnected: React.FC<INoConnected> = ({ title, descCustomText }) => {
   const { classes, cx } = useStyles()
   const dispatch = useDispatch()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const session = getSession()
   return (
     <>
       <Grid className={cx(classes.blur, 'blurLayer')} />
@@ -43,11 +45,9 @@ export const NoConnected: React.FC<INoConnected> = ({ onConnect, title, descCust
 
           <ChangeWalletButton
             name='Connect wallet'
-            onConnect={onConnect}
-            connected={false}
-            onDisconnect={() => {}}
-            className={classes.buttonSecondary}
             textClassName={classes.buttonText}
+            isSmDown={false}
+            walletConnected={!!session}
           />
         </Grid>
       </Grid>

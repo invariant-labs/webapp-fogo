@@ -48,6 +48,7 @@ import { auditIcon, refreshIcon, settingIcon, swapArrowsIcon, warningIcon } from
 import { useNavigate } from 'react-router-dom'
 import { FetcherRecords, Pair, SimulationTwoHopResult } from '@invariant-labs/sdk-fogo'
 import { theme } from '@static/theme'
+import { getSession } from '@store/hooks/session'
 
 export interface Pools {
   tokenX: PublicKey
@@ -93,8 +94,6 @@ export interface ISwap {
   progress: ProgressState
   poolTicks: { [x: string]: Tick[] }
   isWaitingForNewPool: boolean
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   initialTokenFromIndex: number | null
   initialTokenToIndex: number | null
   handleAddToken: (address: string) => void
@@ -147,8 +146,6 @@ export const Swap: React.FC<ISwap> = ({
   progress,
   poolTicks,
   isWaitingForNewPool,
-  onConnectWallet,
-  onDisconnectWallet,
   initialTokenFromIndex,
   initialTokenToIndex,
   handleAddToken,
@@ -178,6 +175,8 @@ export const Swap: React.FC<ISwap> = ({
 }) => {
   const { classes, cx } = useStyles()
 
+  const session = getSession()
+
   const [tokenFromIndex, setTokenFromIndex] = React.useState<number | null>(null)
   const [tokenToIndex, setTokenToIndex] = React.useState<number | null>(null)
   const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null)
@@ -204,8 +203,17 @@ export const Swap: React.FC<ISwap> = ({
   const [hideUnknownTokens, setHideUnknownTokens] = React.useState<boolean>(
     initialHideUnknownTokensValue
   )
+  const [walletConnected, setWalletConnected] = useState(false)
   const txDown = useMediaQuery(theme.breakpoints.down(483))
   const txDown2 = useMediaQuery(theme.breakpoints.down(360))
+
+  useEffect(() => {
+    if (!!session) {
+      setWalletConnected(true)
+    } else {
+      setWalletConnected(false)
+    }
+  }, [session])
 
   const [simulateResult, setSimulateResult] = React.useState<{
     amountOut: BN
@@ -647,7 +655,7 @@ export const Swap: React.FC<ISwap> = ({
     if (tokenFromIndex !== null && tokenToIndex !== null && amountFrom === '' && amountTo === '') {
       return 'Enter amount'
     }
-    if (walletStatus !== Status.Initialized) {
+    if (!walletConnected) {
       return 'Connect a wallet'
     }
 
@@ -1260,14 +1268,14 @@ export const Swap: React.FC<ISwap> = ({
                 network={network}
               />
             </Box>
-            {walletStatus !== Status.Initialized && getStateMessage() !== 'Loading' ? (
+            {!walletConnected ? (
               <ChangeWalletButton
                 height={48}
                 name='Connect wallet'
-                onConnect={onConnectWallet}
-                connected={false}
-                onDisconnect={onDisconnectWallet}
                 isSwap={true}
+                width={'100%'}
+                walletConnected={walletConnected}
+                isSmDown={false}
               />
             ) : getStateMessage() === 'Insufficient FOGO' ? (
               <TooltipHover
