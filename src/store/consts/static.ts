@@ -13,6 +13,7 @@ import {
 import { cat1Icon, cat2Icon, dog1Icon, dog2Icon } from '@static/icons'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import fogoTokenIcon from '@static/fogoTokenIcon.jpg'
+import { ROUTES } from '@utils/utils'
 
 export enum NetworkType {
   Local = 'Local',
@@ -608,3 +609,13 @@ export const ERROR_CODE_TO_MESSAGE: Record<number, string> = {
   0x1775: SLIPPAGE_ERROR_MESSAGE,
   0x1785: SLIPPAGE_ERROR_MESSAGE
 }
+
+export const metaData = new Map([
+  [ROUTES.EXCHANGE, 'Invariant | Exchange'],
+  [ROUTES.LIQUIDITY, 'Invariant | Liquidity'],
+  [ROUTES.PORTFOLIO, 'Invariant | Portfolio'],
+  [ROUTES.NEW_POSITION, 'Invariant | New Position'],
+  [ROUTES.POSITION, 'Invariant | Position Details'],
+  [ROUTES.STATISTICS, 'Invariant | Statistics'],
+  [ROUTES.CREATOR, 'Invariant | Creator']
+])

@@ -51,19 +51,23 @@ import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { getSession, isSessionActive } from '@store/hooks/session'
-
+import { accounts as solanaAccounts } from '@store/selectors/solanaWallet'
 export function* getWallet(): SagaGenerator<WalletAdapter> {
   const wallet = yield* call(getFogoWallet)
 
   return wallet
 }
-export function* getBalance(pubKey: PublicKey): SagaGenerator<BN> {
-  yield* put(actions.setIsFogoBalanceLoading(true))
-  const connection = yield* call(getConnection)
-  const balance = yield* call([connection, connection.getBalance], pubKey)
-
-  yield* put(actions.setBalance(new BN(balance)))
-  yield* put(actions.setIsFogoBalanceLoading(false))
+export function* getBalance(_pubKey: PublicKey): SagaGenerator<BN> {
+  try {
+    yield* put(actions.setIsFogoBalanceLoading(true))
+    const allAccounts: Record<string, { balance: BN }> = yield* select(solanaAccounts)
+    const wrapped = allAccounts?.[WRAPPED_FOGO_ADDRESS]
+    const balance = wrapped?.balance?.gtn(0) ? wrapped.balance : new BN(0)
+    yield* put(actions.setBalance(balance))
+    return balance
+  } finally {
+    yield* put(actions.setIsFogoBalanceLoading(false))
+  }
 }
 
 export function* handleBalance(): Generator {
@@ -429,20 +433,6 @@ export function* getTokenAirdrop(addresses: PublicKey[], quantities: number[]): 
   })
 }
 
-export function* signAndSend(wallet: WalletAdapter, tx: Transaction): SagaGenerator<string> {
-  const connection = yield* call(getConnection)
-  const { blockhash, lastValidBlockHeight } = yield* call([
-    connection,
-    connection.getLatestBlockhash
-  ])
-  tx.feePayer = wallet.publicKey
-  tx.recentBlockhash = blockhash
-  tx.lastValidBlockHeight = lastValidBlockHeight
-  const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-  const signature = yield* call([connection, connection.sendRawTransaction], signedTx.serialize())
-  return signature
-}
-
 export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey> {
   const wallet = yield* call(getWallet)
   const session = getSession()
@@ -495,7 +485,8 @@ export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey
 }
 
 export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerator<PublicKey[]> {
-  const wallet = yield* call(getWallet)
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   const connection = yield* call(getConnection)
   const ixs: TransactionInstruction[] = []
   const associatedAccs: PublicKey[] = []
@@ -505,27 +496,24 @@ export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerato
     const associatedAccount = yield* call(
       getAssociatedTokenAddress,
       address,
-      wallet.publicKey,
+      session.walletPublicKey,
       false,
       programId,
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
     associatedAccs.push(associatedAccount)
     const ix = createAssociatedTokenAccountInstruction(
-      wallet.publicKey,
+      session.sessionPublicKey,
       associatedAccount,
-      wallet.publicKey,
+      session.walletPublicKey,
       address,
       programId,
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
     ixs.push(ix)
   }
-  yield* call(
-    signAndSend,
-    wallet,
-    ixs.reduce((tx, ix) => tx.add(ix), new Transaction())
-  )
+  yield* call([session, session.sendTransaction], ixs)
+
   const allTokens = yield* select(tokens)
   const unknownTokens: Record<string, StoreToken> = {}
   for (const [index, address] of tokenAddress.entries()) {
@@ -589,19 +577,6 @@ export function* init(): Generator {
 
 export const sleep = (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms))
-}
-export function* sendSol(amount: BN, recipient: PublicKey): SagaGenerator<string> {
-  const wallet = yield* call(getWallet)
-  const transaction = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: wallet.publicKey,
-      toPubkey: recipient,
-      lamports: amount.toNumber()
-    })
-  )
-
-  const txid = yield* call(signAndSend, wallet, transaction)
-  return txid
 }
 
 export function* handleConnect(action: PayloadAction<boolean>): Generator {
