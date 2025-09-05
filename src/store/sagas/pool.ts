@@ -1,12 +1,12 @@
 import { call, put, all, spawn, takeEvery, takeLatest, select } from 'typed-redux-saga'
-import { IWallet, Pair } from '@invariant-labs/sdk-fogo'
+import { Pair } from '@invariant-labs/sdk-fogo'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { Tick, TICK_CROSSES_PER_IX } from '@invariant-labs/sdk-fogo/src/market'
 import { PublicKey } from '@solana/web3.js'
 import { FEE_TIERS } from '@invariant-labs/sdk-fogo/lib/utils'
 import { getConnection, handleRpcError } from './connection'
-import { getWallet, sleep } from './wallet'
-import { getMarketProgram } from '@utils/web3/programs/amm'
+import { sleep } from './wallet'
+import { getMarketProgramWithoutProvider } from '@utils/web3/programs/amm'
 import {
   actions,
   FetchTicksAndTickMaps,
@@ -37,8 +37,9 @@ export interface iTick {
 export function* fetchPoolData(action: PayloadAction<Pair>) {
   const networkType = yield* select(network)
   const rpc = yield* select(rpcAddress)
-  const wallet = yield* call(getWallet)
-  const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+
+  const marketProgram = yield* call(getMarketProgramWithoutProvider, networkType, rpc)
+
   try {
     const poolData = yield* call([marketProgram, marketProgram.getPool], action.payload)
     const address = yield* call(
@@ -67,8 +68,8 @@ export function* fetchPoolData(action: PayloadAction<Pair>) {
 export function* fetchAutoSwapPoolData(action: PayloadAction<Pair>) {
   const networkType = yield* select(network)
   const rpc = yield* select(rpcAddress)
-  const wallet = yield* call(getWallet)
-  const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+
+  const marketProgram = yield* call(getMarketProgramWithoutProvider, networkType, rpc)
   try {
     const poolData = yield* call([marketProgram, marketProgram.getPool], action.payload)
     const address = action.payload.getAddress(marketProgram.program.programId)
@@ -92,8 +93,8 @@ export function* fetchAllPoolsForPairData(action: PayloadAction<PairTokens>) {
     const networkType = yield* select(network)
 
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+
+    const marketProgram = yield* call(getMarketProgramWithoutProvider, networkType, rpc)
 
     const pairs = FEE_TIERS.map(fee => new Pair(action.payload.first, action.payload.second, fee))
 
@@ -112,8 +113,8 @@ export function* fetchPoolsDataForList(action: PayloadAction<ListPoolsRequest>) 
   const connection = yield* call(getConnection)
   const networkType = yield* select(network)
   const rpc = yield* select(rpcAddress)
-  const wallet = yield* call(getWallet)
-  const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+
+  const marketProgram = yield* call(getMarketProgramWithoutProvider, networkType, rpc)
 
   const newPools: PoolWithAddress[] = yield* call(
     getPoolsFromAddresses,
@@ -151,8 +152,8 @@ export function* fetchTicksAndTickMaps(action: PayloadAction<FetchTicksAndTickMa
   try {
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+
+    const marketProgram = yield* call(getMarketProgramWithoutProvider, networkType, rpc)
 
     const pools = findPairs(tokenFrom, tokenTo, allPools)
 
@@ -222,8 +223,9 @@ export function* fetchNearestTicksForPair(action: PayloadAction<FetchTicksAndTic
   try {
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+
+    const marketProgram = yield* call(getMarketProgramWithoutProvider, networkType, rpc)
+
     const pools = findPairs(tokenFrom, tokenTo, allPools)
 
     const tickmaps = yield* call(getTickmapsFromPools, pools, marketProgram)
@@ -286,8 +288,8 @@ export function* fetchTicksAndTickMapForAutoSwap(
   try {
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+
+    const marketProgram = yield* call(getMarketProgramWithoutProvider, networkType, rpc)
 
     const pair = new Pair(tokenFrom, tokenTo, {
       fee: autoSwapPool.fee,
