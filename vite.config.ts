@@ -5,6 +5,7 @@ import wasm from 'vite-plugin-wasm'
 import { compression } from 'vite-plugin-compression2'
 import inject from '@rollup/plugin-inject'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -12,52 +13,97 @@ export default defineConfig({
     react(),
     topLevelAwait(),
     wasm(),
-    compression(),
+    compression({
+      algorithm: 'brotliCompress',
+      exclude: [/\.(png|jpg|jpeg|gif|webp|svg)$/]
+    }),
     inject({
       assert: ['assert', 'default']
     }),
     nodePolyfills()
   ],
+
   define: {
     'process.env.NODE_DEBUG': 'false',
-    'process.browser': `"test"`,
-    'process.version': `"test"`
+    'process.browser': `"true"`,
+    'process.version': `"19.0.0"`
   },
+
   resolve: {
     alias: {
-      '@components': '/src/components',
-      '@common': '/src/common',
-      '@containers': '/src/containers',
-      '@pages': '/src/pages',
-      '@static': '/src/static',
-      '@store': '/src/store',
-      '@web3': '/src/web3',
-      '@utils': '/src/utils',
-      '@/': '/src'
+      '@components': path.resolve(__dirname, 'src/components'),
+      '@common': path.resolve(__dirname, 'src/common'),
+      '@containers': path.resolve(__dirname, 'src/containers'),
+      '@pages': path.resolve(__dirname, 'src/pages'),
+      '@static': path.resolve(__dirname, 'src/static'),
+      '@store': path.resolve(__dirname, 'src/store'),
+      '@web3': path.resolve(__dirname, 'src/web3'),
+      '@utils': path.resolve(__dirname, 'src/utils'),
+      '@': path.resolve(__dirname, 'src'),
+
+      ox: 'ox'
     }
   },
+
   server: {
     host: 'localhost',
     port: 3000
   },
+
   build: {
     target: 'es2020',
+    // sourcemap: false,
+    minify: 'esbuild',
     assetsInlineLimit: 0,
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 2000,
+
     rollupOptions: {
       external: ['fs/promises', 'path'],
+
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
+
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          ui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
-          web3: ['@solana/web3.js'],
-          utils: ['axios']
+
+          ui: [
+            '@mui/material',
+            '@mui/icons-material',
+            '@emotion/react',
+            '@emotion/styled',
+            'notistack'
+          ],
+
+          web3: [
+            '@solana/web3.js',
+            '@solana/spl-token',
+            '@walletconnect/utils',
+            '@reown/appkit',
+            '@reown/appkit-controllers',
+            '@nightlylabs/wallet-selector-solana',
+            'ox'
+          ],
+
+          charts: ['@nivo/bar', '@nivo/line', '@nivo/pie'],
+
+          store: [
+            '@reduxjs/toolkit',
+            'redux',
+            'redux-saga',
+            'redux-persist',
+            'react-redux',
+            'typed-redux-saga',
+            'remeda'
+          ],
+
+          utils: ['axios', 'html2canvas']
         }
       }
     }
   },
+
   optimizeDeps: {
+    include: ['react', 'react-dom', 'ox'],
     esbuildOptions: {
       target: 'es2020'
     }

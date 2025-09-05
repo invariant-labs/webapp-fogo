@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "serve": "vite serve",
-    "build": "export NODE_OPTIONS=--max-old-space-size=8096 && tsc && vite build",
+    "build": "export NODE_OPTIONS=--max-old-space-size=8192 && tsc && vite build",
     "watch": "vite build --watch",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "fix-lint": "eslint --fix src",
@@ -21,7 +21,7 @@
     "@fogo/sessions-idls": "^0.0.4",
     "@fogo/sessions-sdk": "^0.0.12",
     "@fogo/sessions-sdk-react": "^0.0.19",
-    "@invariant-labs/locker-fogo-sdk": "^0.0.3",
+    "@invariant-labs/locker-fogo-sdk": "^0.0.5",
     "@invariant-labs/sdk-fogo": "^0.0.31",
     "@irys/web-upload": "*",
     "@irys/web-upload-solana": "^0.1.7",

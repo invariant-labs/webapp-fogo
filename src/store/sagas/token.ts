@@ -2,15 +2,17 @@ import { call, SagaGenerator } from 'typed-redux-saga'
 import { getConnection } from './connection'
 import { Keypair, PublicKey } from '@solana/web3.js'
 import { createMint, getMint, Mint, mintTo, TOKEN_PROGRAM_ID } from '@solana/spl-token'
-import { getWallet } from './wallet'
 import { getTokenProgramId } from '@utils/utils'
+import { getSession } from '@store/hooks/session'
 
 export function* createToken(
   decimals: number,
   freezeAuthority?: string,
   mintAuthority?: string
 ): SagaGenerator<string> {
-  const wallet = yield* call(getWallet)
+  const session = getSession()
+  if (!session) throw Error('No session provided')
+
   const connection = yield* call(getConnection)
   const keypair = Keypair.generate()
 
@@ -18,7 +20,7 @@ export function* createToken(
     createMint,
     connection,
     keypair,
-    mintAuthority ? new PublicKey(mintAuthority) : wallet.publicKey,
+    mintAuthority ? new PublicKey(mintAuthority) : session.walletPublicKey,
     freezeAuthority ? new PublicKey(freezeAuthority) : null,
     decimals,
     undefined,
@@ -35,7 +37,6 @@ export function* getTokenDetails(address: string): SagaGenerator<Mint> {
 }
 
 export function* mintToken(tokenAddress: string, recipient: string, amount: number): Generator {
-  yield* call(getWallet)
   const connection = yield* call(getConnection)
   const keypair = Keypair.generate()
   const programId = yield* call(getTokenProgramId, connection, new PublicKey(tokenAddress))
