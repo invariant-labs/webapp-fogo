@@ -22,7 +22,7 @@
     "@fogo/sessions-sdk": "^0.0.12",
     "@fogo/sessions-sdk-react": "^0.0.19",
     "@invariant-labs/locker-fogo-sdk": "^0.0.3",
-    "@invariant-labs/sdk-fogo": "^0.0.21",
+    "@invariant-labs/sdk-fogo": "^0.0.27",
     "@irys/web-upload": "*",
     "@irys/web-upload-solana": "^0.1.7",
     "@metaplex-foundation/mpl-token-metadata": "^3.2.1",

@@ -99,19 +99,15 @@ export function* handleSwapAndInitPosition(
     )
 
     const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
+    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const userPositionList = yield* select(positionsList)
     const allPools = yield* select(poolsArraySortedByFees)
     const ticks = yield* select(plotTicks)
-
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
+    const session = getSession()
+    if (!session) throw Error('No session provided')
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
     const swapPair = new Pair(action.payload.tokenX, action.payload.tokenY, {
       fee: action.payload.swapPool.fee,
@@ -159,6 +155,7 @@ export function* handleSwapAndInitPosition(
       ticks.rawTickIndexes.find(t => t === action.payload.lowerTick) !== undefined
         ? true
         : undefined
+
     const tx = yield* call(
       [marketProgram, marketProgram.versionedSwapAndCreatePositionTx],
       session,
@@ -170,7 +167,7 @@ export function* handleSwapAndInitPosition(
         userTokenY,
         lowerTick: action.payload.lowerTick,
         upperTick: action.payload.upperTick,
-        owner: wallet.publicKey,
+        owner: session.walletPublicKey,
         slippage: action.payload.swapSlippage,
         amount: action.payload.swapAmount,
         xToY: action.payload.xToY,
@@ -197,20 +194,25 @@ export function* handleSwapAndInitPosition(
           tickmap: action.payload.swapPoolTickmap,
           pool: action.payload.swapPool
         }
-      }
+      },
+      [],
+      [],
+      []
     )
 
     const xToY = action.payload.xToY
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
+    const { signature: txid } = yield* call([session, session.sendTransaction], tx)
+    // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
+    // // const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
 
-    const txid = yield* call([connection, connection.sendTransaction], signedTx)
+    // closeSnackbar(loaderSigningTx)
+    // yield put(snackbarsActions.remove(loaderSigningTx))
 
-    yield* call([connection, connection.confirmTransaction], txid)
+    // const txid = yield* call([connection, connection.sendTransaction], signedTx)
+
+    // yield* call([connection, connection.confirmTransaction], txid)
 
     yield put(actions.setInitPositionSuccess(!!txid.length))
 
