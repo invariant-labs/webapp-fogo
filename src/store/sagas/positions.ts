@@ -20,8 +20,7 @@ import { accounts } from '@store/selectors/solanaWallet'
 import { actions as RPCAction, RpcStatus } from '@store/reducers/solanaConnection'
 import {
   Transaction,
-  sendAndConfirmRawTransaction,
-  Keypair,
+  //   Keypair,
   TransactionExpiredTimeoutError,
   VersionedTransaction,
   PublicKey,
@@ -453,7 +452,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
 
     let tx: Transaction
     let createPoolTx: Transaction | null = null
-    let poolSigners: Keypair[] = []
+    // let poolSigners: Keypair[] = []
 
     if (action.payload.initPool) {
       const txs = yield* call(
@@ -479,7 +478,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
       )
       tx = txs.createPositionTx
       createPoolTx = txs.createPoolTx
-      poolSigners = txs.createPoolSigners
+      //   poolSigners = txs.createPoolSigners
     } else {
       tx = yield* call(
         [marketProgram, marketProgram.createPositionTx],
