@@ -1901,7 +1901,7 @@ export async function getTokenPrice<T extends string | undefined = undefined>(
   if (!cachedPriceData || lastQueryTimestamp + PRICE_QUERY_COOLDOWN <= Date.now()) {
     try {
       const { data } = await axios.get<IPriceData>(
-        `${PRICE_API_URL}/${isMainnet ? 'eclipse-mainnet' : 'eclipse-testnet'}`
+        `${PRICE_API_URL}/${isMainnet ? 'fogo-mainnet' : 'fogo-testnet'}`
       )
       priceData = data.data
       localStorage.setItem(DATA_KEY, JSON.stringify(priceData))
