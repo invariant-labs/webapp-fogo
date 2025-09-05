@@ -22,7 +22,7 @@ import {
   Transaction,
   //   Keypair,
   TransactionExpiredTimeoutError,
-  VersionedTransaction,
+  //   VersionedTransaction,
   PublicKey,
   ParsedInstruction,
   SendTransactionError,
@@ -2069,17 +2069,12 @@ export function* handleSwapAndAddLiquidity(
     )
 
     const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
+    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const allPools = yield* select(poolsArraySortedByFees)
 
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
     const swapPair = new Pair(action.payload.tokenX, action.payload.tokenY, {
       fee: action.payload.swapPool.fee,
@@ -2124,7 +2119,7 @@ export function* handleSwapAndAddLiquidity(
         swapPair,
         userTokenX,
         userTokenY,
-        owner: wallet.publicKey,
+        owner: session.walletPublicKey,
         slippage: action.payload.swapSlippage,
         amount: action.payload.swapAmount,
         xToY: action.payload.xToY,
@@ -2151,19 +2146,24 @@ export function* handleSwapAndAddLiquidity(
           tickmap: action.payload.swapPoolTickmap,
           pool: action.payload.swapPool
         }
-      }
+      },
+      [],
+      [],
+      []
     )
 
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+    // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
+    // const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
 
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
+    // closeSnackbar(loaderSigningTx)
+    // yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txid = yield* call([connection, connection.sendTransaction], signedTx)
+    // const txid = yield* call([connection, connection.sendTransaction], signedTx)
 
-    yield* call([connection, connection.confirmTransaction], txid)
+    // yield* call([connection, connection.confirmTransaction], txid)
+
+    const { signature: txid } = yield* call([session, session.sendTransaction], tx)
 
     yield put(actions.setChangeLiquiditySuccess(!!txid.length))
 
