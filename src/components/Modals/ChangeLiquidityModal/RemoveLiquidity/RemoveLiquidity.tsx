@@ -47,6 +47,7 @@ import DepositAmountInput from '@components/Inputs/DepositAmountInput/DepositAmo
 import { InputState } from '@components/NewPosition/DepositSelector/DepositSelector'
 import { PercentageSlider } from './PercentageSlider/PercentageSlider'
 import { unknownTokenIcon } from '@static/icons'
+import { getSession } from '@store/hooks/session'
 
 export interface IProps {
   tokenFrom: PublicKey
@@ -74,8 +75,6 @@ export interface IProps {
   currentNetwork: NetworkType
   ticksLoading: boolean
   getCurrentPlotTicks: () => void
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   getPoolData: (pair: Pair) => void
   setShouldNotUpdateRange: () => void
   changeLiquidity: (
@@ -105,8 +104,6 @@ export const RemoveLiquidity: React.FC<IProps> = ({
   currentNetwork,
   ticksLoading,
   getCurrentPlotTicks,
-  onConnectWallet,
-  onDisconnectWallet,
   getPoolData,
   setShouldNotUpdateRange,
   changeLiquidity,
@@ -115,6 +112,8 @@ export const RemoveLiquidity: React.FC<IProps> = ({
   setChangeLiquiditySuccess,
   positionLiquidity
 }) => {
+  const session = getSession()
+
   const isLoadingTicksOrTickmap = useMemo(() => ticksLoading, [ticksLoading])
   const [liquidity, setLiquidity] = useState<BN>(new BN(0))
 
@@ -964,16 +963,12 @@ export const RemoveLiquidity: React.FC<IProps> = ({
         </Box>
       </Box>
       <Box width='100%'>
-        {walletStatus !== Status.Initialized ? (
+        {!session ? (
           <ChangeWalletButton
-            margin={'24px 0 0 0'}
+            walletConnected={!!session}
             width={'100%'}
             height={40}
             name='Connect wallet'
-            onConnect={onConnectWallet}
-            connected={false}
-            onDisconnect={onDisconnectWallet}
-            noUnblur
           />
         ) : getButtonMessage() === 'Insufficient FOGO' ? (
           <TooltipHover

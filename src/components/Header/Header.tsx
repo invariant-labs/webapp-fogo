@@ -1,5 +1,5 @@
 import NavbarButton from '@components/Navbar/NavbarButton'
-import { CardMedia, Grid } from '@mui/material'
+import { CardMedia, Grid, useMediaQuery } from '@mui/material'
 import { logoShortIcon, logoTitleIcon } from '@static/icons'
 import { theme } from '@static/theme'
 import { RPC, NetworkType } from '@store/consts/static'
@@ -12,8 +12,13 @@ import { PublicKey } from '@solana/web3.js'
 import { BN } from '@coral-xyz/anchor'
 import { Bar } from '@components/Bar/Bar'
 import { ROUTES } from '@utils/utils'
-import { isEstablished, SessionButton, useSession } from '@fogo/sessions-sdk-react'
-import { SendTxInput, setSession } from '@store/hooks/session'
+import { isEstablished, useSession } from '@fogo/sessions-sdk-react'
+import { getSession, SendTxInput, setSession } from '@store/hooks/session'
+import { actions as snackbarsActions } from '@store/reducers/snackbars'
+import { useDispatch } from 'react-redux'
+
+import ChangeWalletButton from './HeaderButton/ChangeWalletButton'
+import { actions as walletActions } from '@store/reducers/solanaWallet'
 
 export interface IHeader {
   address: PublicKey
@@ -45,6 +50,8 @@ export const Header: React.FC<IHeader> = ({
 }) => {
   const { classes } = useStyles()
   const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'))
 
   const routes = [
     'exchange',
@@ -68,8 +75,18 @@ export const Header: React.FC<IHeader> = ({
   }, [landing])
 
   const session = useSession()
+  const hookSession = getSession()
+
   useEffect(() => {
     if (isEstablished(session)) {
+      dispatch(
+        snackbarsActions.add({
+          message: 'Wallet connected',
+          variant: 'success',
+          persist: false
+        })
+      )
+
       setSession({
         type: 'Established',
         walletPublicKey: session.walletPublicKey,
@@ -77,8 +94,11 @@ export const Header: React.FC<IHeader> = ({
         payer: session.payer,
         sendTransaction: (input: SendTxInput) => session.sendTransaction(input as any)
       })
+
+      dispatch(walletActions.connect(false))
     } else {
       setSession(null)
+      dispatch(walletActions.resetState())
     }
   }, [session])
 
@@ -168,7 +188,13 @@ export const Header: React.FC<IHeader> = ({
             onFaucet={onFaucet}
           />
 
-          <SessionButton />
+          <ChangeWalletButton
+            address={hookSession?.walletPublicKey?.toString()}
+            isSmDown={isSmDown}
+            walletConnected={session.type === 7}
+            name=''
+            enableModal
+          />
         </Grid>
       </Grid>
     </Grid>

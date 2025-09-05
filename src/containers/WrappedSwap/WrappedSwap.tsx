@@ -400,12 +400,6 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
           )
         }
       }}
-      onConnectWallet={() => {
-        dispatch(walletActions.connect(false))
-      }}
-      onDisconnectWallet={() => {
-        dispatch(walletActions.disconnect())
-      }}
       walletStatus={walletStatus}
       tokens={tokensList}
       pools={allPools}
