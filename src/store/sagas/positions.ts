@@ -1000,17 +1000,14 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
           units: 230000
         })
       )
-      const ix = yield* call(
-        [lockerProgram, lockerProgram.claimFeeIx],
-        {
-          authorityListIndex: action.payload.index,
-          market: marketProgram as any,
-          pair,
-          userTokenX,
-          userTokenY
-        },
-        wallet.publicKey
-      )
+      const ix = yield* call([lockerProgram, lockerProgram.claimFeeIx], session, {
+        authorityListIndex: action.payload.index,
+        market: marketProgram as any,
+        pair,
+        userTokenX,
+        userTokenY
+      })
+
       tx.add(...ix)
     } else {
       const ix = yield* call(
