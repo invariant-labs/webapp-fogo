@@ -45,7 +45,6 @@ import { VariantType } from 'notistack'
 import { BN } from '@coral-xyz/anchor'
 import { useLocation } from 'react-router-dom'
 import { getMarketProgramSync } from '@utils/web3/programs/amm'
-import { getFogoWallet } from '@utils/web3/wallet'
 import { IWallet } from '@invariant-labs/sdk-fogo'
 import { actions as swapActions } from '@store/reducers/swap'
 
@@ -79,8 +78,7 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
   const { state } = useLocation()
   const [block, setBlock] = useState(state?.referer === 'stats')
   const rpc = useSelector(rpcAddress)
-  const wallet = getFogoWallet()
-  const market = getMarketProgramSync(networkType, rpc, wallet as IWallet)
+  const market = getMarketProgramSync(networkType, rpc, {} as IWallet)
 
   useEffect(() => {
     let timeoutId1: NodeJS.Timeout
@@ -330,10 +328,6 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
     return [wrappedFOGOAccountExist, wrappedFOGOBalance]
   }, [allAccounts])
 
-  const unwrapWFOGO = () => {
-    dispatch(walletActions.unwrapWFOGO())
-  }
-
   useEffect(() => {
     if (tokenFrom && tokenTo) {
       dispatch(
@@ -424,7 +418,6 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
       copyTokenAddressHandler={copyTokenAddressHandler}
       fogoBalance={fogoBalance}
       network={networkType}
-      unwrapWFOGO={unwrapWFOGO}
       wrappedFOGOAccountExist={wrappedFOGOAccountExist}
       wrappedFOGOBalance={wrappedFOGOBalance}
       isTimeoutError={isTimeoutError}

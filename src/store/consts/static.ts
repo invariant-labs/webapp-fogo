@@ -13,7 +13,6 @@ import {
 import { cat1Icon, cat2Icon, dog1Icon, dog2Icon } from '@static/icons'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import fogoTokenIcon from '@static/fogoTokenIcon.jpg'
-import { ROUTES } from '@utils/utils'
 
 export enum NetworkType {
   Local = 'Local',
@@ -257,7 +256,7 @@ export const TOKEN_FETCH_DELAY = 60 * 1000 * 60 * 24
 // export const WFOGO_MIN_FAUCET_FEE_TEST = new BN(45000)
 
 export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN = new BN(25000) // TODO: adjust when on
-export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST = new BN(5000)
+export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST = new BN(0)
 
 export const WFOGO_POSITION_INIT_LAMPORTS_MAIN = new BN(700000) // TODO: adjust when on
 export const WFOGO_POSITION_INIT_LAMPORTS_TEST = new BN(5000)
@@ -609,13 +608,3 @@ export const ERROR_CODE_TO_MESSAGE: Record<number, string> = {
   0x1775: SLIPPAGE_ERROR_MESSAGE,
   0x1785: SLIPPAGE_ERROR_MESSAGE
 }
-
-export const metaData = new Map([
-  [ROUTES.EXCHANGE, 'Invariant | Exchange'],
-  [ROUTES.LIQUIDITY, 'Invariant | Liquidity'],
-  [ROUTES.PORTFOLIO, 'Invariant | Portfolio'],
-  [ROUTES.NEW_POSITION, 'Invariant | New Position'],
-  [ROUTES.POSITION, 'Invariant | Position Details'],
-  [ROUTES.STATISTICS, 'Invariant | Statistics'],
-  [ROUTES.CREATOR, 'Invariant | Creator']
-])

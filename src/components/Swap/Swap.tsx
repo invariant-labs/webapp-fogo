@@ -110,7 +110,6 @@ export interface ISwap {
   copyTokenAddressHandler: (message: string, variant: VariantType) => void
   network: NetworkType
   fogoBalance: BN
-  unwrapWFOGO: () => void
   wrappedFOGOAccountExist: boolean
   isTimeoutError: boolean
   deleteTimeoutError: () => void
@@ -162,7 +161,6 @@ export const Swap: React.FC<ISwap> = ({
   copyTokenAddressHandler,
   network,
   fogoBalance,
-  unwrapWFOGO,
   wrappedFOGOAccountExist,
   wrappedFOGOBalance,
   isTimeoutError,
@@ -954,9 +952,7 @@ export const Swap: React.FC<ISwap> = ({
             ? `You have ${!shortenTextXS ? 'wrapped' : ''} ${formatNumberWithoutSuffix(printBN(wrappedFOGOBalance, WFOGO_MAIN.decimals))} ${shortenTextXS ? 'W' : ''}FOGO`
             : `          You currently hold ${formatNumberWithoutSuffix(printBN(wrappedFOGOBalance, WFOGO_MAIN.decimals))} wrapped Fogo in your
           wallet`}
-          <span className={classes.unwrapNowButton} onClick={unwrapWFOGO}>
-            Unwrap now
-          </span>
+          <span className={classes.unwrapNowButton}>Unwrap now</span>
         </Grid>
       </Collapse>
       <Box className={classes.borderContainer}>

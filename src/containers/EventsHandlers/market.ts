@@ -11,7 +11,6 @@ import { PublicKey } from '@solana/web3.js'
 import { getMarketProgramSync } from '@utils/web3/programs/amm'
 import { getCurrentSolanaConnection } from '@utils/web3/connection'
 import { getMarketNewTokensData, getNetworkTokensList, ROUTES } from '@utils/utils'
-import { getFogoWallet } from '@utils/web3/wallet'
 import { currentPoolIndex } from '@store/selectors/positions'
 import { useLocation } from 'react-router-dom'
 import { autoSwapPools, TOKEN_FETCH_DELAY } from '@store/consts/static'
@@ -24,8 +23,7 @@ const MarketEvents = () => {
   const dispatch = useDispatch()
   const networkType = useSelector(network)
   const rpc = useSelector(rpcAddress)
-  const wallet = getFogoWallet()
-  const marketProgram = getMarketProgramSync(networkType, rpc, wallet as IWallet)
+  const marketProgram = getMarketProgramSync(networkType, rpc, {} as IWallet)
   const { tokenFrom, tokenTo } = useSelector(swap)
   const networkStatus = useSelector(status)
   const allPools = useSelector(poolsArraySortedByFees)

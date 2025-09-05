@@ -9,9 +9,8 @@ import { actions as solanaConnectionActions } from '@store/reducers/solanaConnec
 import { toBlur } from '@utils/uiUtils'
 import useStyles from './style'
 import { actions } from '@store/reducers/positions'
-import { ROUTES } from '@utils/utils'
+import { metaData, ROUTES } from '@utils/utils'
 import { SessionStateType, useSession } from '@fogo/sessions-sdk-react'
-import { metaData } from '@store/consts/static'
 
 const RootPage: React.FC = memo(() => {
   const dispatch = useDispatch()

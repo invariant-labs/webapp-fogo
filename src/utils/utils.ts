@@ -2251,6 +2251,16 @@ export const ROUTES = {
   getPositionRoute: (id: string): string => `${ROUTES.POSITION}/${id}`
 }
 
+export const metaData = new Map([
+  [ROUTES.EXCHANGE, 'Invariant | Exchange'],
+  [ROUTES.LIQUIDITY, 'Invariant | Liquidity'],
+  [ROUTES.PORTFOLIO, 'Invariant | Portfolio'],
+  [ROUTES.NEW_POSITION, 'Invariant | New Position'],
+  [ROUTES.POSITION, 'Invariant | Position Details'],
+  [ROUTES.STATISTICS, 'Invariant | Statistics'],
+  [ROUTES.CREATOR, 'Invariant | Creator']
+])
+
 export const truncateString = (str: string, maxLength: number): string => {
   if (str.length <= maxLength + 1) {
     return str
