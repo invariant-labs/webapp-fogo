@@ -79,7 +79,7 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
     // transaction.lastValidBlockHeight = lastValidBlockHeight
 
     const { signature: txId } = yield* call([session, session.sendTransaction], ixs)
-
+    console.log(txId)
     // closeSnackbar(loaderSigningTx)
     // yield put(snackbarsActions.remove(loaderSigningTx))
 
@@ -95,7 +95,7 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
     closeSnackbar(loaderLockPosition)
     yield put(snackbarsActions.remove(loaderLockPosition))
 
-    if (!txId.length) {
+    if (txId.length) {
       yield* put(actions.setLockSuccess(true))
       yield* put(positionsActions.getPositionsList())
 
