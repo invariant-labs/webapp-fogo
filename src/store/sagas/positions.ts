@@ -546,21 +546,15 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     }
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    tx.recentBlockhash = blockhash
-    tx.lastValidBlockHeight = lastValidBlockHeight
-    tx.feePayer = wallet.publicKey
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
+    const { signature: txid } = yield* call([session, session.sendTransaction], tx.instructions)
+
+    // const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+    //   skipPreflight: false
+    // })
 
     yield put(actions.setInitPositionSuccess(!!txid.length))
 
@@ -583,7 +577,9 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
         })
       )
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+        maxSupportedTransactionVersion: 0
+      })
 
       if (txDetails) {
         if (txDetails.meta?.err) {
@@ -1047,13 +1043,21 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+    // const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
+    // const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+    //   skipPreflight: false
+    // })
+
+    const { signature: txid } = yield* call([session, session.sendTransaction], tx.instructions)
+
+    yield* call([connection, connection.confirmTransaction], {
+      signature: txid,
+      blockhash,
+      lastValidBlockHeight
     })
 
     if (!txid.length) {
@@ -1077,7 +1081,9 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
         })
       )
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+        maxSupportedTransactionVersion: 0
+      })
 
       if (txDetails) {
         const meta = txDetails.meta
@@ -1280,22 +1286,32 @@ export function* handleClaimAllFees() {
       tx.lastValidBlockHeight = lastValidBlockHeight
       tx.feePayer = wallet.publicKey
 
-      let signedTx: Transaction
+      //   let signedTx: Transaction
       if (additionalSigner) {
         tx.partialSign(additionalSigner)
 
-        const partiallySignedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+        // const partiallySignedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
-        signedTx = partiallySignedTx
+        // signedTx = partiallySignedTx
       } else {
-        signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+        // signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
       }
 
-      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-        skipPreflight: false
+      //   const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+      //     skipPreflight: false
+      //   })
+
+      const { signature: txid } = yield* call([session, session.sendTransaction], tx.instructions)
+
+      yield* call([connection, connection.confirmTransaction], {
+        signature: txid,
+        blockhash,
+        lastValidBlockHeight
       })
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+        maxSupportedTransactionVersion: 0
+      })
 
       if (txDetails) {
         const meta = txDetails.meta
@@ -1535,14 +1551,22 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+    // const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
+    const { signature: txid } = yield* call([session, session.sendTransaction], tx.instructions)
+
+    yield* call([connection, connection.confirmTransaction], {
+      signature: txid,
+      blockhash,
+      lastValidBlockHeight
     })
+
+    // const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+    //   skipPreflight: false
+    // })
 
     if (!txid.length) {
       yield put(
@@ -1563,7 +1587,9 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
         })
       )
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+        maxSupportedTransactionVersion: 0
+      })
 
       if (txDetails) {
         const meta = txDetails.meta

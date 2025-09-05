@@ -585,7 +585,7 @@ export function* handleSwap(): Generator {
             message: 'Tokens swapped successfully',
             variant: 'success',
             persist: false,
-            txid: txSig
+            txid: txSig.signature
           })
         )
       }
