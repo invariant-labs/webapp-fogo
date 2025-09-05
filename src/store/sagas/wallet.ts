@@ -26,7 +26,6 @@ import { accounts, status } from '@store/selectors/solanaWallet'
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
-  createAssociatedTokenAccountInstruction,
   createMintToInstruction,
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID
@@ -500,8 +499,8 @@ export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerato
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
     associatedAccs.push(associatedAccount)
-    const ix = createAssociatedTokenAccountInstruction(
-      session.sessionPublicKey,
+    const ix = createAssociatedTokenAccountIdempotentInstruction(
+      session.payer,
       associatedAccount,
       session.walletPublicKey,
       address,
