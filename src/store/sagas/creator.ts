@@ -4,7 +4,6 @@ import { all, call, put, spawn, takeLatest } from 'typed-redux-saga'
 import { DEFAULT_PUBLICKEY, SIGNING_SNACKBAR_CONFIG } from '@store/consts/static'
 import { WebUploader } from '@irys/web-upload'
 import { fromWeb3JsPublicKey, toWeb3JsPublicKey } from '@metaplex-foundation/umi-web3js-adapters'
-
 import WebSolana from '@irys/web-upload-solana'
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
 import { getFileFromInput } from '@utils/web3/createToken'
@@ -248,35 +247,35 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
       createMetadataAccountInstruction
     )
 
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
+    // const { blockhash, lastValidBlockHeight } = yield* call([
+    //   connection,
+    //   connection.getLatestBlockhash
+    // ])
 
-    transaction.feePayer = session.walletPublicKey
-    transaction.recentBlockhash = blockhash
-    transaction.lastValidBlockHeight = lastValidBlockHeight
+    // transaction.feePayer = session.walletPublicKey
+    // transaction.recentBlockhash = blockhash
+    // transaction.lastValidBlockHeight = lastValidBlockHeight
 
     transaction.partialSign(mintKeypair)
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const { signature: signatureTx } = yield* call(
+    const { signature: txId } = yield* call(
       [session, session.sendTransaction],
       transaction.instructions
     )
 
-    const confirmedTx = yield* call([connection, connection.confirmTransaction], {
-      blockhash: blockhash,
-      lastValidBlockHeight: lastValidBlockHeight,
-      signature: signatureTx
-    })
+    // const confirmedTx = yield* call([connection, connection.confirmTransaction], {
+    //   blockhash: blockhash,
+    //   lastValidBlockHeight: lastValidBlockHeight,
+    //   signature: signatureTx
+    // })
 
     closeSnackbar(loaderCreateToken)
     yield put(snackbarsActions.remove(loaderCreateToken))
 
-    if (confirmedTx.value.err === null) {
+    if (!!txId.length) {
       console.log('Token has been created')
       yield* put(actions.setCreateSuccess(true))
 
@@ -285,7 +284,7 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
           message: 'Token created successfully',
           variant: 'success',
           persist: false,
-          txid: signatureTx
+          txid: txId
         })
       )
       return
