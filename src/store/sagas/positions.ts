@@ -409,34 +409,6 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
   const loaderCreatePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
-  //   try {
-  //     const connection = yield* call(getConnection)
-
-  //     const account = Keypair.generate()
-  //     const ix = SystemProgram.createAccount({
-  //       fromPubkey: session.payer,
-  //       newAccountPubkey: account.publicKey,
-  //       lamports: 1781760,
-  //       space: 128,
-  //       programId: new PublicKey('iNvTyprs4TX8m6UeUEkeqDFjAL9zRCRWcexK9Sd4WEU')
-  //     })
-
-  //     const { blockhash } = yield* call([connection, connection.getLatestBlockhash])
-
-  //     const messageV0 = new TransactionMessage({
-  //       payerKey: session.payer,
-  //       recentBlockhash: blockhash,
-  //       instructions: [ix]
-  //     }).compileToV0Message([])
-
-  //     const tx = new VersionedTransaction(messageV0)
-  //     tx.sign([account])
-
-  //     const r = yield* call([session, session.adapter.sendTransaction], undefined, tx)
-  //     console.log(r)
-  //   } catch (e) {
-  //     console.log(e)
-  //   }
   try {
     const allTokens = yield* select(tokens)
 
