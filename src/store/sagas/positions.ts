@@ -20,13 +20,16 @@ import { accounts } from '@store/selectors/solanaWallet'
 import { actions as RPCAction, RpcStatus } from '@store/reducers/solanaConnection'
 import {
   Transaction,
-  //   Keypair,
+  Keypair,
   TransactionExpiredTimeoutError,
   //   VersionedTransaction,
   PublicKey,
   ParsedInstruction,
   SendTransactionError,
-  ComputeBudgetProgram
+  ComputeBudgetProgram,
+  SystemProgram,
+  TransactionMessage,
+  VersionedTransaction
 } from '@solana/web3.js'
 import {
   APPROVAL_DENIED_MESSAGE,
@@ -77,6 +80,7 @@ import { getAssociatedTokenAddressSync, NATIVE_MINT } from '@solana/spl-token'
 import { unknownTokenIcon } from '@static/icons'
 import { calculateClaimAmount } from '@invariant-labs/sdk-fogo/lib/utils'
 import { getSession } from '@store/hooks/session'
+import { create } from 'domain'
 
 export function* handleSwapAndInitPosition(
   action: PayloadAction<SwapAndCreatePosition>
@@ -404,11 +408,43 @@ export function* handleSwapAndInitPosition(
 export function* handleInitPosition(action: PayloadAction<InitPositionData>): Generator {
   const loaderCreatePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
-  const session = getSession()
-  if (!session) throw Error('No session provided')
+
+  //   try {
+  //     const connection = yield* call(getConnection)
+
+  //     const account = Keypair.generate()
+  //     const ix = SystemProgram.createAccount({
+  //       fromPubkey: session.payer,
+  //       newAccountPubkey: account.publicKey,
+  //       lamports: 1781760,
+  //       space: 128,
+  //       programId: new PublicKey('iNvTyprs4TX8m6UeUEkeqDFjAL9zRCRWcexK9Sd4WEU')
+  //     })
+
+  //     const { blockhash } = yield* call([connection, connection.getLatestBlockhash])
+
+  //     const messageV0 = new TransactionMessage({
+  //       payerKey: session.payer,
+  //       recentBlockhash: blockhash,
+  //       instructions: [ix]
+  //     }).compileToV0Message([])
+
+  //     const tx = new VersionedTransaction(messageV0)
+  //     tx.sign([account])
+
+  //     const r = yield* call([session, session.adapter.sendTransaction], undefined, tx)
+  //     console.log(r)
+  //   } catch (e) {
+  //     console.log(e)
+  //   }
   try {
     const allTokens = yield* select(tokens)
 
+    const session = getSession()
+
+    if (!session) {
+      throw Error('No session provided')
+    }
     yield put(
       snackbarsActions.add({
         message: 'Creating position...',
@@ -454,7 +490,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
 
     let tx: Transaction
     let createPoolTx: Transaction | null = null
-    // let poolSigners: Keypair[] = []
+    let poolSigners: Keypair[] = []
 
     if (action.payload.initPool) {
       const txs = yield* call(
@@ -480,7 +516,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
       )
       tx = txs.createPositionTx
       createPoolTx = txs.createPoolTx
-      //   poolSigners = txs.createPoolSigners
+      poolSigners = txs.createPoolSigners
     } else {
       tx = yield* call(
         [marketProgram, marketProgram.createPositionTx],
@@ -518,23 +554,15 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     }
 
     if (createPoolTx) {
-      //   createPoolTx.feePayer = session.walletPublicKeywallet.publicKey
-      //   const { blockhash, lastValidBlockHeight } = yield* call([
-      //     connection,
-      //     connection.getLatestBlockhash
-      //   ])
-      //   createPoolTx.recentBlockhash = blockhash
-      //   createPoolTx.lastValidBlockHeight = lastValidBlockHeight
-      //   yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-      //   if (poolSigners.length) {
-      //     createPoolTx.partialSign(...poolSigners)
-      //   }
-      //   const signedTx = (yield* call([wallet, wallet.signTransaction], createPoolTx)) as Transaction
-      //   closeSnackbar(loaderSigningTx)
-      //   yield put(snackbarsActions.remove(loaderSigningTx))
-      //   yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      //     skipPreflight: false
-      //   })
+      const { blockhash } = yield* call([connection, connection.getLatestBlockhash])
+      const messageV0 = new TransactionMessage({
+        payerKey: session.payer,
+        recentBlockhash: blockhash,
+        instructions: createPoolTx.instructions
+      }).compileToV0Message([])
+      const tx = new VersionedTransaction(messageV0)
+      tx.sign(poolSigners)
+      yield* call([session, session.adapter.sendTransaction], undefined, tx)
     }
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
