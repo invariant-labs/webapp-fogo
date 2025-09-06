@@ -22,12 +22,10 @@ import {
   Transaction,
   Keypair,
   TransactionExpiredTimeoutError,
-  //   VersionedTransaction,
   PublicKey,
   ParsedInstruction,
   SendTransactionError,
   ComputeBudgetProgram,
-  SystemProgram,
   TransactionMessage,
   VersionedTransaction
 } from '@solana/web3.js'
@@ -74,13 +72,11 @@ import {
 } from '@utils/utils'
 import { actions as connectionActions } from '@store/reducers/solanaConnection'
 import { ClaimAllFee } from '@invariant-labs/sdk-fogo/lib/market'
-
 import { parseTick, Position } from '@invariant-labs/sdk-fogo/lib/market'
 import { getAssociatedTokenAddressSync, NATIVE_MINT } from '@solana/spl-token'
 import { unknownTokenIcon } from '@static/icons'
 import { calculateClaimAmount } from '@invariant-labs/sdk-fogo/lib/utils'
 import { getSession } from '@store/hooks/session'
-import { create } from 'domain'
 
 export function* handleSwapAndInitPosition(
   action: PayloadAction<SwapAndCreatePosition>
