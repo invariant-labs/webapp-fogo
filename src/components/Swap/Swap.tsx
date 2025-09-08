@@ -4,14 +4,13 @@ import ExchangeAmountInput from '@components/Inputs/ExchangeAmountInput/Exchange
 import Slippage from '@components/Modals/Slippage/Slippage'
 import Refresher from '@common/Refresher/Refresher'
 import { BN } from '@coral-xyz/anchor'
-import { Box, Button, Collapse, Grid, Typography, useMediaQuery } from '@mui/material'
+import { Box, Button, Grid, Typography, useMediaQuery } from '@mui/material'
 import {
   DEFAULT_TOKEN_DECIMAL,
   inputTarget,
   NetworkType,
   REFRESHER_INTERVAL,
   SwapType,
-  WFOGO_MAIN,
   WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN,
   WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST,
   WRAPPED_FOGO_ADDRESS
@@ -20,7 +19,6 @@ import {
   addressToTicker,
   convertBalanceToBN,
   findPairs,
-  formatNumberWithoutSuffix,
   handleSimulate,
   handleSimulateWithHop,
   initialXtoY,
@@ -110,7 +108,6 @@ export interface ISwap {
   copyTokenAddressHandler: (message: string, variant: VariantType) => void
   network: NetworkType
   fogoBalance: BN
-  wrappedFOGOAccountExist: boolean
   isTimeoutError: boolean
   deleteTimeoutError: () => void
   canNavigate: boolean
@@ -118,7 +115,6 @@ export interface ISwap {
   tokensDict: Record<string, SwapToken>
   swapAccounts: FetcherRecords
   swapIsLoading: boolean
-  wrappedFOGOBalance: BN | null
 }
 
 export type SimulationPath = {
@@ -161,8 +157,7 @@ export const Swap: React.FC<ISwap> = ({
   copyTokenAddressHandler,
   network,
   fogoBalance,
-  wrappedFOGOAccountExist,
-  wrappedFOGOBalance,
+
   isTimeoutError,
   deleteTimeoutError,
   canNavigate,
@@ -252,8 +247,6 @@ export const Swap: React.FC<ISwap> = ({
   const [wasIsFetchingNewPoolRun, setWasIsFetchingNewPoolRun] = useState(false)
   const [wasSwapIsLoadingRun, setWasSwapIsLoadingRun] = useState(false)
   const [isReversingTokens, setIsReversingTokens] = useState(false)
-  const shortenText = useMediaQuery(theme.breakpoints.down(500))
-  const shortenTextXS = useMediaQuery(theme.breakpoints.down(360))
 
   const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT = useMemo(() => {
     if (network === NetworkType.Testnet) {
@@ -946,15 +939,7 @@ export const Swap: React.FC<ISwap> = ({
           />
         </Grid>
       </Grid>
-      <Collapse in={wrappedFOGOAccountExist} className={classes.collapseWrapper}>
-        <Grid className={classes.unwrapContainer}>
-          {shortenText
-            ? `You have ${!shortenTextXS ? 'wrapped' : ''} ${formatNumberWithoutSuffix(printBN(wrappedFOGOBalance, WFOGO_MAIN.decimals))} ${shortenTextXS ? 'W' : ''}FOGO`
-            : `          You currently hold ${formatNumberWithoutSuffix(printBN(wrappedFOGOBalance, WFOGO_MAIN.decimals))} wrapped Fogo in your
-          wallet`}
-          <span className={classes.unwrapNowButton}>Unwrap now</span>
-        </Grid>
-      </Collapse>
+
       <Box className={classes.borderContainer}>
         <Grid container className={classes.root} direction='column'>
           <Typography className={classes.swapLabel}>Pay</Typography>
