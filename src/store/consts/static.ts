@@ -216,7 +216,18 @@ export const tokens: Record<NetworkType, Token[]> = {
 export const autoSwapPools: {
   pair: { tokenX: PublicKey; tokenY: PublicKey }
   swapPool: { address: PublicKey; feeIndex: number }
-}[] = []
+}[] = [
+  {
+    pair: {
+      tokenX: new PublicKey('9Lxd3admpK1tfnJmQqkxzbZbkGo2f6EQNqKtMX5VXJeY'),
+      tokenY: new PublicKey('HNQRxWh8Q36BAv4YV9cZUUSebwerZuQK5TLxwefS4KLy')
+    },
+    swapPool: {
+      address: new PublicKey('67fFBbVNmQ3WAVQCX9JgJHjoeXsPMSj1LVAPrJv6Wr9Y'),
+      feeIndex: 2
+    }
+  }
+]
 
 export const commonTokensForNetworks: Record<NetworkType, PublicKey[]> = {
   Devnet: [],
@@ -256,7 +267,7 @@ export const TOKEN_FETCH_DELAY = 60 * 1000 * 60 * 24
 // export const WFOGO_MIN_FAUCET_FEE_TEST = new BN(45000)
 
 export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN = new BN(25000) // TODO: adjust when on
-export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST = new BN(5000)
+export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST = new BN(0)
 
 export const WFOGO_POSITION_INIT_LAMPORTS_MAIN = new BN(700000) // TODO: adjust when on
 export const WFOGO_POSITION_INIT_LAMPORTS_TEST = new BN(5000)

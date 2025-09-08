@@ -1,5 +1,10 @@
-import { PublicKey, TransactionInstruction, VersionedTransaction } from '@solana/web3.js'
-import type { TransactionResult } from '@fogo/sessions-sdk'
+import {
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+  VersionedTransaction
+} from '@solana/web3.js'
+import type { SessionAdapter, TransactionResult } from '@fogo/sessions-sdk'
 import { TransactionResultType } from '@fogo/sessions-sdk'
 
 export type InstructionLike =
@@ -16,6 +21,7 @@ export type SignaturesMap = Readonly<Record<string, Uint8Array>>
 export type SendTxInput =
   | InstructionLike[]
   | VersionedTransaction
+  | Transaction
   | Readonly<{ messageBytes: TransactionMessageBytes; signatures: SignaturesMap }>
 
 export type SendTxFn = (input: SendTxInput) => Promise<TransactionResult>
@@ -25,6 +31,7 @@ export type EstablishedSession = {
   walletPublicKey: PublicKey
   sessionPublicKey: PublicKey
   payer: PublicKey
+  adapter: SessionAdapter
   sendTransaction: SendTxFn
 }
 
