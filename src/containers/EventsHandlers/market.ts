@@ -6,7 +6,7 @@ import { actions } from '@store/reducers/pools'
 import { actions as swapActions } from '@store/reducers/swap'
 import { poolsArraySortedByFees } from '@store/selectors/pools'
 import { swap } from '@store/selectors/swap'
-import { IWallet, MAINNET_POOL_WHITELIST } from '@invariant-labs/sdk-fogo'
+import { IWallet, MAINNET_POOL_WHITELIST, TESTNET_POOL_WHITELIST } from '@invariant-labs/sdk-fogo'
 import { PublicKey } from '@solana/web3.js'
 import { getMarketProgramSync } from '@utils/web3/programs/amm'
 import { getCurrentSolanaConnection } from '@utils/web3/connection'
@@ -246,7 +246,7 @@ const MarketEvents = () => {
       }
 
       if (subscribedTwoHopSwapPools.size === 0) {
-        for (const pool of MAINNET_POOL_WHITELIST) {
+        for (const pool of [...MAINNET_POOL_WHITELIST, ...TESTNET_POOL_WHITELIST]) {
           const address = pool.pair.getAddress(marketProgram.program.programId)
           subscribedTwoHopSwapPools.add(address)
           marketProgram.onPoolChange(
