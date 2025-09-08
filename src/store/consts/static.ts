@@ -216,7 +216,18 @@ export const tokens: Record<NetworkType, Token[]> = {
 export const autoSwapPools: {
   pair: { tokenX: PublicKey; tokenY: PublicKey }
   swapPool: { address: PublicKey; feeIndex: number }
-}[] = []
+}[] = [
+  {
+    pair: {
+      tokenX: new PublicKey('9Lxd3admpK1tfnJmQqkxzbZbkGo2f6EQNqKtMX5VXJeY'),
+      tokenY: new PublicKey('HNQRxWh8Q36BAv4YV9cZUUSebwerZuQK5TLxwefS4KLy')
+    },
+    swapPool: {
+      address: new PublicKey('67fFBbVNmQ3WAVQCX9JgJHjoeXsPMSj1LVAPrJv6Wr9Y'),
+      feeIndex: 2
+    }
+  }
+]
 
 export const commonTokensForNetworks: Record<NetworkType, PublicKey[]> = {
   Devnet: [],
