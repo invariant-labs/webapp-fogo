@@ -339,8 +339,7 @@ export function* handleTwoHopSwap(): Generator {
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 

@@ -601,7 +601,6 @@ export const NoConfig = {
 
 export enum ErrorCodeExtractionKeys {
   ErrorNumber = 'Error Number:',
-  CustomProgram = 'custom program error:',
   Custom = 'Custom":',
   ApprovalDenied = 'Approval Denied',
   UndefinedOnSplit = "Cannot read properties of undefined (reading 'split')",
