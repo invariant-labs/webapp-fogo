@@ -92,6 +92,7 @@ export const Header: React.FC<IHeader> = ({
         walletPublicKey: session.walletPublicKey,
         sessionPublicKey: session.sessionPublicKey,
         payer: session.payer,
+        adapter: session.adapter,
         sendTransaction: (input: SendTxInput) => session.sendTransaction(input as any)
       })
 
