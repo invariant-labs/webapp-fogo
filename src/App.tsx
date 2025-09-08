@@ -25,13 +25,7 @@ function App() {
               endpoint='https://testnet.fogo.io/'
               domain={shouldOverrideDomain ? 'https://fogo.invariant.app' : undefined}
               tokens={[NATIVE_MINT, USDC_TEST.address, SOL_TEST.address, ETH_TEST.address]}
-              defaultRequestedLimits={
-                new Map([
-                  [USDC_TEST.address, 1_500_000_000n],
-                  [ETH_TEST.address, 1_500_000_000n],
-                  [SOL_TEST.address, 1_500_000_000n]
-                ])
-              }>
+              enableUnlimited>
               <>
                 <Notifier />
                 <AppRouter />

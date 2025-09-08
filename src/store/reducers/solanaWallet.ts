@@ -131,8 +131,7 @@ const solanaWalletSlice = createSlice({
       return state
     },
     disconnect() {},
-    reconnect() {},
-    unwrapWFOGO() {}
+    reconnect() {}
   }
 })
 interface IsetTokenBalance {
