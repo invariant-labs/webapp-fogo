@@ -25,8 +25,7 @@ import { network } from '@store/selectors/solanaConnection'
 import { accounts } from '@store/selectors/solanaWallet'
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountInstruction,
-  createCloseAccountInstruction,
+  createAssociatedTokenAccountIdempotentInstruction,
   createMintToInstruction,
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID
@@ -53,19 +52,23 @@ import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { getSession, isSessionActive } from '@store/hooks/session'
-
+import { accounts as solanaAccounts } from '@store/selectors/solanaWallet'
 export function* getWallet(): SagaGenerator<WalletAdapter> {
   const wallet = yield* call(getFogoWallet)
 
   return wallet
 }
-export function* getBalance(pubKey: PublicKey): SagaGenerator<BN> {
-  yield* put(actions.setIsFogoBalanceLoading(true))
-  const connection = yield* call(getConnection)
-  const balance = yield* call([connection, connection.getBalance], pubKey)
-
-  yield* put(actions.setBalance(new BN(balance)))
-  yield* put(actions.setIsFogoBalanceLoading(false))
+export function* getBalance(_pubKey: PublicKey): SagaGenerator<BN> {
+  try {
+    yield* put(actions.setIsFogoBalanceLoading(true))
+    const allAccounts: Record<string, { balance: BN }> = yield* select(solanaAccounts)
+    const wrapped = allAccounts?.[WRAPPED_FOGO_ADDRESS]
+    const balance = wrapped?.balance?.gtn(0) ? wrapped.balance : new BN(0)
+    yield* put(actions.setBalance(balance))
+    return balance
+  } finally {
+    yield* put(actions.setIsFogoBalanceLoading(false))
+  }
 }
 
 export function* handleBalance(): Generator {
@@ -76,9 +79,9 @@ export function* handleBalance(): Generator {
   }
 
   yield* put(actions.setAddress(session?.walletPublicKey))
-  yield* call(getBalance, session?.walletPublicKey)
   yield* call(fetchTokensAccounts)
   yield* call(fetchUnknownTokensAccounts)
+  yield* call(getBalance, session?.walletPublicKey)
 }
 
 interface IparsedTokenInfo {
@@ -428,43 +431,27 @@ export function* getTokenAirdrop(addresses: PublicKey[], quantities: number[]): 
   })
 }
 
-export function* signAndSend(wallet: WalletAdapter, tx: Transaction): SagaGenerator<string> {
-  const connection = yield* call(getConnection)
-  const { blockhash, lastValidBlockHeight } = yield* call([
-    connection,
-    connection.getLatestBlockhash
-  ])
-  tx.feePayer = wallet.publicKey
-  tx.recentBlockhash = blockhash
-  tx.lastValidBlockHeight = lastValidBlockHeight
-  const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-  const signature = yield* call([connection, connection.sendRawTransaction], signedTx.serialize())
-  return signature
-}
-
 export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey> {
-  const wallet = yield* call(getWallet)
   const session = getSession()
   if (!session) throw Error('No session provided')
 
   const associatedAccount = yield* call(
     getAssociatedTokenAddress,
     tokenAddress,
-    wallet.publicKey,
+    session.walletPublicKey,
     false,
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
   )
-  const ix = createAssociatedTokenAccountInstruction(
-    session.sessionPublicKey,
+  const ix = createAssociatedTokenAccountIdempotentInstruction(
+    session.payer,
     associatedAccount,
-    wallet.publicKey,
+    session.walletPublicKey,
     tokenAddress,
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
   )
   yield* call([session, session.sendTransaction], [ix])
-
   const token = yield* call(getTokenDetails, tokenAddress.toString())
   yield* put(
     actions.addTokenAccount({
@@ -511,7 +498,7 @@ export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerato
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
     associatedAccs.push(associatedAccount)
-    const ix = createAssociatedTokenAccountInstruction(
+    const ix = createAssociatedTokenAccountIdempotentInstruction(
       session.payer,
       associatedAccount,
       session.walletPublicKey,
@@ -587,19 +574,6 @@ export function* init(): Generator {
 export const sleep = (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
-export function* sendSol(amount: BN, recipient: PublicKey): SagaGenerator<string> {
-  const wallet = yield* call(getWallet)
-  const transaction = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: wallet.publicKey,
-      toPubkey: recipient,
-      lamports: amount.toNumber()
-    })
-  )
-
-  const txid = yield* call(signAndSend, wallet, transaction)
-  return txid
-}
 
 export function* handleConnect(action: PayloadAction<boolean>): Generator {
   try {
@@ -639,102 +613,6 @@ export function* handleDisconnect(): Generator {
   }
 }
 
-export function* handleUnwrapWFOGO(): Generator {
-  const wallet = yield* call(getWallet)
-  const connection = yield* call(getConnection)
-  const allAccounts = yield* select(accounts)
-
-  const loaderUnwrapWFOGO = createLoaderKey()
-
-  const wrappedFogoAccountPublicKeys: PublicKey[] = []
-  Object.entries(allAccounts).map(([address, token]) => {
-    if (
-      address === WRAPPED_FOGO_ADDRESS &&
-      token.balance.gt(new BN(0) && wrappedFogoAccountPublicKeys.length < 10)
-    ) {
-      wrappedFogoAccountPublicKeys.push(token.address)
-    }
-  })
-
-  if (!wrappedFogoAccountPublicKeys) {
-    return
-  }
-
-  try {
-    yield put(
-      snackbarsActions.add({
-        message: 'Unwraping Wrapped FOGO...',
-        variant: 'pending',
-        persist: true,
-        key: loaderUnwrapWFOGO
-      })
-    )
-
-    const unwrapTx = new Transaction()
-
-    wrappedFogoAccountPublicKeys.forEach(wrappedFogoAccountPublicKey => {
-      const unwrapIx = createCloseAccountInstruction(
-        wrappedFogoAccountPublicKey,
-        wallet.publicKey,
-        wallet.publicKey,
-        [],
-        TOKEN_PROGRAM_ID
-      )
-
-      unwrapTx.add(unwrapIx)
-    })
-
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    unwrapTx.recentBlockhash = blockhash
-    unwrapTx.lastValidBlockHeight = lastValidBlockHeight
-    unwrapTx.feePayer = wallet.publicKey
-
-    const unwrapSignedTx = (yield* call([wallet, wallet.signTransaction], unwrapTx)) as Transaction
-
-    const unwrapTxid = yield* call(
-      sendAndConfirmRawTransaction,
-      connection,
-      unwrapSignedTx.serialize(),
-      {
-        skipPreflight: false
-      }
-    )
-
-    if (!unwrapTxid.length) {
-      yield put(
-        snackbarsActions.add({
-          message: 'Wrapped FOGO unwrap failed. Try to unwrap it in your wallet',
-          variant: 'warning',
-          persist: false,
-          txid: unwrapTxid
-        })
-      )
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'FOGO unwrapped successfully',
-          variant: 'success',
-          persist: false,
-          txid: unwrapTxid
-        })
-      )
-    }
-
-    yield* put(actions.getBalance())
-  } catch (e: unknown) {
-    const error = ensureError(e)
-    console.log(error)
-
-    yield* call(handleRpcError, error.message)
-  }
-
-  closeSnackbar(loaderUnwrapWFOGO)
-  yield put(snackbarsActions.remove(loaderUnwrapWFOGO))
-}
-
 export function* changeWalletInExtenstionHandler(): Generator {
   yield takeLatest(actions.changeWalletInExtension, handleChangeWalletInExtenstion)
 }
@@ -751,11 +629,7 @@ export function* airdropSaga(): Generator {
 }
 
 export function* handleBalanceSaga(): Generator {
-  yield takeLeading(actions.getBalance, handleBalance)
-}
-
-export function* unwrapWFOGOHandler(): Generator {
-  yield takeLeading(actions.unwrapWFOGO, handleUnwrapWFOGO)
+  yield takeLatest(actions.getBalance, handleBalance)
 }
 
 export function* walletSaga(): Generator {
@@ -765,7 +639,6 @@ export function* walletSaga(): Generator {
       connectHandler,
       disconnectHandler,
       handleBalanceSaga,
-      unwrapWFOGOHandler,
       changeWalletInExtenstionHandler
     ].map(spawn)
   )
