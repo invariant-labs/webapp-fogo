@@ -193,8 +193,8 @@ export const Swap: React.FC<ISwap> = ({
   const [rateReversed, setRateReversed] = React.useState<boolean>(
     tokenFromIndex && tokenToIndex
       ? !initialXtoY(
-          tokens[tokenFromIndex].assetAddress.toString(),
-          tokens[tokenToIndex].assetAddress.toString()
+          tokens[tokenFromIndex]?.assetAddress.toString(),
+          tokens[tokenToIndex]?.assetAddress.toString()
         )
       : false
   )

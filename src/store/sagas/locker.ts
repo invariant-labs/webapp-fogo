@@ -9,14 +9,9 @@ import { IWallet } from '@invariant-labs/sdk-fogo'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { actions as positionsActions } from '@store/reducers/positions'
-import {
-  APPROVAL_DENIED_MESSAGE,
-  COMMON_ERROR_MESSAGE,
-  DEFAULT_PUBLICKEY
-} from '@store/consts/static'
+import { COMMON_ERROR_MESSAGE, DEFAULT_PUBLICKEY } from '@store/consts/static'
 import {
   createLoaderKey,
-  ensureApprovalDenied,
   ensureError,
   extractErrorCode,
   extractRuntimeErrorCode,
@@ -79,7 +74,7 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
     // transaction.lastValidBlockHeight = lastValidBlockHeight
 
     const { signature: txId } = yield* call([session, session.sendTransaction], ixs)
-    console.log(txId)
+
     // closeSnackbar(loaderSigningTx)
     // yield put(snackbarsActions.remove(loaderSigningTx))
 
@@ -129,8 +124,7 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 

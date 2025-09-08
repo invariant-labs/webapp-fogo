@@ -590,6 +590,7 @@ export const NoConfig = {
 
 export enum ErrorCodeExtractionKeys {
   ErrorNumber = 'Error Number:',
+  CustomProgram = 'custom program error:',
   Custom = 'Custom":',
   ApprovalDenied = 'Approval Denied',
   UndefinedOnSplit = "Cannot read properties of undefined (reading 'split')",
@@ -597,8 +598,8 @@ export enum ErrorCodeExtractionKeys {
   Dot = '.'
 }
 export const COMMON_ERROR_MESSAGE: string = 'Failed to send. Please try again'
-export const APPROVAL_DENIED_MESSAGE: string = 'Transaction approval rejected'
 const SLIPPAGE_ERROR_MESSAGE = 'Price changed – increase slippage or retry'
+const TOKEN_LIMIT_ERROR = 'Limit error – increase limit of tokens in wallet session'
 
 export const ERROR_CODE_TO_MESSAGE: Record<number, string> = {
   0x1778: SLIPPAGE_ERROR_MESSAGE,
@@ -606,5 +607,6 @@ export const ERROR_CODE_TO_MESSAGE: Record<number, string> = {
   0x1795: SLIPPAGE_ERROR_MESSAGE,
   0x1796: SLIPPAGE_ERROR_MESSAGE,
   0x1775: SLIPPAGE_ERROR_MESSAGE,
-  0x1785: SLIPPAGE_ERROR_MESSAGE
+  0x1785: SLIPPAGE_ERROR_MESSAGE,
+  0x04: TOKEN_LIMIT_ERROR
 }
