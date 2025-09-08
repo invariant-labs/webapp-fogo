@@ -22,7 +22,7 @@ import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { actions, ITokenAccount, Status } from '@store/reducers/solanaWallet'
 import { tokens } from '@store/selectors/pools'
 import { network } from '@store/selectors/solanaConnection'
-import { accounts, status } from '@store/selectors/solanaWallet'
+import { accounts } from '@store/selectors/solanaWallet'
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
@@ -39,7 +39,9 @@ import {
   SystemProgram,
   Transaction,
   AccountInfo,
-  TransactionInstruction
+  TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction
 } from '@solana/web3.js'
 import { closeSnackbar } from 'notistack'
 import { getConnection, handleRpcError } from './connection'
@@ -201,8 +203,8 @@ export function* fetchUnknownTokensAccounts(): Generator {
 }
 
 export function* handleAirdrop(): Generator {
-  const walletStatus = yield* select(status)
-  if (walletStatus !== Status.Initialized) {
+  const session = getSession()
+  if (!session) {
     yield put(
       snackbarsActions.add({
         message: 'Connect your wallet first',
@@ -279,7 +281,9 @@ export function* getCollateralTokenAirdrop(
   collateralsAddresses: PublicKey[],
   collateralsQuantities: number[]
 ): Generator {
-  const wallet = yield* call(getWallet)
+  const session = getSession()
+  console.log(window)
+  if (!session) throw new Error('No session provided')
   const instructions: TransactionInstruction[] = []
   yield* call(setEmptyAccounts, collateralsAddresses)
   const tokensAccounts = yield* select(accounts)
@@ -295,22 +299,17 @@ export function* getCollateralTokenAirdrop(
       )
     )
   }
-  const tx = instructions.reduce((tx, ix) => tx.add(ix), new Transaction())
   const connection = yield* call(getConnection)
-  const { blockhash, lastValidBlockHeight } = yield* call([
-    connection,
-    connection.getLatestBlockhash
-  ])
-  tx.feePayer = wallet.publicKey
-  tx.recentBlockhash = blockhash
-  tx.lastValidBlockHeight = lastValidBlockHeight
-  tx.partialSign(airdropAdmin)
+  const { blockhash } = yield* call([connection, connection.getLatestBlockhash])
+  const messageV0 = new TransactionMessage({
+    payerKey: session.payer,
+    recentBlockhash: blockhash,
+    instructions: instructions
+  }).compileToV0Message([])
+  const tx = new VersionedTransaction(messageV0)
 
-  const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
-  const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-    skipPreflight: false
-  })
+  tx.sign([airdropAdmin as Signer])
+  const { signature: txid } = yield* call([session, session.adapter.sendTransaction], undefined, tx)
 
   if (!txid.length) {
     yield put(
@@ -495,7 +494,8 @@ export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey
 }
 
 export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerator<PublicKey[]> {
-  const wallet = yield* call(getWallet)
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   const connection = yield* call(getConnection)
   const ixs: TransactionInstruction[] = []
   const associatedAccs: PublicKey[] = []
@@ -505,27 +505,24 @@ export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerato
     const associatedAccount = yield* call(
       getAssociatedTokenAddress,
       address,
-      wallet.publicKey,
+      session.walletPublicKey,
       false,
       programId,
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
     associatedAccs.push(associatedAccount)
     const ix = createAssociatedTokenAccountInstruction(
-      wallet.publicKey,
+      session.payer,
       associatedAccount,
-      wallet.publicKey,
+      session.walletPublicKey,
       address,
       programId,
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
     ixs.push(ix)
   }
-  yield* call(
-    signAndSend,
-    wallet,
-    ixs.reduce((tx, ix) => tx.add(ix), new Transaction())
-  )
+  yield* call([session, session.sendTransaction], ixs)
+
   const allTokens = yield* select(tokens)
   const unknownTokens: Record<string, StoreToken> = {}
   for (const [index, address] of tokenAddress.entries()) {
