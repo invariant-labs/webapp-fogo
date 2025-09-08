@@ -328,7 +328,6 @@ export const NewPosition: React.FC<INewPosition> = ({
       isAutoSwapAvailable && (tokenACheckbox || tokenBCheckbox) && alignment == DepositOptions.Auto,
     [isAutoSwapAvailable, tokenACheckbox, tokenBCheckbox, alignment]
   )
-
   useEffect(() => {
     if (isAutoSwapAvailable) {
       setAlignment(DepositOptions.Auto)
@@ -375,12 +374,18 @@ export const NewPosition: React.FC<INewPosition> = ({
   const getOtherTokenAmount = (amount: BN, left: number, right: number, byFirst: boolean) => {
     const printIndex = byFirst ? tokenBIndex : tokenAIndex
     const calcIndex = byFirst ? tokenAIndex : tokenBIndex
+
     if (printIndex === null || calcIndex === null) {
-      return '0.0'
+      return byFirst ? tokenBDeposit : tokenADeposit
     }
-    const result = calcAmount(amount, left, right, tokens[calcIndex].assetAddress)
-    updateLiquidity(result.liquidity)
-    return trimLeadingZeros(printBN(result.amount, tokens[printIndex].decimals))
+
+    try {
+      const result = calcAmount(amount, left, right, tokens[calcIndex].assetAddress)
+      updateLiquidity(result.liquidity)
+      return trimLeadingZeros(printBN(result.amount, tokens[printIndex].decimals))
+    } catch (error) {
+      return byFirst ? tokenBDeposit : tokenADeposit
+    }
   }
 
   const getTicksInsideRange = (left: number, right: number, isXtoY: boolean) => {
@@ -1104,20 +1109,25 @@ export const NewPosition: React.FC<INewPosition> = ({
                 ? '0'
                 : tokenADeposit,
             setValue: value => {
-              if (tokenAIndex === null) {
+              if (tokenAIndex === null || tokenBIndex === null) {
+                setTokenADeposit(value)
                 return
               }
 
               setTokenADeposit(value)
-              !isAutoswapOn &&
-                setTokenBDeposit(
-                  getOtherTokenAmount(
-                    convertBalanceToBN(value, tokens[tokenAIndex].decimals),
-                    leftRange,
-                    rightRange,
-                    true
-                  )
-                )
+
+              if (!isAutoswapOn && value && value !== '0') {
+                try {
+                  const amount = convertBalanceToBN(value, tokens[tokenAIndex].decimals)
+                  const otherAmount = getOtherTokenAmount(amount, leftRange, rightRange, true)
+
+                  if (otherAmount && otherAmount !== '0.0') {
+                    setTokenBDeposit(otherAmount)
+                  }
+                } catch (error) {
+                  console.warn('Error calculating other token amount:', error)
+                }
+              }
             },
             blocked:
               (tokenAIndex !== null &&
@@ -1143,20 +1153,25 @@ export const NewPosition: React.FC<INewPosition> = ({
                 ? '0'
                 : tokenBDeposit,
             setValue: value => {
-              if (tokenBIndex === null) {
+              if (tokenAIndex === null || tokenBIndex === null) {
+                setTokenADeposit(value)
                 return
               }
 
-              setTokenBDeposit(value)
-              !isAutoswapOn &&
-                setTokenADeposit(
-                  getOtherTokenAmount(
-                    convertBalanceToBN(value, tokens[tokenBIndex].decimals),
-                    leftRange,
-                    rightRange,
-                    false
-                  )
-                )
+              setTokenADeposit(value)
+
+              if (!isAutoswapOn && value && value !== '0') {
+                try {
+                  const amount = convertBalanceToBN(value, tokens[tokenAIndex].decimals)
+                  const otherAmount = getOtherTokenAmount(amount, leftRange, rightRange, true)
+
+                  if (otherAmount && otherAmount !== '0.0') {
+                    setTokenBDeposit(otherAmount)
+                  }
+                } catch (error) {
+                  console.warn('Error calculating other token amount:', error)
+                }
+              }
             },
             blocked:
               (tokenAIndex !== null &&

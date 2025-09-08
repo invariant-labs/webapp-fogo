@@ -98,12 +98,14 @@ export const PoolInit: React.FC<IPoolInit> = ({
   const [leftInputRounded, setLeftInputRounded] = useState((+leftInput).toFixed(12))
   const [rightInputRounded, setRightInputRounded] = useState((+rightInput).toFixed(12))
 
-  const validConcentrationMidPrice = (midPrice: string) => {
+  const validConcentrationMidPrice = (midPrice: string): number => {
+    const numericMidPrice = parseFloat(midPrice) || 1
+
     const minTick = getMinTick(tickSpacing)
     const maxTick = getMaxTick(tickSpacing)
 
     const midPriceTick = calculateTickFromBalance(
-      +midPrice,
+      numericMidPrice,
       tickSpacing,
       isXtoY,
       xDecimal,
@@ -120,7 +122,7 @@ export const PoolInit: React.FC<IPoolInit> = ({
 
     if (isXtoY) {
       if (midPriceTick < minTickLimit) {
-        return minPrice
+        return Math.max(minPrice, MINIMAL_POOL_INIT_PRICE)
       } else if (midPriceTick > maxTickLimit) {
         return maxPrice
       }
@@ -128,11 +130,11 @@ export const PoolInit: React.FC<IPoolInit> = ({
       if (midPriceTick > maxTickLimit) {
         return maxPrice
       } else if (midPriceTick < minTickLimit) {
-        return minPrice
+        return Math.max(minPrice, MINIMAL_POOL_INIT_PRICE)
       }
     }
 
-    return Number(midPrice)
+    return Math.max(numericMidPrice, MINIMAL_POOL_INIT_PRICE)
   }
 
   const validateMidPriceInput = (midPriceInput: string) => {
@@ -166,9 +168,13 @@ export const PoolInit: React.FC<IPoolInit> = ({
     }
   }
 
-  const [midPriceInput, setMidPriceInput] = useState(
-    validateMidPriceInput(suggestedPrice.toString() || '')
-  )
+  const [midPriceInput, setMidPriceInput] = useState(() => {
+    if (suggestedPrice && suggestedPrice > 0) {
+      return validateMidPriceInput(suggestedPrice.toString())
+    }
+
+    return validateMidPriceInput('1')
+  })
 
   const handleUpdateConcentrationFromURL = (concentrationValue: number) => {
     const mappedIndex = getConcentrationIndex(concentrationArray, concentrationValue)
@@ -198,11 +204,16 @@ export const PoolInit: React.FC<IPoolInit> = ({
   }, [currentFeeIndex, tokenASymbol, tokenBSymbol])
 
   useEffect(() => {
-    if (!wasRefreshed) {
-      const midPriceInConcentrationMode = validConcentrationMidPrice(midPriceInput)
+    if (!wasRefreshed && midPriceInput && midPriceInput !== '0') {
+      const numericPrice = parseFloat(midPriceInput) || 1
+
+      const midPriceInConcentrationMode =
+        positionOpeningMethod === 'concentration'
+          ? validConcentrationMidPrice(midPriceInput)
+          : numericPrice
 
       const sqrtPrice = calculateSqrtPriceFromBalance(
-        positionOpeningMethod === 'range' ? +midPriceInput : midPriceInConcentrationMode,
+        midPriceInConcentrationMode,
         tickSpacing,
         isXtoY,
         xDecimal,
@@ -212,12 +223,10 @@ export const PoolInit: React.FC<IPoolInit> = ({
       const priceTickIndex = priceToTickInRange(sqrtPrice, minTick, maxTick, tickSpacing)
 
       onChangeMidPrice(priceTickIndex, sqrtPrice)
-    } else {
-      setTimeout(() => {
-        setWasRefreshed(false)
-      }, 1)
+    } else if (wasRefreshed) {
+      setWasRefreshed(false)
     }
-  }, [midPriceInput])
+  }, [midPriceInput, positionOpeningMethod, wasRefreshed])
 
   const setLeftInputValues = (val: string) => {
     setLeftInput(val)
@@ -295,7 +304,9 @@ export const PoolInit: React.FC<IPoolInit> = ({
 
   useEffect(() => {
     if (currentPairReversed !== null) {
-      const validatedMidPrice = validateMidPriceInput((1 / +midPriceInput).toString())
+      const currentPrice = parseFloat(midPriceInput) || 1
+      const reversedPrice = 1 / currentPrice
+      const validatedMidPrice = validateMidPriceInput(reversedPrice.toString())
 
       setMidPriceInput(validatedMidPrice)
       changeRangeHandler(rightRange, leftRange)
@@ -332,15 +343,23 @@ export const PoolInit: React.FC<IPoolInit> = ({
         </Grid>
 
         <SimpleInput
-          setValue={setMidPriceInput}
-          value={midPriceInput}
+          setValue={value => {
+            const validatedValue = value || '0'
+            setMidPriceInput(validatedValue)
+          }}
+          value={midPriceInput || '1'}
           decimal={isXtoY ? xDecimal : yDecimal}
           className={classes.midPrice}
-          placeholder='0.0'
+          placeholder='1.0'
           onBlur={e => {
-            setMidPriceInput(validateMidPriceInput(e.target.value || '0'))
+            const inputValue = e.target.value || '1'
+            const validated = validateMidPriceInput(inputValue)
+            setMidPriceInput(validated)
           }}
-          formatterFunction={validateMidPriceInput}
+          formatterFunction={value => {
+            if (!value || value === '') return '1'
+            return validateMidPriceInput(value)
+          }}
           suggestedPrice={suggestedPrice}
           tooltipTitle={
             bestFeeIndex !== -1 && suggestedPrice ? (
