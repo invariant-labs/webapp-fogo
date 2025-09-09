@@ -2482,9 +2482,9 @@ export enum TokenType {
 export const getAmountFromInitPositionInstruction = (
   meta: ParsedTransactionMeta,
   type: TokenType
-): number => {
+): { amount: number; token: string } => {
   if (!meta.innerInstructions) {
-    return 0
+    return { amount: 0, token: '' }
   }
 
   const innerInstruction =
@@ -2503,7 +2503,10 @@ export const getAmountFromInitPositionInstruction = (
       (instruction as ParsedInstruction)?.parsed?.type === 'transferChecked'
   )[type === TokenType.TokenX ? 0 : 1] as ParsedInstruction | undefined
 
-  return instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount
+  return {
+    amount: instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount || 0,
+    token: instruction?.parsed.info.mint || ''
+  }
 }
 
 export const getSwapAmountFromSwapAndAddLiquidity = (

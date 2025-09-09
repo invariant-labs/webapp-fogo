@@ -604,22 +604,28 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
         const meta = txDetails.meta
         if (meta?.innerInstructions && meta.innerInstructions) {
           try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
+            const { amount: amountX, token: tokenXAddress } = getAmountFromInitPositionInstruction(
+              meta,
+              TokenType.TokenX
+            )
+            const { amount: amountY, token: tokenYAddress } = getAmountFromInitPositionInstruction(
+              meta,
+              TokenType.TokenY
+            )
 
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
+            const tokenX = allTokens[tokenXAddress]
+            const tokenY = tokenYAddress ? allTokens[tokenYAddress] : null
 
             yield put(
               snackbarsActions.add({
                 tokensDetails: {
                   ikonType: 'deposit',
                   tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
+                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY?.decimals || 0)),
                   tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
+                  tokenYIcon: tokenY?.logoURI,
                   tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
+                  tokenYSymbol: tokenY?.symbol ?? tokenY?.address.toString()
                 },
                 persist: false
               })
@@ -1764,20 +1770,28 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
         const meta = txDetails.meta
         if (meta?.innerInstructions && meta.innerInstructions) {
           try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
+            const { amount: amountX, token: tokenXAddress } = getAmountFromInitPositionInstruction(
+              meta,
+              TokenType.TokenX
+            )
+            const { amount: amountY, token: tokenYAddress } = getAmountFromInitPositionInstruction(
+              meta,
+              TokenType.TokenY
+            )
+
+            const tokenX = allTokens[tokenXAddress]
+            const tokenY = tokenYAddress ? allTokens[tokenYAddress] : null
+
             yield put(
               snackbarsActions.add({
                 tokensDetails: {
                   ikonType: 'deposit',
                   tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
+                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY?.decimals || 0)),
                   tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
+                  tokenYIcon: tokenY?.logoURI,
                   tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
+                  tokenYSymbol: tokenY?.symbol ?? tokenY?.address.toString()
                 },
                 persist: false
               })
@@ -1980,10 +1994,12 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
         const meta = txDetails.meta
         if (meta?.innerInstructions && meta.innerInstructions) {
           try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
+            const { amount: amountX } = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
+            const { amount: amountY } = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
+
             const tokenX = allTokens[pair.tokenX.toString()]
             const tokenY = allTokens[pair.tokenY.toString()]
+
             yield put(
               snackbarsActions.add({
                 tokensDetails: {
