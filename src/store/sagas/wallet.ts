@@ -19,7 +19,7 @@ import { BN } from '@coral-xyz/anchor'
 import { actions as poolsActions } from '@store/reducers/pools'
 import { actions as positionsActions } from '@store/reducers/positions'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
-import { actions, ITokenAccount, Status } from '@store/reducers/solanaWallet'
+import { actions, ITokenAccount } from '@store/reducers/solanaWallet'
 import { tokens } from '@store/selectors/pools'
 import { network } from '@store/selectors/solanaConnection'
 import { accounts } from '@store/selectors/solanaWallet'
@@ -46,18 +46,12 @@ import { closeSnackbar } from 'notistack'
 import { getConnection, handleRpcError } from './connection'
 import { getTokenDetails } from './token'
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token'
-import { disconnectWallet, getFogoWallet } from '@utils/web3/wallet'
-import { WalletAdapter } from '@utils/web3/adapters/types'
 import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
 import { PayloadAction } from '@reduxjs/toolkit'
-import { getSession, isSessionActive } from '@store/hooks/session'
+import { getSession } from '@store/hooks/session'
 import { accounts as solanaAccounts } from '@store/selectors/solanaWallet'
-export function* getWallet(): SagaGenerator<WalletAdapter> {
-  const wallet = yield* call(getFogoWallet)
 
-  return wallet
-}
 export function* getBalance(_pubKey: PublicKey): SagaGenerator<BN> {
   try {
     yield* put(actions.setIsFogoBalanceLoading(true))
@@ -395,41 +389,6 @@ export function* transferAirdropFOGO(): Generator {
   }
 }
 
-export function* getTokenAirdrop(addresses: PublicKey[], quantities: number[]): Generator {
-  const wallet = yield* call(getWallet)
-  const instructions: TransactionInstruction[] = []
-  yield* call(setEmptyAccounts, addresses)
-  const tokensAccounts = yield* select(accounts)
-  for (const [index, address] of addresses.entries()) {
-    instructions.push(
-      createMintToInstruction(
-        address,
-        tokensAccounts[address.toString()].address,
-        airdropAdmin.publicKey,
-        quantities[index],
-        [],
-        TOKEN_PROGRAM_ID
-      )
-    )
-  }
-  const tx = instructions.reduce((tx, ix) => tx.add(ix), new Transaction())
-  const connection = yield* call(getConnection)
-  const { blockhash, lastValidBlockHeight } = yield* call([
-    connection,
-    connection.getLatestBlockhash
-  ])
-  tx.feePayer = wallet.publicKey
-  tx.recentBlockhash = blockhash
-  tx.lastValidBlockHeight = lastValidBlockHeight
-  tx.partialSign(airdropAdmin)
-
-  const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
-  yield* call([connection, connection.sendRawTransaction], signedTx.serialize(), {
-    skipPreflight: true
-  })
-}
-
 export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey> {
   const session = getSession()
   if (!session) throw Error('No session provided')
@@ -544,17 +503,7 @@ export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerato
 }
 
 export function* init(): Generator {
-  const sessionActive = isSessionActive()
-
   try {
-    if (sessionActive) {
-      yield* put(actions.setStatus(Status.Init))
-    } else {
-      yield* put(actions.setStatus(Status.Uninitialized))
-      return
-    }
-
-    yield* put(actions.setStatus(Status.Initialized))
     yield* call(handleBalance)
   } catch (e: unknown) {
     const error = ensureError(e)
@@ -590,7 +539,6 @@ export function* handleChangeWalletInExtenstion(): Generator {
 
 export function* handleDisconnect(): Generator {
   try {
-    yield* call(disconnectWallet)
     yield* put(actions.resetState())
     yield* put(positionsActions.setPositionsList([[], { head: 0, bump: 0 }, false]))
     yield* put(positionsActions.setLockedPositionsList([]))

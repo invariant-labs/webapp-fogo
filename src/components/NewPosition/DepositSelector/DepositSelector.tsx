@@ -36,7 +36,6 @@ import { TooltipHover } from '@common/TooltipHover/TooltipHover'
 import ChangeWalletButton from '@components/Header/HeaderButton/ChangeWalletButton'
 import { PublicKey } from '@solana/web3.js'
 import { BN } from '@coral-xyz/anchor'
-import { Status } from '@store/reducers/solanaWallet'
 import {
   convertBalanceToBN,
   getScaleFromString,
@@ -118,7 +117,6 @@ export interface IDepositSelector {
   isLoadingTicksOrTickmap: boolean
   network: NetworkType
   fogoBalance: BN
-  walletStatus: Status
   tokenAIndex: number | null
   tokenBIndex: number | null
   setTokenAIndex: (index: number | null) => void

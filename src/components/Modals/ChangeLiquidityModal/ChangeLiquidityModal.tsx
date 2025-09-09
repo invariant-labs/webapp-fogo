@@ -10,7 +10,6 @@ import AddLiquidity from './AddLiquidity/AddLiquidity'
 import { BN } from '@coral-xyz/anchor'
 import RemoveLiquidity from './RemoveLiquidity/RemoveLiquidity'
 import { PublicKey } from '@solana/web3.js'
-import { Status } from '@store/reducers/solanaWallet'
 import { PoolWithAddress } from '@store/reducers/pools'
 import { NetworkType } from '@store/consts/static'
 import { Pair } from '@invariant-labs/sdk-fogo'
@@ -50,7 +49,6 @@ export interface IChangeLiquidityModal {
     coingeckoId?: string
     isUnknown?: boolean
   }[]
-  walletStatus: Status
   allPools: PoolWithAddress[]
   isBalanceLoading: boolean
   currentNetwork: NetworkType
@@ -112,7 +110,6 @@ export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
   leftRange,
   rightRange,
   tokens,
-  walletStatus,
   allPools,
   currentNetwork,
   ticksLoading,
@@ -278,7 +275,6 @@ export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
               leftRange={leftRange}
               rightRange={rightRange}
               tokens={tokens}
-              walletStatus={walletStatus}
               allPools={allPools}
               isBalanceLoading={isBalanceLoading}
               currentNetwork={currentNetwork}
@@ -310,7 +306,6 @@ export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
               tokenXLiquidity={tokenX.liqValue}
               tokenYLiquidity={tokenY.liqValue}
               tokens={tokens}
-              walletStatus={walletStatus}
               allPools={allPools}
               isBalanceLoading={isBalanceLoading}
               currentNetwork={currentNetwork}

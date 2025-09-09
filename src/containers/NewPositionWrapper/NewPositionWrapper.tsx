@@ -39,7 +39,7 @@ import poolsSelectors, {
   poolsArraySortedByFees
 } from '@store/selectors/pools'
 import { initPosition, plotTicks, shouldNotUpdateRange } from '@store/selectors/positions'
-import { balanceLoading, status, balance, poolTokens } from '@store/selectors/solanaWallet'
+import { balanceLoading, balance, poolTokens } from '@store/selectors/solanaWallet'
 import { VariantType } from 'notistack'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
@@ -75,7 +75,6 @@ export const NewPositionWrapper: React.FC<IProps> = ({
   const fogoBalance = useSelector(balance)
   const locationHistory = useSelector(address)
   const tokens = useSelector(poolTokens)
-  const walletStatus = useSelector(status)
   const allPools = useSelector(poolsArraySortedByFees)
   const autoSwapPoolData = useSelector(poolsSelectors.autoSwapPool)
   const { ticks: autoSwapTicks, tickmap: autoSwapTickMap } = useSelector(autoSwapTicksAndTickMap)
@@ -1008,7 +1007,6 @@ export const NewPositionWrapper: React.FC<IProps> = ({
       network={currentNetwork}
       isLoadingTokens={isCurrentlyLoadingTokens}
       fogoBalance={fogoBalance}
-      walletStatus={walletStatus}
       calcAmount={calcAmount}
       isLoadingTicksOrTickmap={isLoadingTicksOrTickmap}
       progress={progress}
