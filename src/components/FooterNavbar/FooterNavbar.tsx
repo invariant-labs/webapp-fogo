@@ -6,27 +6,37 @@ import { liquidityIcon, statsIcon, swapArrowsIcon, walletIcon } from '@static/ic
 
 import { colors } from '@static/theme'
 
-export const FooterNavbar = () => {
-  // const typeOfNetwork = useSelector(network)
+interface INavLinks {
+  label: string
+  icon: string
+  width: number
+  isLink: boolean
+  url?: string
+  onClick?: (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => void
+}
 
-  const links = [
+export const FooterNavbar = () => {
+  const links: INavLinks[] = [
     {
       label: 'Swap',
       icon: swapArrowsIcon,
       url: 'exchange',
-      width: 33
+      width: 33,
+      isLink: true
     },
     {
       label: 'Liquidity',
       icon: liquidityIcon,
       url: 'liquidity',
-      width: 20
+      width: 20,
+      isLink: true
     },
     {
       label: 'Portfolio',
       icon: walletIcon,
       url: 'portfolio',
-      width: 26
+      width: 26,
+      isLink: true
     },
 
     // ...(typeOfNetwork === NetworkType.Testnet
@@ -35,7 +45,8 @@ export const FooterNavbar = () => {
     //         label: 'Creator',
     //         icon: tokenCreatorIcon,
     //         url: 'creator',
-    //         width: 33
+    //         width: 25,
+    //         isLink: true
     //       }
     //     ]
     //   : []),
@@ -44,7 +55,8 @@ export const FooterNavbar = () => {
       label: 'Stats',
       icon: statsIcon,
       url: 'statistics',
-      width: 30
+      width: 30,
+      isLink: true
     }
   ]
 
@@ -63,7 +75,7 @@ export const FooterNavbar = () => {
     exchange: [/^exchange\/*/],
     portfolio: [/^portfolio\/*/, /^newPosition\/*/, /^position\/*/]
 
-    // ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {})
+    // ...(typeOfNetwork === NetworkType.Testnet ? { creator: [/^creator\/*/] } : {}),
   }
 
   const [display, setDisplay] = useState(true)
@@ -76,55 +88,99 @@ export const FooterNavbar = () => {
 
     window.visualViewport!.addEventListener('resize', resizeHandler)
 
-    return () => window.visualViewport!.addEventListener('resize', resizeHandler)
+    return () => window.visualViewport!.removeEventListener('resize', resizeHandler)
   }, [])
 
   return (
-    <Box
-      component='footer'
-      className={classes.navbar}
-      style={{ display: display ? 'flex' : 'none' }}>
-      {links.map(link => {
-        const active =
-          link.url === activePath ||
-          (!!otherRoutesToHighlight[link.url] &&
-            otherRoutesToHighlight[link.url].some(pathRegex => pathRegex.test(activePath)))
+    <>
+      <Box
+        component='footer'
+        className={classes.navbar}
+        style={{ display: display ? 'flex' : 'none' }}>
+        {links.map((link, index) => {
+          let active = false
 
-        return (
-          <Link
-            key={`path-${link.url}`}
-            to={`/${link.url}`}
-            className={classes.navbox}
-            style={{
-              background: active ? colors.invariant.light : ''
-            }}
-            onClick={e => {
-              if (link.url === 'exchange' && activePath.startsWith('exchange')) {
-                e.preventDefault()
-                return
-              }
-              setActive(link.url)
-            }}>
-            {active && <Box className={classes.activeBox} />}
-            <img
-              src={link.icon}
-              width={link.width}
-              style={
-                active
-                  ? { filter: 'brightness(0) saturate(100%) invert(100%)' }
-                  : { filter: 'brightness(0) saturate(100%) invert(45%)' }
-              }
-              className={classes.navImg}
-              alt={link.label}
-            />
-            <Typography
-              sx={active ? { color: colors.white.main } : { color: colors.invariant.textGrey }}>
-              {link.label}
-            </Typography>
-          </Link>
-        )
-      })}
-    </Box>
+          active =
+            link.url === activePath ||
+            (!!link.url &&
+              !!otherRoutesToHighlight[link.url] &&
+              otherRoutesToHighlight[link.url].some(pathRegex => pathRegex.test(activePath)))
+
+          if (link.isLink && link.url) {
+            return (
+              <Link
+                key={`path-${link.url}`}
+                to={`/${link.url}`}
+                className={classes.navbox}
+                style={{
+                  background: active ? colors.invariant.light : ''
+                }}
+                onClick={e => {
+                  if (link.url === 'exchange' && activePath.startsWith('exchange')) {
+                    e.preventDefault()
+                    return
+                  }
+                  setActive(link.url!)
+                  if (link.onClick) {
+                    link.onClick(e)
+                  }
+                }}>
+                {active && <Box className={classes.activeBox} />}
+                <img
+                  src={link.icon}
+                  width={link.width}
+                  style={
+                    active
+                      ? { filter: 'brightness(0) saturate(100%) invert(100%)' }
+                      : { filter: 'brightness(0) saturate(100%) invert(45%)' }
+                  }
+                  className={classes.navImg}
+                  alt={link.label}
+                />
+                <Typography
+                  sx={active ? { color: colors.white.main } : { color: colors.invariant.textGrey }}>
+                  {link.label}
+                </Typography>
+              </Link>
+            )
+          } else {
+            return (
+              <Box
+                key={`button-${index}`}
+                component='button'
+                className={classes.navbox}
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                  if (link.onClick) {
+                    link.onClick(e)
+                  }
+                }}
+                style={{
+                  background: active ? colors.invariant.light : 'transparent',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}>
+                {active && <Box className={classes.activeBox} />}
+                <img
+                  src={link.icon}
+                  width={link.width}
+                  style={
+                    active
+                      ? { filter: 'brightness(0) saturate(100%) invert(100%)' }
+                      : { filter: 'brightness(0) saturate(100%) invert(45%)' }
+                  }
+                  className={classes.navImg}
+                  alt={link.label}
+                />
+                <Typography
+                  sx={active ? { color: colors.white.main } : { color: colors.invariant.textGrey }}>
+                  {link.label}
+                </Typography>
+              </Box>
+            )
+          }
+        })}
+      </Box>
+    </>
   )
 }
 

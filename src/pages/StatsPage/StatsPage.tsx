@@ -9,6 +9,7 @@ export const StatsPage: React.FC = () => {
   return (
     <Grid className={classes.container}>
       {/* <img src={comingSoon} alt='Coming soon' /> */}
+
       <WrappedStats />
     </Grid>
   )

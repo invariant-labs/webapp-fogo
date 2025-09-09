@@ -1,6 +1,6 @@
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
 import { theme } from '@static/theme'
-import React, { forwardRef, memo, useEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeList as List, ListChildComponentProps } from 'react-window'
 import useStyles from './style'
 import AddTokenModal from '@components/Modals/AddTokenModal/AddTokenModal'
@@ -17,11 +17,9 @@ import {
 } from '@mui/material'
 import { formatNumberWithSuffix, getTokenPrice, printBN } from '@utils/utils'
 import { SwapToken } from '@store/selectors/solanaWallet'
-import Scrollbars from 'rc-scrollbars'
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
 import { PublicKey } from '@solana/web3.js'
 import { NetworkType } from '@store/consts/static'
-import CustomScrollbar from './CustomScrollbar'
 import { TokenIcon } from './TokenIcon'
 import { emptyIcon, newTabIcon, searchIcon, warningIcon } from '@static/icons'
 
@@ -32,9 +30,9 @@ export interface ISelectTokenModal {
   handleClose: () => void
   anchorEl: HTMLButtonElement | null
   centered?: boolean
-  onSelect: (index: number) => void
+  onSelect?: (index: number) => void
   hideBalances?: boolean
-  handleAddToken: (address: string) => void
+  handleAddToken?: (address: string) => void
   initialHideUnknownTokensValue: boolean
   onHideUnknownTokensChange: (val: boolean) => void
   hiddenUnknownTokens: boolean
@@ -50,23 +48,6 @@ interface RowItemData {
   prices: Record<string, number>
 }
 
-export interface IScroll {
-  onScroll: (e: React.UIEvent<HTMLElement>) => void
-  children: React.ReactNode
-}
-
-const Scroll = forwardRef<React.LegacyRef<Scrollbars>, IScroll>(({ onScroll, children }, ref) => {
-  return (
-    <CustomScrollbar ref={ref} style={{ overflow: 'hidden' }} onScroll={onScroll}>
-      {children}
-    </CustomScrollbar>
-  )
-})
-
-const CustomScrollbarsVirtualList = React.forwardRef<React.LegacyRef<Scrollbars>, IScroll>(
-  (props, ref) => <Scroll {...props} ref={ref} />
-)
-
 const RowItem: React.FC<ListChildComponentProps<RowItemData>> = React.memo(
   ({ index, style, data }) => {
     const { tokens, onSelect, hideBalances, isXs, networkUrl, classes, prices } = data
@@ -80,8 +61,7 @@ const RowItem: React.FC<ListChildComponentProps<RowItemData>> = React.memo(
         className={classes.tokenItem}
         container
         style={{
-          ...style,
-          width: 'calc(100% - 50px)'
+          ...style
         }}
         onClick={() => {
           onSelect(token.index)
@@ -106,7 +86,7 @@ const RowItem: React.FC<ListChildComponentProps<RowItemData>> = React.memo(
                 <Typography>
                   {token.assetAddress.toString().slice(0, isXs ? 3 : 4) +
                     '...' +
-                    token.assetAddress.toString().slice(isXs ? -4 : -5, -1)}
+                    token.assetAddress.toString().slice(isXs ? -4 : -5)}
                 </Typography>
                 <img width={8} height={8} src={newTabIcon} alt={'Token address'} />
               </a>
@@ -115,7 +95,7 @@ const RowItem: React.FC<ListChildComponentProps<RowItemData>> = React.memo(
 
           <Typography className={classes.tokenDescrpiption}>
             {token.name ? token.name.slice(0, isXs ? 20 : 30) : 'Unknown'}
-            {token.name.length > (isXs ? 20 : 30) ? '...' : ''}
+            {token.name && token.name.length > (isXs ? 20 : 30) ? '...' : ''}
           </Typography>
         </Grid>
         <Grid container className={classes.balanceWrapper}>
@@ -158,7 +138,6 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
     const [hideUnknown, setHideUnknown] = useState(initialHideUnknownTokensValue)
     const [prices, setPrices] = useState<Record<string, number>>({})
 
-    const outerRef = useRef<HTMLElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -181,19 +160,17 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
     }, [tokens])
 
     useEffect(() => {
-      tokensWithIndexes.forEach(token => {
-        const balanceStr = printBN(token.balance, token.decimals)
-        const balance = Number(balanceStr)
-        if (balance > 0) {
-          const addr = token.assetAddress.toString()
-          if (prices[addr] === undefined) {
-            getTokenPrice(addr, network).then(price => {
-              setPrices(prev => ({ ...prev, [addr]: price || 0 }))
-            })
-          }
+      const loadPrices = async (): Promise<void> => {
+        const prices = await getTokenPrice(network)
+        if (prices) {
+          const transformedPrices = Object.fromEntries(
+            Object.entries(prices).map(([key, value]) => [key, value.price])
+          )
+          setPrices(transformedPrices)
         }
-      })
-    }, [tokensWithIndexes])
+      }
+      loadPrices()
+    }, [network])
 
     const commonTokensList = useMemo(
       () =>
@@ -204,12 +181,14 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
     )
 
     const filteredTokens = useMemo(() => {
-      const list = tokensWithIndexes.filter(
-        token =>
-          token.symbol.toLowerCase().includes(value.toLowerCase()) ||
-          token.name.toLowerCase().includes(value.toLowerCase()) ||
+      const list = tokensWithIndexes.filter(token => {
+        const q = value.toLowerCase()
+        return (
+          token.symbol.toLowerCase().includes(q) ||
+          token.name.toLowerCase().includes(q) ||
           token.strAddress.includes(value)
-      )
+        )
+      })
 
       const tokensWithPrice = list.filter(token => {
         const price = prices[token.assetAddress.toString()]
@@ -242,7 +221,6 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
       })
 
       const sorted = [...tokensWithPrice, ...tokensNoPrice]
-
       return hideUnknown ? sorted.filter(token => !token.isUnknown) : sorted
     }, [value, tokensWithIndexes, hideUnknown, prices])
 
@@ -254,15 +232,11 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
       let timeoutId: NodeJS.Timeout | null = null
       if (open) {
         timeoutId = setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.focus()
-          }
+          inputRef.current?.focus()
         }, 100)
       }
       return () => {
-        if (timeoutId) {
-          clearTimeout(timeoutId)
-        }
+        if (timeoutId) clearTimeout(timeoutId)
       }
     }, [open])
 
@@ -272,10 +246,13 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
           return ''
         case NetworkType.Testnet:
           return '?cluster=testnet'
+        case NetworkType.Devnet:
+          return '?cluster=devnet'
         default:
           return '?cluster=testnet'
       }
     }, [network])
+
     return (
       <>
         <Popover
@@ -327,6 +304,7 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
                     className={classes.commonTokenItem}
                     key={token.symbol}
                     onClick={() => {
+                      if (!onSelect) return
                       onSelect(token.index)
                       setValue('')
                       handleClose()
@@ -374,16 +352,17 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
                   </Button>
                 </Grid>
               )}
+
               <List
                 height={400}
-                width={360}
+                width='100%'
+                className={classes.scrollList}
                 itemSize={66}
                 itemCount={filteredTokens.length}
-                outerElementType={CustomScrollbarsVirtualList}
-                outerRef={outerRef}
                 itemData={{
                   tokens: filteredTokens,
                   onSelect: (idx: number) => {
+                    if (!onSelect) return
                     onSelect(idx)
                     setValue('')
                     handleClose()
@@ -399,10 +378,12 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
             </Box>
           </Grid>
         </Popover>
+
         <AddTokenModal
           open={isAddOpen}
           handleClose={() => setIsAddOpen(false)}
           addToken={(address: string) => {
+            if (!handleAddToken) return
             handleAddToken(address)
             setIsAddOpen(false)
             setHideUnknown(false)
@@ -413,4 +394,5 @@ export const SelectTokenModal: React.FC<ISelectTokenModal> = memo(
     )
   }
 )
+
 export default SelectTokenModal

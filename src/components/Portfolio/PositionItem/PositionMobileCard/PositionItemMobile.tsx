@@ -1,11 +1,10 @@
 import { Box, Button, Grid, Skeleton, Typography } from '@mui/material'
 import { formatNumberWithSuffix } from '@utils/utils'
-import classNames from 'classnames'
 import { useEffect, useMemo, useState } from 'react'
 import { useMobileStyles } from './style'
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
 import { initialXtoY, tickerToAddress } from '@utils/utils'
-import { swapListIcon, warning2Icon } from '@static/icons'
+import { swapListIcon, warning2Icon, warningIcon } from '@static/icons'
 import { useSelector } from 'react-redux'
 import { useTokenValues } from '@store/hooks/positionList/useTokenValues'
 import { singlePositionData } from '@store/selectors/positions'
@@ -17,18 +16,24 @@ import { ILiquidityToken } from '@store/consts/types'
 import { ISinglePositionData } from '@components/Portfolio/Overview/Overview/Overview'
 import { IPositionItem } from '@store/consts/types'
 import { MinMaxChart } from '../components/MinMaxChart/MinMaxChart'
+import { ReactFitty } from 'react-fitty'
 
 interface IPositionItemMobile extends IPositionItem {
   setAllowPropagation: React.Dispatch<React.SetStateAction<boolean>>
   handleLockPosition: (index: number) => void
   handleClosePosition: (index: number) => void
   handleClaimFee: (index: number, isLocked: boolean) => void
+  createNewPosition: () => void
+  shouldDisable: boolean
+  openPosition: () => void
 }
 
 export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
   tokenXName,
   tokenYName,
   tokenXIcon,
+  isUnknownX,
+  isUnknownY,
   tokenYIcon,
   fee,
   min,
@@ -42,12 +47,16 @@ export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
   tokenXLiq,
   tokenYLiq,
   network,
-  unclaimedFeesInUSD = { value: 0, loading: false },
+  unclaimedFeesInUSD = { value: 0, loading: false, isClaimAvailable: false },
   handleLockPosition,
   handleClosePosition,
-  handleClaimFee
+  handleClaimFee,
+  shouldDisable,
+  createNewPosition,
+  openPosition
 }) => {
-  const { classes } = useMobileStyles()
+  const { classes, cx } = useMobileStyles()
+
   const positionSingleData: ISinglePositionData | undefined = useSelector(
     singlePositionData(id ?? '')
   )
@@ -132,18 +141,15 @@ export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
               )
             }
             placement='top'
-            increasePadding>
+            increasePadding
+            fullSpan>
             <Grid
               container
-              className={classNames(classes.fee, isActive ? classes.activeFee : undefined)}
+              className={cx(classes.fee, isActive ? classes.activeFee : undefined)}
               justifyContent='center'
-              alignItems='center'
-              onClick={e => e.stopPropagation()}>
+              alignItems='center'>
               <Typography
-                className={classNames(
-                  classes.infoText,
-                  isActive ? classes.activeInfoText : undefined
-                )}>
+                className={cx(classes.infoText, isActive ? classes.activeInfoText : undefined)}>
                 {fee}% fee
               </Typography>
             </Grid>
@@ -193,18 +199,13 @@ export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
           ) : (
             <div>
               {tokenValueInUsd.priceWarning ? (
-                <TooltipHover title='The price might not be shown correctly'>
+                <TooltipHover title='The price might not be shown correctly' fullSpan>
                   <Grid
                     container
                     className={classes.value}
                     alignItems='center'
-                    justifyContent='center'
-                    onClick={event => event.stopPropagation()}>
-                    <Box
-                      gap={'8px'}
-                      display={'flex'}
-                      alignItems={'center'}
-                      onClick={event => event.stopPropagation()}>
+                    justifyContent='center'>
+                    <Box gap={'8px'} display={'flex'} alignItems={'center'}>
                       <Typography className={classes.infoText}>Value</Typography>
 
                       <Typography className={classes.greenText}>
@@ -221,11 +222,7 @@ export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
                   className={classes.value}
                   alignItems='center'
                   justifyContent='center'>
-                  <Box
-                    gap={'8px'}
-                    display={'flex'}
-                    alignItems={'center'}
-                    onClick={event => event.stopPropagation()}>
+                  <Box gap={'8px'} display={'flex'} alignItems={'center'}>
                     <Typography className={classes.infoText}>Value</Typography>
 
                     <Typography className={classes.greenText}>
@@ -315,11 +312,12 @@ export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
         inProgress={inProgress}
       />
       <PositionViewActionPopover
+        shouldDisable={shouldDisable}
         anchorEl={anchorEl}
         handleClose={handleClose}
         open={isActionPopoverOpen}
         isLocked={positionSingleData?.isLocked ?? false}
-        unclaimedFeesInUSD={unclaimedFeesInUSD.value}
+        unclaimedFeesInUSD={unclaimedFeesInUSD}
         claimFee={() =>
           handleClaimFee(
             positionSingleData?.positionIndex ?? 0,
@@ -328,16 +326,23 @@ export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
         }
         closePosition={() => handleClosePosition(positionSingleData?.positionIndex ?? 0)}
         onLockPosition={() => setIsLockPositionModalOpen(true)}
+        createPosition={createNewPosition}
+        onManagePosition={openPosition}
       />
       <Grid container item className={classes.mdTop}>
         <Grid container item className={classes.iconsAndNames}>
-          <Box display='flex' alignItems={'center'}>
+          <Box display='flex' alignItems={'center'} flex='1'>
             <Grid container item className={classes.icons}>
-              <img
-                className={classes.tokenIcon}
-                src={xToY ? tokenXIcon : tokenYIcon}
-                alt={xToY ? tokenXName : tokenYName}
-              />
+              <Grid display='flex' position='relative'>
+                <img
+                  className={classes.tokenIcon}
+                  src={xToY ? tokenXIcon : tokenYIcon}
+                  alt={xToY ? tokenXName : tokenYName}
+                />
+                {(xToY ? isUnknownX : isUnknownY) && (
+                  <img className={classes.warningIcon} src={warningIcon} />
+                )}
+              </Grid>
               <TooltipHover title='Reverse tokens'>
                 <img
                   className={classes.arrows}
@@ -349,15 +354,22 @@ export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
                   }}
                 />
               </TooltipHover>
-              <img
-                className={classes.tokenIcon}
-                src={xToY ? tokenYIcon : tokenXIcon}
-                alt={xToY ? tokenYName : tokenXName}
-              />
+              <Grid display='flex' position='relative'>
+                <img
+                  className={classes.tokenIcon}
+                  src={xToY ? tokenYIcon : tokenXIcon}
+                  alt={xToY ? tokenYName : tokenXName}
+                />
+                {(xToY ? isUnknownY : isUnknownX) && (
+                  <img className={classes.warningIcon} src={warningIcon} />
+                )}
+              </Grid>
             </Grid>
-            <Typography className={classes.names}>
-              {xToY ? tokenXName : tokenYName} - {xToY ? tokenYName : tokenXName}
-            </Typography>
+            <Box className={classes.tickersContainer}>
+              <Typography className={classes.names} component={ReactFitty} maxSize={28}>
+                {xToY ? tokenXName : tokenYName} - {xToY ? tokenYName : tokenXName}
+              </Typography>
+            </Box>
           </Box>
 
           <Box className={classes.actionButtonContainer}>

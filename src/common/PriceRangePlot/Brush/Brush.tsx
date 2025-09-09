@@ -1,7 +1,31 @@
-import { CustomLayerProps } from '@nivo/line'
 import { colors } from '@static/theme'
-import React, { useState, useEffect, useRef, TouchEventHandler, useCallback } from 'react'
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  TouchEventHandler,
+  useCallback,
+  MouseEventHandler
+} from 'react'
 import { MaxHandle, MinHandle } from './svgHandles'
+
+type NivoLayerPropsBase = {
+  innerWidth: number
+  innerHeight: number
+  width: number
+  height: number
+  margin: { top: number; right: number; bottom: number; left: number }
+} & Record<string, unknown>
+
+export interface InnerBrushProps extends NivoLayerPropsBase {
+  leftPosition?: number
+  rightPosition?: number
+  onLeftDrop: (position: number) => void
+  onRightDrop: (position: number) => void
+  plotMin: number
+  plotMax: number
+  disabled: boolean
+}
 
 export interface HandleProps {
   plotWidth: number
@@ -34,7 +58,9 @@ export const Handle: React.FC<HandleProps> = ({
   const mousePositionRef = useRef<number | null>(null)
 
   useEffect(() => {
-    setCurrentPosition(position)
+    if (!drag) {
+      setCurrentPosition(position)
+    }
   }, [position, drag])
 
   useEffect(() => {
@@ -85,8 +111,10 @@ export const Handle: React.FC<HandleProps> = ({
 
       if (handleRef.current) {
         const CTM = handleRef.current.getScreenCTM()
+
         if (CTM) {
-          setOffset((event.clientX - CTM.e) / CTM.a - currentPosition)
+          const ctmX = (event.clientX - CTM.e) / CTM.a
+          setOffset(ctmX - currentPosition)
         }
       }
     },
@@ -105,6 +133,45 @@ export const Handle: React.FC<HandleProps> = ({
       if (CTM) {
         const ctmX = (event.targetTouches[0].clientX - CTM.e) / CTM.a
         setOffset(ctmX - currentPosition)
+      }
+    }
+  }
+
+  const endDrag = () => {
+    if (drag) {
+      setDrag(false)
+      onDrop(currentPosition)
+    }
+  }
+
+  const dragHandler: MouseEventHandler<SVGRectElement> = event => {
+    if (drag && handleRef.current) {
+      event.preventDefault()
+      event.stopPropagation()
+      const CTM = handleRef.current.getScreenCTM()
+
+      if (CTM) {
+        const x = (event.clientX - CTM.e) / CTM.a - offset
+
+        if (x >= minPosition && x <= maxPosition) {
+          setCurrentPosition(x)
+        }
+      }
+    }
+  }
+
+  const dragTouchHandler: TouchEventHandler<SVGRectElement> = event => {
+    if (drag && handleRef.current) {
+      event.preventDefault()
+      event.stopPropagation()
+      const CTM = handleRef.current.getScreenCTM()
+
+      if (CTM) {
+        const x = (event.targetTouches[0].clientX - CTM.e) / CTM.a - offset
+
+        if (x >= minPosition && x <= maxPosition) {
+          setCurrentPosition(x)
+        }
       }
     }
   }
@@ -171,7 +238,13 @@ export const Handle: React.FC<HandleProps> = ({
         width={clickableWidth}
         height={height}
         onMouseDown={!disabled ? startDrag : undefined}
+        onMouseUp={!disabled ? endDrag : undefined}
+        onMouseMove={!disabled ? dragHandler : undefined}
+        onMouseLeave={!disabled ? endDrag : undefined}
         onTouchStart={!disabled ? startTouchDrag : undefined}
+        onTouchEnd={!disabled ? endDrag : undefined}
+        onTouchMove={!disabled ? dragTouchHandler : undefined}
+        onTouchCancel={!disabled ? endDrag : undefined}
         onMouseEnter={() => setIsHovered(true)}
         onMouseOut={() => setIsHovered(false)}
         fill='transparent'
@@ -181,7 +254,7 @@ export const Handle: React.FC<HandleProps> = ({
   )
 }
 
-export interface InnerBrushProps extends CustomLayerProps {
+export interface InnerBrushProps extends NivoLayerPropsBase {
   leftPosition?: number
   rightPosition?: number
   onLeftDrop: (position: number) => void
@@ -275,7 +348,7 @@ export const Brush =
     plotMin: number,
     plotMax: number,
     disabled: boolean = false
-  ): React.FC<CustomLayerProps> =>
+  ): React.FC<NivoLayerPropsBase> =>
   layerProps => (
     <InnerBrush
       leftPosition={leftPosition}

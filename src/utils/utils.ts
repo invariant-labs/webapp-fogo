@@ -9,16 +9,15 @@ import {
   routingEssentials
 } from '@invariant-labs/sdk-fogo'
 import { PoolStructure, Tick } from '@invariant-labs/sdk-fogo/src/market'
-import {
-  calculateTickDelta,
-  DECIMAL,
-  parseLiquidityOnTicks,
-  simulateSwap,
-  SimulationStatus
-} from '@invariant-labs/sdk-fogo/src/utils'
+import { DECIMAL, simulateSwap, SimulationStatus } from '@invariant-labs/sdk-fogo/src/utils'
 import { BN } from '@coral-xyz/anchor'
-import { getMint, Mint } from '@solana/spl-token'
-import { Connection, PublicKey } from '@solana/web3.js'
+import {
+  getMint,
+  TOKEN_2022_PROGRAM_ID,
+  getTokenMetadata as fetchMetaData,
+  unpackMint
+} from '@solana/spl-token'
+import { Connection, ParsedInstruction, ParsedTransactionMeta, PublicKey } from '@solana/web3.js'
 import {
   Market,
   Tickmap,
@@ -45,6 +44,7 @@ import {
 import { PlotTickData, PositionWithAddress, PositionWithoutTicks } from '@store/reducers/positions'
 import {
   ADDRESSES_TO_REVERT_TOKEN_PAIRS,
+  BTC_TEST,
   PRICE_QUERY_COOLDOWN,
   FormatConfig,
   getAddressTickerMap,
@@ -54,17 +54,24 @@ import {
   PRICE_DECIMAL,
   subNumbers,
   tokensPrices,
+  USDC_TEST,
   MAX_CROSSES_IN_SINGLE_TX,
   POSITIONS_PER_PAGE,
   MAX_CROSSES_IN_SINGLE_TX_WITH_LUTS,
   PRICE_API_URL,
-  WRAPPED_FOGO_ADDRESS,
+  Intervals,
+  MAX_PLOT_VISIBLE_TICK_RANGE,
+  defaultThresholds,
+  NoConfig,
+  AlternativeFormatConfig,
   WFOGO_MAIN,
-  ETH_TEST,
-  BTC_TEST,
-  USDC_TEST,
+  WFOGO_TEST,
   SOL_TEST,
-  WFOGO_TEST
+  ETH_TEST,
+  WRAPPED_FOGO_ADDRESS,
+  ErrorCodeExtractionKeys,
+  ERROR_CODE_TO_MESSAGE,
+  COMMON_ERROR_MESSAGE
 } from '@store/consts/static'
 import { PoolWithAddress } from '@store/reducers/pools'
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes'
@@ -74,17 +81,25 @@ import {
   IncentiveRewardData,
   IPriceData,
   PoolSnapshot,
-  PrefixConfig,
   Token,
   TokenPriceData
 } from '@store/consts/types'
 import { sqrt } from '@invariant-labs/sdk-fogo/lib/math'
-import { Metaplex } from '@metaplex-foundation/js'
 import { apyToApr } from './uiUtils'
+import { alignTickToSpacing } from '@invariant-labs/sdk-fogo/src/tick'
+import { fetchDigitalAsset } from '@metaplex-foundation/mpl-token-metadata'
+import { publicKey } from '@metaplex-foundation/umi-public-keys'
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
+import { Umi } from '@metaplex-foundation/umi'
+import { DEFAULT_FEE_TIER, STRATEGIES } from '@store/consts/userStrategies'
 
 export const transformBN = (amount: BN): string => {
   return (amount.div(new BN(1e2)).toNumber() / 1e4).toString()
 }
+export const printBNandTrimZeros = (amount: BN, decimals: number, decimalPlaces?: number) => {
+  return trimZeros(Number(printBN(amount, decimals)).toFixed(decimalPlaces ?? decimals))
+}
+
 export const printBN = (amount: BN, decimals: number): string => {
   if (!amount) {
     return '0'
@@ -194,74 +209,6 @@ export const removeTickerPrefix = (ticker: string, prefix: string[] = ['x', '$']
   }
   return ticker
 }
-
-const defaultPrefixConfig: PrefixConfig = {
-  B: 1000000000,
-  M: 1000000,
-  K: 10000
-}
-
-export const showPrefix = (nr: number, config: PrefixConfig = defaultPrefixConfig): string => {
-  const abs = Math.abs(nr)
-
-  if (typeof config.B !== 'undefined' && abs >= config.B) {
-    return 'B'
-  }
-
-  if (typeof config.M !== 'undefined' && abs >= config.M) {
-    return 'M'
-  }
-
-  if (typeof config.K !== 'undefined' && abs >= config.K) {
-    return 'K'
-  }
-
-  return ''
-}
-
-export const defaultThresholds: FormatNumberThreshold[] = [
-  {
-    value: 10,
-    decimals: 4
-  },
-  {
-    value: 1000,
-    decimals: 2
-  },
-  {
-    value: 10000,
-    decimals: 1
-  },
-  {
-    value: 1000000,
-    decimals: 2,
-    divider: 1000
-  },
-  {
-    value: 1000000000,
-    decimals: 2,
-    divider: 1000000
-  },
-  {
-    value: Infinity,
-    decimals: 2,
-    divider: 1000000000
-  }
-]
-
-export const formatNumbers =
-  (thresholds: FormatNumberThreshold[] = defaultThresholds) =>
-  (value: string) => {
-    const num = Number(value)
-    const abs = Math.abs(num)
-    const threshold = thresholds.sort((a, b) => a.value - b.value).find(thr => abs < thr.value)
-
-    const formatted = threshold
-      ? (abs / (threshold.divider ?? 1)).toFixed(threshold.decimals)
-      : value
-
-    return num < 0 && threshold ? '-' + formatted : formatted
-  }
 
 export const sqrtPriceToPrice = (sqrtPrice: BN) => {
   const price = sqrtPrice.mul(sqrtPrice)
@@ -468,6 +415,21 @@ export const spacingMultiplicityGte = (arg: number, spacing: number): number => 
   return arg + (Math.abs(arg) % spacing)
 }
 
+export const parseLiquidityInRange = (currentTickIndex: number, ticks: Tick[]) => {
+  let currentLiquidity = new BN(0)
+
+  return ticks.map(tick => {
+    currentLiquidity = currentLiquidity.add(tick.liquidityChange.muln(tick.sign ? 1 : -1))
+    return {
+      liquidity:
+        Math.abs(tick.index - currentTickIndex) > MAX_PLOT_VISIBLE_TICK_RANGE
+          ? 0
+          : currentLiquidity,
+      index: tick.index
+    }
+  })
+}
+
 export const createLiquidityPlot = (
   rawTicks: Tick[],
   pool: PoolStructure,
@@ -476,7 +438,9 @@ export const createLiquidityPlot = (
   tokenYDecimal: number
 ) => {
   const sortedTicks = rawTicks.sort((a, b) => a.index - b.index)
-  const parsedTicks = rawTicks.length ? parseLiquidityOnTicks(sortedTicks) : []
+  const parsedTicks = rawTicks.length
+    ? parseLiquidityInRange(pool.currentTickIndex, sortedTicks)
+    : []
 
   const ticks = rawTicks.map((raw, index) => ({
     ...raw,
@@ -710,11 +674,48 @@ export const printSubNumber = (amount: number): string => {
     .join('')
 }
 
+interface FormatNumberWithSuffixConfig {
+  noDecimals?: boolean
+  decimalsAfterDot?: number
+  alternativeConfig?: boolean
+  noSubNumbers?: boolean
+  noConfig?: boolean
+}
+
+export const getThresholdsDecimals = (
+  number: number | bigint | string,
+  thresholds: FormatNumberThreshold[] = defaultThresholds
+): number => {
+  const numberAsNumber = Number(number)
+  const found = thresholds.find(threshold => numberAsNumber < threshold.value)
+
+  return found?.decimals ?? 2
+}
 export const formatNumberWithSuffix = (
   number: number | bigint | string,
-  noDecimals?: boolean,
-  decimalsAfterDot: number = 3
+  config?: FormatNumberWithSuffixConfig
 ): string => {
+  const {
+    noDecimals,
+    decimalsAfterDot,
+    alternativeConfig,
+    noSubNumbers,
+    noConfig
+  }: Required<FormatNumberWithSuffixConfig> = {
+    noDecimals: false,
+    decimalsAfterDot: 3,
+    alternativeConfig: false,
+    noSubNumbers: false,
+    noConfig: false,
+    ...config
+  }
+
+  const formatConfig = noConfig
+    ? NoConfig
+    : alternativeConfig
+      ? AlternativeFormatConfig
+      : FormatConfig
+
   const numberAsNumber = Number(number)
   const isNegative = numberAsNumber < 0
   const absNumberAsNumber = Math.abs(numberAsNumber)
@@ -729,39 +730,43 @@ export const formatNumberWithSuffix = (
 
   let formattedNumber
 
-  if (Math.abs(numberAsNumber) >= FormatConfig.B) {
+  if (Math.abs(numberAsNumber) >= formatConfig.B) {
     const formattedDecimals = noDecimals
       ? ''
-      : (FormatConfig.DecimalsAfterDot ? '.' : '') +
-        (beforeDot.slice(-FormatConfig.BDecimals) + (afterDot ? afterDot : '')).slice(
+      : '.' +
+        (beforeDot.slice(-formatConfig.BDecimals) + (afterDot ? afterDot : '')).slice(
           0,
-          FormatConfig.DecimalsAfterDot
+          formatConfig.DecimalsAfterDot
         )
 
     formattedNumber =
-      beforeDot.slice(0, -FormatConfig.BDecimals) + (noDecimals ? '' : formattedDecimals) + 'B'
-  } else if (Math.abs(numberAsNumber) >= FormatConfig.M) {
+      beforeDot.slice(0, -formatConfig.BDecimals) + (noDecimals ? '' : formattedDecimals) + 'B'
+  } else if (Math.abs(numberAsNumber) >= formatConfig.M) {
     const formattedDecimals = noDecimals
       ? ''
-      : (FormatConfig.DecimalsAfterDot ? '.' : '') +
-        (beforeDot.slice(-FormatConfig.MDecimals) + (afterDot ? afterDot : '')).slice(
+      : '.' +
+        (beforeDot.slice(-formatConfig.MDecimals) + (afterDot ? afterDot : '')).slice(
           0,
-          FormatConfig.DecimalsAfterDot
+          formatConfig.DecimalsAfterDot
         )
     formattedNumber =
-      beforeDot.slice(0, -FormatConfig.MDecimals) + (noDecimals ? '' : formattedDecimals) + 'M'
-  } else if (Math.abs(numberAsNumber) >= FormatConfig.K) {
+      beforeDot.slice(0, -formatConfig.MDecimals) + (noDecimals ? '' : formattedDecimals) + 'M'
+  } else if (Math.abs(numberAsNumber) >= formatConfig.K) {
     const formattedDecimals = noDecimals
       ? ''
-      : (FormatConfig.DecimalsAfterDot ? '.' : '') +
-        (beforeDot.slice(-FormatConfig.KDecimals) + (afterDot ? afterDot : '')).slice(
+      : '.' +
+        (beforeDot.slice(-formatConfig.KDecimals) + (afterDot ? afterDot : '')).slice(
           0,
-          FormatConfig.DecimalsAfterDot
+          formatConfig.DecimalsAfterDot
         )
     formattedNumber =
-      beforeDot.slice(0, -FormatConfig.KDecimals) + (noDecimals ? '' : formattedDecimals) + 'K'
+      beforeDot.slice(0, -formatConfig.KDecimals) + (noDecimals ? '' : formattedDecimals) + 'K'
+  } else if (afterDot && noSubNumbers) {
+    const roundedNumber = absNumberAsNumber.toFixed(decimalsAfterDot + 1).slice(0, -1)
+
+    formattedNumber = trimZeros(roundedNumber)
   } else if (afterDot && countLeadingZeros(afterDot) <= decimalsAfterDot) {
-    const roundedNumber = numberAsNumber
+    const roundedNumber = absNumberAsNumber
       .toFixed(countLeadingZeros(afterDot) + decimalsAfterDot + 1)
       .slice(0, -1)
 
@@ -774,7 +779,9 @@ export const formatNumberWithSuffix = (
         ? String(parseInt(afterDot)).slice(0, decimalsAfterDot)
         : afterDot
 
-    if (parsedAfterDot) {
+    if (noSubNumbers && afterDot) {
+      formattedNumber = beforeDot + '.' + afterDot
+    } else if (parsedAfterDot && afterDot) {
       formattedNumber =
         beforeDot +
         '.' +
@@ -1364,7 +1371,6 @@ export const handleSimulateWithHop = async (
     simulations[best][1].swapHopOne.status === SimulationStatus.Ok &&
     simulations[best][1].swapHopTwo.status === SimulationStatus.Ok
   ) {
-    console.log(simulations[best][1], routeCandidates[simulations[best][0]])
     return {
       simulation: simulations[best][1],
       route: routeCandidates[simulations[best][0]],
@@ -1410,14 +1416,18 @@ export const getPoolsFromAddresses = async (
       addresses
     )) as Array<RawPoolStructure | null>
 
-    return pools
-      .filter(pool => !!pool)
-      .map((pool, index) => {
-        return {
+    const parsedPools: Array<PoolWithAddress> = []
+
+    pools.map((pool, index) => {
+      if (pool) {
+        parsedPools.push({
           ...parsePool(pool),
           address: addresses[index]
-        }
-      }) as PoolWithAddress[]
+        })
+      }
+    })
+
+    return parsedPools
   } catch (e: unknown) {
     const error = ensureError(e)
     console.log(error)
@@ -1541,6 +1551,25 @@ export const trimLeadingZeros = (amount: string): string => {
   return `${amountParts[0]}.${trimmed}`
 }
 
+export const calculateTickDelta = (
+  tickSpacing: number,
+  minimumRange: number,
+  concentration: number
+) => {
+  const targetValue = 1 / (concentration * CONCENTRATION_FACTOR)
+
+  const base = 1.0001
+  const inner = 1 - targetValue
+  const powered = Math.pow(inner, 4)
+  const tickDiff = -Math.log(powered) / Math.log(base)
+
+  const parsedTickDelta = tickDiff / tickSpacing - minimumRange / 2
+
+  const tickDelta = Math.round(parsedTickDelta + 1)
+
+  return tickDelta
+}
+
 export const calculateConcentrationRange = (
   tickSpacing: number,
   concentration: number,
@@ -1550,10 +1579,12 @@ export const calculateConcentrationRange = (
 ) => {
   const tickDelta = calculateTickDelta(tickSpacing, minimumRange, concentration)
 
-  const parsedTickDelta = Math.abs(tickDelta) === 0 ? 0 : Math.abs(tickDelta) - 1
-
-  const lowerTick = currentTick - (minimumRange / 2 + parsedTickDelta) * tickSpacing
-  const upperTick = currentTick + (minimumRange / 2 + parsedTickDelta) * tickSpacing
+  const lowerTick =
+    tickDelta === 1
+      ? currentTick - alignTickToSpacing((tickDelta * tickSpacing) / 2, tickSpacing)
+      : currentTick - alignTickToSpacing((tickDelta * tickSpacing) / 2, tickSpacing) + tickSpacing
+  const upperTick =
+    currentTick + alignTickToSpacing((tickDelta * tickSpacing) / 2, tickSpacing) + tickSpacing
 
   return {
     leftRange: isXToY ? lowerTick : upperTick,
@@ -1619,32 +1650,43 @@ export const getTokenProgramId = async (
 
 export const getFullNewTokensData = async (
   addresses: PublicKey[],
-  connection: Connection
+  connection: Connection,
+  concurrencyLimit: number = 20
 ): Promise<Record<string, Token>> => {
-  const promises: Promise<[PublicKey, Mint]>[] = addresses.map(async address => {
-    const programId = await getTokenProgramId(connection, address)
-
-    return [programId, await getMint(connection, address, undefined, programId)] as [
-      PublicKey,
-      Mint
-    ]
-  })
-
+  const umi = createUmi(connection.rpcEndpoint)
   const tokens: Record<string, Token> = {}
-
-  const results = await Promise.allSettled(promises)
-
-  for (const [index, result] of results.entries()) {
-    const [programId, decimals] =
-      result.status === 'fulfilled' ? [result.value[0], result.value[1].decimals] : [undefined, 6]
-
-    tokens[addresses[index].toString()] = await getTokenMetadata(
-      connection,
-      addresses[index].toString(),
-      decimals,
-      programId
-    )
+  const promiseChains: Promise<void>[] = new Array(concurrencyLimit).fill(
+    Promise.resolve<void>(undefined)
+  )
+  let nextIndex = 0
+  const enqueue = (task: () => Promise<void>): Promise<void> => {
+    const slot = nextIndex
+    nextIndex = (nextIndex + 1) % concurrencyLimit
+    const resultPromise = promiseChains[slot].then(task)
+    promiseChains[slot] = resultPromise.catch(() => {})
+    return resultPromise
   }
+
+  await Promise.all(
+    addresses.map(address =>
+      enqueue(async () => {
+        const programId = await getTokenProgramId(connection, address)
+        const mint = await getMint(connection, address, undefined, programId)
+
+        const token = await getTokenMetadata(
+          connection,
+          address.toString(),
+          mint.decimals,
+          programId,
+          umi
+        )
+
+        tokens[address.toString()] = token
+      })
+    )
+  )
+
+  await Promise.all(promiseChains)
 
   return tokens
 }
@@ -1663,31 +1705,35 @@ export async function getTokenMetadata(
   connection: Connection,
   address: string,
   decimals: number,
-  tokenProgram?: PublicKey
+  tokenProgram?: PublicKey,
+  umiInstance?: Umi
 ): Promise<Token> {
   const mintAddress = new PublicKey(address)
+  let metadata
 
   try {
-    const metaplex = new Metaplex(connection)
-
-    const nft = await metaplex.nfts().findByMint({ mintAddress })
-
-    const irisTokenData = await axios.get<any>(nft.uri).then(res => res.data)
+    if (tokenProgram?.toString() === TOKEN_2022_PROGRAM_ID.toString()) {
+      metadata = await fetchMetaData(connection, mintAddress, undefined, tokenProgram)
+    } else {
+      const umi = umiInstance ?? createUmi(connection.rpcEndpoint)
+      const metaplexMetadata = await fetchDigitalAsset(umi, publicKey(address))
+      metadata = metaplexMetadata.metadata
+    }
+    const irisTokenData = await axios.get<any>(metadata.uri).then(res => res.data)
 
     return {
       tokenProgram,
       address: mintAddress,
       decimals,
       symbol:
-        nft?.symbol || irisTokenData?.symbol || `${address.slice(0, 2)}...${address.slice(-4)}`,
-      name: nft?.name || irisTokenData?.name || address,
-      logoURI: nft?.json?.image || irisTokenData?.image || '/unknownToken.svg',
+        metadata?.symbol ||
+        irisTokenData?.symbol ||
+        `${address.slice(0, 2)}...${address.slice(-4)}`,
+      name: metadata?.name || irisTokenData?.name || address,
+      logoURI: irisTokenData?.image || '/unknownToken.svg',
       isUnknown: true
     }
-  } catch (e: unknown) {
-    const error = ensureError(e)
-    console.log(error)
-
+  } catch {
     return {
       tokenProgram,
       address: mintAddress,
@@ -1712,7 +1758,6 @@ export const getNewTokenOrThrow = async (
   console.log(info)
 
   const tokenData = await getTokenMetadata(connection, address, info.decimals, programId)
-
   return {
     [address.toString()]: tokenData
   }
@@ -1757,7 +1802,17 @@ export const initialXtoY = (tokenXAddress?: string | null, tokenYAddress?: strin
   const tokenXIndex = ADDRESSES_TO_REVERT_TOKEN_PAIRS.findIndex(token => token === tokenXAddress)
   const tokenYIndex = ADDRESSES_TO_REVERT_TOKEN_PAIRS.findIndex(token => token === tokenYAddress)
 
-  return !(tokenXIndex < tokenYIndex)
+  if (tokenXIndex !== -1 && tokenYIndex !== -1) {
+    if (tokenXIndex < tokenYIndex) {
+      return false
+    } else {
+      return true
+    }
+  } else if (tokenXIndex > tokenYIndex) {
+    return false
+  } else {
+    return true
+  }
 }
 
 export const parseFeeToPathFee = (fee: BN): string => {
@@ -1806,47 +1861,14 @@ export const getPositionsAddressesFromRange = async (
   )
 }
 
-export const thresholdsWithTokenDecimal = (decimals: number): FormatNumberThreshold[] => [
-  {
-    value: 10,
-    decimals
-  },
-  {
-    value: 10000,
-    decimals: 6
-  },
-  {
-    value: 100000,
-    decimals: 4
-  },
-  {
-    value: 1000000,
-    decimals: 3
-  },
-  {
-    value: 1000000000,
-    decimals: 2,
-    divider: 1000000
-  },
-  {
-    value: Infinity,
-    decimals: 2,
-    divider: 1000000000
-  }
-]
-
 export const getMockedTokenPrice = (symbol: string, network: NetworkType): TokenPriceData => {
   const sufix = network === NetworkType.Devnet ? '_DEV' : '_TEST'
   const prices = tokensPrices[network]
   switch (symbol) {
-    case 'FOGO':
-      return prices['W' + symbol + sufix]
     case 'BTC':
       return prices[symbol + sufix]
-    case 'SOL':
-      return prices[symbol + sufix]
     case 'ETH':
-      return prices[symbol + sufix]
+      return prices['W' + symbol + sufix]
     case 'USDC':
       return prices[symbol + sufix]
     default:
@@ -1854,59 +1876,52 @@ export const getMockedTokenPrice = (symbol: string, network: NetworkType): Token
   }
 }
 
-export const getTokenPrice = async (
-  addr: string,
-  network: NetworkType
-): Promise<number | undefined> => {
-  const cachedLastQueryTimestamp = localStorage.getItem('TOKEN_PRICE_LAST_QUERY_TIMESTAMP')
-  let lastQueryTimestamp = 0
-  if (cachedLastQueryTimestamp) {
-    lastQueryTimestamp = Number(cachedLastQueryTimestamp)
-  }
+type PriceMap = Record<string, { price: number }>
+type TokenPriceReturn<T extends string | undefined> = T extends string
+  ? number | undefined
+  : PriceMap | undefined
 
-  const cachedPriceData =
-    network === NetworkType.Mainnet
-      ? localStorage.getItem('TOKEN_PRICE_DATA')
-      : localStorage.getItem('TOKEN_PRICE_DATA_TESTNET')
+export async function getTokenPrice<T extends string | undefined = undefined>(
+  network: NetworkType,
+  addr?: T
+): Promise<TokenPriceReturn<T>> {
+  const isMainnet = network === NetworkType.Mainnet
+  const DATA_KEY = isMainnet ? 'TOKEN_PRICE_DATA' : 'TOKEN_PRICE_DATA_TESTNET'
+  const TS_KEY = isMainnet
+    ? 'TOKEN_PRICE_LAST_QUERY_TIMESTAMP'
+    : 'TOKEN_PRICE_LAST_QUERY_TIMESTAMP_TESTNET'
 
-  let priceData: Record<string, { price: number }> | null = null
+  const cachedLastQueryTimestamp = localStorage.getItem(TS_KEY)
+  const lastQueryTimestamp = cachedLastQueryTimestamp ? Number(cachedLastQueryTimestamp) : 0
 
-  if (!cachedPriceData || Number(lastQueryTimestamp) + PRICE_QUERY_COOLDOWN <= Date.now()) {
+  const cachedPriceData = localStorage.getItem(DATA_KEY)
+
+  let priceData: PriceMap | null = null
+
+  if (!cachedPriceData || lastQueryTimestamp + PRICE_QUERY_COOLDOWN <= Date.now()) {
     try {
       const { data } = await axios.get<IPriceData>(
-        `${PRICE_API_URL}/${network === NetworkType.Mainnet ? 'fogo-mainnet' : 'fogo-testnet'}`
+        `${PRICE_API_URL}/${isMainnet ? 'fogo-mainnet' : 'fogo-testnet'}`
       )
       priceData = data.data
-
-      localStorage.setItem(
-        network === NetworkType.Mainnet ? 'TOKEN_PRICE_DATA' : 'TOKEN_PRICE_DATA_TESTNET',
-        JSON.stringify(priceData)
-      )
-      localStorage.setItem(
-        network === NetworkType.Mainnet
-          ? 'TOKEN_PRICE_LAST_QUERY_TIMESTAMP'
-          : 'TOKEN_PRICE_LAST_QUERY_TIMESTAMP_TESTNET',
-        String(Date.now())
-      )
+      localStorage.setItem(DATA_KEY, JSON.stringify(priceData))
+      localStorage.setItem(TS_KEY, String(Date.now()))
     } catch (e: unknown) {
       const error = ensureError(e)
       console.log(error)
-
-      localStorage.removeItem(
-        network === NetworkType.Mainnet
-          ? 'TOKEN_PRICE_LAST_QUERY_TIMESTAMP'
-          : 'TOKEN_PRICE_LAST_QUERY_TIMESTAMP_TESTNET'
-      )
-      localStorage.removeItem(
-        network === NetworkType.Mainnet ? 'TOKEN_PRICE_DATA' : 'TOKEN_PRICE_DATA_TESTNET'
-      )
+      localStorage.removeItem(TS_KEY)
+      localStorage.removeItem(DATA_KEY)
       priceData = null
     }
   } else {
-    priceData = JSON.parse(cachedPriceData)
+    priceData = JSON.parse(cachedPriceData) as PriceMap
   }
 
-  return priceData && priceData[addr] ? priceData[addr].price : undefined
+  if (addr) {
+    return (priceData && priceData[addr] ? priceData[addr].price : undefined) as TokenPriceReturn<T>
+  }
+
+  return (priceData ?? undefined) as TokenPriceReturn<T>
 }
 
 export const getTicksList = async (
@@ -1979,6 +1994,19 @@ export const getFullSnap = async (name: string): Promise<FullSnap> => {
 
   return data
 }
+
+export const getIntervalsFullSnap = async (
+  name: string,
+  interval: Intervals
+): Promise<FullSnap> => {
+  const parsedInterval =
+    interval === Intervals.Daily ? 'daily' : interval === Intervals.Weekly ? 'weekly' : 'monthly'
+  const { data } = await axios.get<FullSnap>(
+    `https://stats.invariant.app/fogo/intervals/fogo-${name}?interval=${parsedInterval}`
+  )
+  return data
+}
+
 export const isValidPublicKey = (keyString?: string | null) => {
   try {
     if (!keyString) {
@@ -2011,7 +2039,12 @@ export const trimDecimalZeros = (numStr: string): string => {
   return trimmedDecimal ? `${trimmedInteger || '0'}.${trimmedDecimal}` : trimmedInteger || '0'
 }
 
-const poolsToRecalculateAPY: string[] = []
+const poolsToRecalculateAPY: string[] = [
+  // 'HRgVv1pyBLXdsAddq4ubSqo8xdQWRrYbvmXqEDtectce', // USDC_ETH 0.09%
+  // '86vPh8ctgeQnnn8qPADy5BkzrqoH5XjMCWvkd4tYhhmM', //SOL_ETH 0.09%
+  // 'E2B7KUFwjxrsy9cC17hmadPsxWHD1NufZXTyrtuz8YxC', // USDC_SOL 0.09%
+  // 'HG7iQMk29cgs74ZhSwrnye3C6SLQwKnfsbXqJVRi1x8H' // ETH-BITZ 1%
+]
 
 export const calculateAPYAndAPR = (
   apy: number,
@@ -2117,7 +2150,7 @@ export const generatePositionTableLoadingData = () => {
       return {
         id: `loading-${index}`,
         poolAddress: `pool-${index}`,
-        tokenXName: 'SOL',
+        tokenXName: 'ETH',
         tokenYName: 'USDC',
         tokenXIcon: undefined,
         tokenYIcon: undefined,
@@ -2196,12 +2229,14 @@ export const ROUTES = {
   EXCHANGE_WITH_PARAMS: '/exchange/:item1?/:item2?',
   LIQUIDITY: '/liquidity',
   STATISTICS: '/statistics',
+  SALE: '/presale',
   NEW_POSITION: '/newPosition',
   NEW_POSITION_WITH_PARAMS: '/newPosition/:item1?/:item2?/:item3?',
   POSITION: '/position',
   POSITION_WITH_ID: '/position/:id',
   PORTFOLIO: '/portfolio',
   CREATOR: '/creator',
+  STAKE: '/stake',
 
   getExchangeRoute: (item1?: string, item2?: string): string => {
     const parts = [item1, item2].filter(Boolean)
@@ -2215,6 +2250,16 @@ export const ROUTES = {
 
   getPositionRoute: (id: string): string => `${ROUTES.POSITION}/${id}`
 }
+
+export const metaData = new Map([
+  [ROUTES.EXCHANGE, 'Invariant | Exchange'],
+  [ROUTES.LIQUIDITY, 'Invariant | Liquidity'],
+  [ROUTES.PORTFOLIO, 'Invariant | Portfolio'],
+  [ROUTES.NEW_POSITION, 'Invariant | New Position'],
+  [ROUTES.POSITION, 'Invariant | Position Details'],
+  [ROUTES.STATISTICS, 'Invariant | Statistics'],
+  [ROUTES.CREATOR, 'Invariant | Creator']
+])
 
 export const truncateString = (str: string, maxLength: number): string => {
   if (str.length <= maxLength + 1) {
@@ -2241,4 +2286,343 @@ export const calculatePercentageRatio = (
     tokenXPercentage,
     tokenYPercentage: 100 - tokenXPercentage
   }
+}
+
+export const extractErrorCode = (error: Error): number => {
+  const errorCode = error.message
+    .split(ErrorCodeExtractionKeys.ErrorNumber)[1]
+    .split(ErrorCodeExtractionKeys.Dot)[0]
+    .trim()
+  return Number(errorCode)
+}
+
+export const extractRuntimeErrorCode = (error: Omit<Error, 'name'>): number => {
+  const errorCode = error.message
+    .split(ErrorCodeExtractionKeys.Custom)[1]
+    .split(ErrorCodeExtractionKeys.RightBracket)[0]
+    .trim()
+  return Number(errorCode)
+}
+
+export const mapErrorCodeToMessage = (errorNumber: number): string => {
+  return ERROR_CODE_TO_MESSAGE[errorNumber] || COMMON_ERROR_MESSAGE
+}
+
+export const getMarketNewTokensData = async (
+  addresses: PublicKey[],
+  connection: Connection,
+  concurrencyLimit: number = 20
+): Promise<Record<string, Token>> => {
+  const umi = createUmi(connection.rpcEndpoint)
+  const tokens: Record<string, Token> = {}
+  const promiseChains: Promise<void>[] = new Array(concurrencyLimit).fill(
+    Promise.resolve<void>(undefined)
+  )
+  const data = await getTokenDecimalsAndProgramID(connection, addresses)
+  let nextIndex = 0
+  const enqueue = (task: () => Promise<void>): Promise<void> => {
+    const slot = nextIndex
+    nextIndex = (nextIndex + 1) % concurrencyLimit
+    const resultPromise = promiseChains[slot].then(task)
+    promiseChains[slot] = resultPromise.catch(() => {})
+    return resultPromise
+  }
+
+  await Promise.all(
+    data.map(data =>
+      enqueue(async () => {
+        const token = await getTokenMetadata(
+          connection,
+          data.address.toString(),
+          data.decimals,
+          data.programId,
+          umi
+        )
+
+        tokens[data.address.toString()] = token
+      })
+    )
+  )
+
+  await Promise.all(promiseChains)
+
+  return tokens
+}
+
+export const getTokenDecimalsAndProgramID = async (
+  connection: Connection,
+  tokens: PublicKey[],
+  BATCH_SIZE: number = 80
+): Promise<ITokenDecimalAndProgramID[]> => {
+  const data: ITokenDecimalAndProgramID[] = []
+
+  const pubkeys = tokens.map(t => new PublicKey(t))
+
+  for (let i = 0; i < pubkeys.length; i += BATCH_SIZE) {
+    const batch = pubkeys.slice(i, i + BATCH_SIZE)
+    const accounts = await connection.getMultipleAccountsInfo(batch)
+
+    for (let j = 0; j < batch.length; j++) {
+      const info = accounts[j]
+      if (!info) continue
+
+      const unpacked = unpackMint(batch[j], info, info.owner)
+
+      data.push({
+        address: batch[j],
+        decimals: unpacked.decimals,
+        programId: info.owner
+      })
+    }
+  }
+
+  return data
+}
+export interface ITokenDecimalAndProgramID {
+  address: PublicKey
+  decimals: number
+  programId: PublicKey
+}
+export const findStrategy = (
+  tokenAddress: string,
+  currentNetwork: NetworkType = NetworkType.Mainnet
+) => {
+  const poolTicker = addressToTicker(currentNetwork, tokenAddress)
+  let strategy = STRATEGIES.find(s => {
+    const tickerA = addressToTicker(currentNetwork, s.tokenAddressA)
+    const tickerB = s.tokenAddressB ? addressToTicker(currentNetwork, s.tokenAddressB) : undefined
+    return tickerA === poolTicker || tickerB === poolTicker
+  })
+  if (!strategy) {
+    strategy = {
+      tokenAddressA: tokenAddress,
+      feeTier: DEFAULT_FEE_TIER
+    }
+  }
+
+  return {
+    ...strategy,
+    tokenSymbolA: addressToTicker(currentNetwork, strategy.tokenAddressA),
+    tokenSymbolB: strategy.tokenAddressB
+      ? addressToTicker(currentNetwork, strategy.tokenAddressB)
+      : '-'
+  }
+}
+
+export enum SwapTokenType {
+  TokenIn,
+  TokenBetween,
+  TokenOut
+}
+
+export const getAmountFromSwapInstruction = (
+  meta: ParsedTransactionMeta,
+  marketProgramAuthority: string,
+  token: string,
+  type: SwapTokenType
+): number => {
+  if (!meta.innerInstructions) {
+    return 0
+  }
+
+  const innerInstruction =
+    meta.innerInstructions.find(
+      innerInstruction =>
+        !!innerInstruction.instructions.find(
+          instruction =>
+            (instruction as ParsedInstruction)?.parsed.type === 'transfer' ||
+            (instruction as ParsedInstruction)?.parsed.type === 'transferChecked'
+        )
+    ) ?? meta.innerInstructions[2]
+
+  let instruction: ParsedInstruction | undefined
+
+  if (innerInstruction.instructions.length === 2) {
+    instruction = innerInstruction.instructions.find(ix =>
+      type === SwapTokenType.TokenIn
+        ? (ix as ParsedInstruction).parsed.info.authority !== marketProgramAuthority
+        : (ix as ParsedInstruction).parsed.info.authority === marketProgramAuthority
+    ) as ParsedInstruction | undefined
+  } else {
+    instruction = innerInstruction.instructions.find(
+      ix => (ix as ParsedInstruction).parsed.info.mint === token
+    ) as ParsedInstruction | undefined
+
+    if (!instruction) {
+      let position = 0
+
+      switch (type) {
+        case SwapTokenType.TokenIn:
+          position = 0
+          break
+        case SwapTokenType.TokenBetween:
+          position = 1
+          break
+        case SwapTokenType.TokenOut:
+          position = 2
+          break
+      }
+
+      instruction = innerInstruction.instructions.filter(
+        instruction =>
+          (instruction as ParsedInstruction)?.parsed.type === 'transfer' ||
+          (instruction as ParsedInstruction)?.parsed.type === 'transferChecked'
+      )[position] as ParsedInstruction | undefined
+    }
+  }
+
+  return instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount
+}
+
+export enum TokenType {
+  TokenX,
+  TokenY
+}
+
+export const getAmountFromInitPositionInstruction = (
+  meta: ParsedTransactionMeta,
+  type: TokenType
+): { amount: number; token: string } => {
+  if (!meta.innerInstructions) {
+    return { amount: 0, token: '' }
+  }
+
+  const innerInstruction =
+    meta.innerInstructions.find(
+      innerInstruction =>
+        !!innerInstruction.instructions.find(
+          instruction =>
+            (instruction as ParsedInstruction)?.parsed?.type === 'transfer' ||
+            (instruction as ParsedInstruction)?.parsed?.type === 'transferChecked'
+        )
+    ) ?? meta.innerInstructions[2]
+
+  const instruction = innerInstruction.instructions.filter(
+    instruction =>
+      (instruction as ParsedInstruction)?.parsed?.type === 'transfer' ||
+      (instruction as ParsedInstruction)?.parsed?.type === 'transferChecked'
+  )[type === TokenType.TokenX ? 0 : 1] as ParsedInstruction | undefined
+
+  return {
+    amount: instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount || 0,
+    token: instruction?.parsed.info.mint || ''
+  }
+}
+
+export const getSwapAmountFromSwapAndAddLiquidity = (
+  meta: ParsedTransactionMeta,
+  marketProgramAuthority: string,
+  token: string,
+  type: SwapTokenType
+): number => {
+  if (!meta.innerInstructions) {
+    return 0
+  }
+
+  const innerInstruction =
+    meta.innerInstructions.find(
+      innerInstruction =>
+        !!innerInstruction.instructions.find(
+          instruction =>
+            (instruction as ParsedInstruction)?.parsed?.type === 'transfer' ||
+            (instruction as ParsedInstruction)?.parsed?.type === 'transferChecked'
+        )
+    ) ?? meta.innerInstructions[0]
+
+  let instruction = innerInstruction.instructions.find(
+    ix => (ix as ParsedInstruction).parsed?.info.mint === token
+  ) as ParsedInstruction | undefined
+
+  if (!instruction) {
+    instruction = innerInstruction.instructions.find(ix =>
+      type === SwapTokenType.TokenIn
+        ? (ix as ParsedInstruction).parsed?.info.authority &&
+          (ix as ParsedInstruction).parsed?.info.authority !== marketProgramAuthority
+        : (ix as ParsedInstruction).parsed?.info.authority === marketProgramAuthority
+    ) as ParsedInstruction | undefined
+  }
+
+  return instruction?.parsed?.info.amount || instruction?.parsed?.info.tokenAmount.amount
+}
+
+export const getAddAmountFromSwapAndAddLiquidity = (
+  meta: ParsedTransactionMeta,
+  type: TokenType
+): number => {
+  if (!meta.innerInstructions) {
+    return 0
+  }
+
+  const innerInstruction =
+    meta.innerInstructions.find(
+      innerInstruction =>
+        !!innerInstruction.instructions.find(
+          instruction =>
+            (instruction as ParsedInstruction)?.parsed?.type === 'transfer' ||
+            (instruction as ParsedInstruction)?.parsed?.type === 'transferChecked'
+        )
+    ) ?? meta.innerInstructions[0]
+
+  const instruction = innerInstruction.instructions.filter(
+    instruction =>
+      (instruction as ParsedInstruction)?.parsed?.type === 'transfer' ||
+      (instruction as ParsedInstruction)?.parsed?.type === 'transferChecked'
+  )[type === TokenType.TokenX ? 2 : 3] as ParsedInstruction | undefined
+
+  return instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount
+}
+
+export const getAmountFromClaimFeeInstruction = (
+  meta: ParsedTransactionMeta,
+  type: TokenType
+): number => {
+  const transfers =
+    meta.innerInstructions
+      ?.flatMap(inner => inner.instructions)
+      .filter((ix): ix is ParsedInstruction =>
+        ['transfer', 'transferChecked'].includes((ix as ParsedInstruction)?.parsed?.type)
+      ) ?? []
+
+  if (transfers.length < 2) return 0
+
+  for (let i = transfers.length - 2; i >= 0; i--) {
+    const [a, b] = [transfers[i], transfers[i + 1]]
+    if (
+      (a as any).stackHeight === (b as any).stackHeight &&
+      a.parsed.info.authority === b.parsed.info.authority
+    ) {
+      const chosen = type === TokenType.TokenX ? a : b
+      return chosen.parsed.info.amount ?? chosen.parsed.info.tokenAmount?.amount ?? 0
+    }
+  }
+
+  const chosen = transfers[type === TokenType.TokenX ? 0 : 1]
+  return chosen?.parsed.info.amount ?? chosen?.parsed.info.tokenAmount?.amount ?? 0
+}
+
+export const getAmountFromClosePositionInstruction = (
+  meta: ParsedTransactionMeta,
+  type: TokenType
+): number => {
+  if (!meta.innerInstructions) {
+    return 0
+  }
+
+  const innerInstruction =
+    meta.innerInstructions.find(
+      innerInstruction =>
+        !!innerInstruction.instructions.find(
+          instruction =>
+            (instruction as ParsedInstruction)?.parsed.type === 'transfer' ||
+            (instruction as ParsedInstruction)?.parsed.type === 'transferChecked'
+        )
+    ) ?? meta.innerInstructions[0]
+
+  const instruction = innerInstruction.instructions.filter(
+    instruction =>
+      (instruction as ParsedInstruction)?.parsed.type === 'transfer' ||
+      (instruction as ParsedInstruction)?.parsed.type === 'transferChecked'
+  )[type === TokenType.TokenX ? 0 : 1] as ParsedInstruction | undefined
+
+  return instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount
 }

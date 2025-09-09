@@ -201,6 +201,7 @@ export interface FullSnap {
   poolsData: PoolStatsDataWithString[]
   volumePlot: TimeData[]
   liquidityPlot: TimeData[]
+  feesPlot: TimeData[]
 }
 
 export interface TokenStatsDataWithString {
@@ -229,6 +230,7 @@ export enum WalletType {
   NIGHTLY = 'NIGHTLY',
   NIGHTLY_WALLET = 'NIGHTLY_WALLET',
   BACKPACK = 'BACKPACK',
+  SALMON = 'SALMON',
   OKX = 'OKX'
 }
 
@@ -242,9 +244,19 @@ export interface EligibleAddresses {
   addresses: string[]
 }
 
+export interface Reward {
+  name: string
+  image: string
+  distributionDate: string
+  eligible: string
+  type: string
+  addresses: string[]
+}
 export interface IPositionItem {
   tokenXName: string
   tokenYName: string
+  isUnknownX: boolean
+  isUnknownY: boolean
   tokenXIcon: string
   tokenYIcon: string
   tokenXLiq: number
@@ -265,7 +277,7 @@ export interface IPositionItem {
   isLocked: boolean
   poolData: PoolWithAddressAndIndex
   liquidity: BN
-  unclaimedFeesInUSD: { value: number; loading: boolean }
+  unclaimedFeesInUSD: { value: number; loading: boolean; isClaimAvailable: boolean }
 }
 
 export interface ILiquidityToken {
@@ -276,4 +288,39 @@ export interface ILiquidityToken {
   claimValue: number
   balance: number
   usdValue?: number
+}
+
+export interface INavigatePosition {
+  tokenXName: string
+  tokenYName: string
+  tokenXIcon: string
+  tokenYIcon: string
+  fee: number
+  id: string
+}
+export interface TokenSerialized {
+  symbol: string
+  address: string
+  decimals: number
+  name: string
+  logoURI: string
+  coingeckoId?: string
+  isUnknown?: boolean
+  tokenProgram?: string
+}
+
+export enum StakeSwitch {
+  Stake = 'Stake',
+  Unstake = 'Unstake'
+}
+
+export enum ChartSwitch {
+  volume = 'Volume',
+  fees = 'Fees'
+}
+
+export interface FormatNumberThreshold {
+  value: number
+  decimals: number
+  divider?: number
 }

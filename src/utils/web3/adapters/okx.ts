@@ -58,14 +58,14 @@ export class OkxWalletAdapter implements WalletAdapter {
 
   sendMessage = async (message: Uint8Array) => {
     if (!this._okxProvider) {
-      throw new Error('Okx Wallet not connected' + message)
+      throw new Error('Salmon Wallet not connected' + message)
     }
     return await this._okxProvider.sendMessage(message)
   }
 
   signMessage = async (message: Uint8Array) => {
     if (!this._okxProvider) {
-      throw new Error('Okx Wallet not connected')
+      throw new Error('Salmon Wallet not connected')
     }
 
     if (!(message instanceof Uint8Array)) {

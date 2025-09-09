@@ -1,32 +1,18 @@
 import React, { useState } from 'react'
 import * as R from 'remeda'
 import { useDispatch, useSelector } from 'react-redux'
-import { accounts, address, status as walletStatus } from '@store/selectors/solanaWallet'
+import { accounts, status as walletStatus } from '@store/selectors/solanaWallet'
 import { status } from '@store/selectors/solanaConnection'
 import { actions } from '@store/reducers/solanaWallet'
-import { AccountInfo, PublicKey } from '@solana/web3.js'
+import { AccountInfo } from '@solana/web3.js'
 import { Status } from '@store/reducers/solanaConnection'
-import { BN } from '@coral-xyz/anchor'
 import { getCurrentSolanaConnection } from '@utils/web3/connection'
 import { parseTokenAccountData } from '@utils/web3/data'
+import { WRAPPED_FOGO_ADDRESS } from '@store/consts/static'
 
 const SolanaWalletEvents = () => {
   const dispatch = useDispatch()
-  const publicKey = useSelector(address)
   const networkStatus = useSelector(status)
-
-  React.useEffect(() => {
-    const connection = getCurrentSolanaConnection()
-    if (!publicKey || !connection || networkStatus !== Status.Initialized) {
-      return
-    }
-    const connectEvents = () => {
-      connection.onAccountChange(new PublicKey(publicKey), (accountInfo: AccountInfo<Buffer>) => {
-        dispatch(actions.setBalance(new BN(accountInfo.lamports)))
-      })
-    }
-    connectEvents()
-  }, [dispatch, publicKey, networkStatus])
 
   const tokensAccounts = useSelector(accounts)
   const walletStat = useSelector(walletStatus)
@@ -53,6 +39,9 @@ const SolanaWalletEvents = () => {
               balance: parsedData.amount
             })
           )
+          if (parsedData.token.toString() === WRAPPED_FOGO_ADDRESS) {
+            dispatch(actions.setBalance(parsedData.amount))
+          }
         })
       })
       setInitializedAccount(tempSet)

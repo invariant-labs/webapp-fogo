@@ -49,7 +49,7 @@ export interface PlotTicks {
   hasError?: boolean
 }
 
-export interface InitPositionStore {
+export interface StatusStore {
   inProgress: boolean
   success: boolean
 }
@@ -60,16 +60,19 @@ export interface IPositionsStore {
   currentPoolIndex: number | null
   positionsList: PositionsListStore
   currentPositionId: string
-  initPosition: InitPositionStore
+  initPosition: StatusStore
+  changeLiquidity: StatusStore
   shouldNotUpdateRange: boolean
   prices: {
     data: Record<string, number>
   }
   showFeesLoader: boolean
+  shouldDisable: boolean
   positionData: {
     position: PositionWithAddress | null
     loading: boolean
   }
+  positionListSwitcher: LiquidityPools
 }
 
 export interface InitPositionData
@@ -111,6 +114,53 @@ export interface SwapAndCreatePosition
   isSamePool: boolean
 }
 
+export interface SwapAndAddLiquidityData
+  extends Omit<
+    CreatePosition,
+    'pair' | 'liquidityDelta' | 'knownPrice' | 'userTokenX' | 'userTokenY' | 'slippage'
+  > {
+  xAmount: BN
+  yAmount: BN
+  tokenX: PublicKey
+  tokenY: PublicKey
+  swapAmount: BN
+  byAmountIn: boolean
+  xToY: boolean
+  swapPool: PoolStructure
+  swapPoolTickmap: Tickmap
+  swapSlippage: BN
+  estimatedPriceAfterSwap: BN
+  crossedTicks: number[]
+  liquidityDelta: BN
+  positionIndex: number
+}
+
+export interface SwapAndAddLiquidityData
+  extends Omit<
+    CreatePosition,
+    'pair' | 'liquidityDelta' | 'knownPrice' | 'userTokenX' | 'userTokenY' | 'slippage'
+  > {
+  xAmount: BN
+  yAmount: BN
+  tokenX: PublicKey
+  tokenY: PublicKey
+  swapAmount: BN
+  byAmountIn: boolean
+  xToY: boolean
+  swapPool: PoolStructure
+  swapPoolTickmap: Tickmap
+  swapSlippage: BN
+  estimatedPriceAfterSwap: BN
+  crossedTicks: number[]
+  positionPair: { fee: BN; tickSpacing: number }
+  positionPoolIndex: number
+  positionPoolPrice: BN
+  positionSlippage: BN
+  liquidityDelta: BN
+  minUtilizationPercentage: BN
+  isSamePool: boolean
+}
+
 export interface GetCurrentTicksData {
   poolIndex: number
   isXtoY: boolean
@@ -123,6 +173,17 @@ export interface ClosePositionData {
   positionIndex: number
   claimFarmRewards?: boolean
   onSuccess: () => void
+  isRemoveLiquidity?: boolean
+}
+
+export interface ChangeLiquidityData {
+  positionIndex: number
+  liquidity: BN
+  isClosePosition: boolean
+  xAmount: BN
+  yAmount: BN
+  slippage: BN
+  onSuccess?: () => void
 }
 
 export interface SetPositionData {
@@ -136,6 +197,11 @@ export interface SetPositionData {
 export interface UpdatePositionRangeRicksData {
   positionId: string
   fetchTick?: FetchTick
+}
+
+export enum LiquidityPools {
+  Standard = 'Standard',
+  Locked = 'Locked'
 }
 
 export const defaultState: IPositionsStore = {
@@ -161,16 +227,21 @@ export const defaultState: IPositionsStore = {
     inProgress: false,
     success: false
   },
+  changeLiquidity: {
+    inProgress: false,
+    success: false
+  },
   prices: {
     data: {}
   },
-
+  shouldDisable: false,
   shouldNotUpdateRange: false,
   showFeesLoader: false,
   positionData: {
     position: null,
     loading: false
-  }
+  },
+  positionListSwitcher: LiquidityPools.Standard
 }
 
 export const positionsSliceName = 'positions'
@@ -219,6 +290,9 @@ const positionsSlice = createSlice({
     },
     setAllClaimLoader(state, action: PayloadAction<boolean>) {
       state.positionsList.isAllClaimFeesLoading = action.payload
+    },
+    setShouldDisable(state, action: PayloadAction<boolean>) {
+      state.shouldDisable = action.payload
     },
     setPrices(state, action: PayloadAction<Record<string, number>>) {
       state.prices = {
@@ -299,6 +373,23 @@ const positionsSlice = createSlice({
     closePosition(state, _action: PayloadAction<ClosePositionData>) {
       return state
     },
+    addLiquidity(state, _action: PayloadAction<ChangeLiquidityData>) {
+      state.changeLiquidity.inProgress = true
+      return state
+    },
+    swapAndAddLiquidity(state, _action: PayloadAction<SwapAndAddLiquidityData>) {
+      state.changeLiquidity.inProgress = true
+      return state
+    },
+    removeLiquidity(state, _action: PayloadAction<ChangeLiquidityData>) {
+      state.changeLiquidity.inProgress = true
+      return state
+    },
+    setChangeLiquiditySuccess(state, action: PayloadAction<boolean>) {
+      state.changeLiquidity.inProgress = false
+      state.changeLiquidity.success = action.payload
+      return state
+    },
     resetState() {
       return defaultState
     },
@@ -308,6 +399,10 @@ const positionsSlice = createSlice({
     },
     setCurrentPositionId(state, action: PayloadAction<string>) {
       state.currentPositionId = action.payload
+      return state
+    },
+    setPositionListSwitcher(state, action: PayloadAction<LiquidityPools>) {
+      state.positionListSwitcher = action.payload
       return state
     }
   }

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { network } from '@store/selectors/solanaConnection'
 import { balance, status } from '@store/selectors/solanaWallet'
-import { Status, actions as walletActions } from '@store/reducers/solanaWallet'
+import { Status } from '@store/reducers/solanaWallet'
 import { actions } from '@store/reducers/creator'
 import { creatorState } from '@store/selectors/creator'
 import { TokenCreator } from '@components/TokenCreator/TokenCreator'
@@ -48,7 +48,6 @@ export const TokenCreatorWrapper: React.FC = () => {
       currentNetwork={currentNetwork}
       fogoBalance={fogoBalance}
       inProgress={inProgress}
-      onConnectWallet={() => dispatch(walletActions.connect(false))}
       onSubmit={onSubmit}
       success={success}
     />

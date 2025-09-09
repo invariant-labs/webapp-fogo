@@ -21,9 +21,7 @@ export const useStyles = makeStyles()((theme: Theme) => ({
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',
-    '& h1': {
-      height: '27px'
-    },
+
     [theme.breakpoints.down('sm')]: {
       flexDirection: 'column',
       alignItems: 'flex-start',
@@ -44,7 +42,7 @@ export const useStyles = makeStyles()((theme: Theme) => ({
     }
   },
   header: {
-    maxWidth: 500,
+    maxWidth: 510,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -161,7 +159,7 @@ export const useStyles = makeStyles()((theme: Theme) => ({
   root: {
     flexDirection: 'column',
     position: 'relative',
-    maxWidth: 500,
+    maxWidth: 510,
     background: colors.invariant.component,
     borderRadius: 24,
     paddingInline: 24,
@@ -242,12 +240,10 @@ export const useStyles = makeStyles()((theme: Theme) => ({
     flexFlow: 'row',
     flexWrap: 'wrap',
     marginTop: 12,
-    marginBottom: 12,
     cursor: 'default',
     filter: 'brightness(0.9)',
     width: '100%',
     [theme.breakpoints.down('sm')]: {
-      flexDirection: 'column-reverse',
       gap: 4
     },
     zIndex: 1
@@ -266,6 +262,10 @@ export const useStyles = makeStyles()((theme: Theme) => ({
     },
     transition: '300ms'
   },
+  collapseWrapper: {
+    maxWidth: 510,
+    width: '100%'
+  },
   transactionDetailsWrapper: {
     display: 'flex',
     flexDirection: 'row',
@@ -278,10 +278,13 @@ export const useStyles = makeStyles()((theme: Theme) => ({
   },
 
   transactionDetailsHeader: {
+    width: 146,
     ...typography.caption2,
     whiteSpace: 'nowrap',
     pointerEvents: 'none',
-    color: colors.invariant.lightGrey
+    color: colors.invariant.lightGrey,
+    display: 'flex',
+    justifyContent: 'center'
   },
 
   exchangeRateWrapper: {
@@ -305,7 +308,11 @@ export const useStyles = makeStyles()((theme: Theme) => ({
   },
 
   exchangeRoot: {
+    width: '100%',
     position: 'relative',
+    display: 'flex',
+    flexShrink: 1,
+    justifyContent: 'space-between',
     background: colors.invariant.newDark,
     borderRadius: 20
   },
@@ -383,32 +390,63 @@ export const useStyles = makeStyles()((theme: Theme) => ({
     marginBottom: 8
   },
   unwrapContainer: {
-    background: colors.invariant.component,
-    color: colors.white.main,
-    borderRadius: 8,
-    padding: 4,
-    paddingInline: 12,
+    width: '100%',
+    minHeight: 48,
+    background: 'rgba(239, 208, 99, 0.2)',
+    border: `2px solid ${colors.invariant.yellow}`,
+    borderRadius: 18,
+    color: colors.invariant.yellow,
+    paddingInline: 24,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    transition: 'height 300ms',
+    [theme.breakpoints.down('sm')]: {
+      paddingInline: 16
+    },
     marginBottom: 16
   },
   unwrapNowButton: {
-    cursor: 'pointer'
+    background: 'rgba(239, 209, 99, 0.11)',
+    paddingInline: 12,
+    borderRadius: 8,
+    cursor: 'pointer',
+    transition: 'transform .15s ease, box-shadow .15s ease',
+    '&:hover': {
+      transform: 'translateY(-1px)',
+
+      boxShadow: '0 0 1px 1px rgba(239, 209, 99, 0.45)'
+    }
   },
+
   unknownWarningContainer: {
     marginTop: 12,
     width: '100%',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
+    transition: 'all 0.3s ease',
+    flexShrink: 1,
     gap: 12
   },
-  unknownWarning: {
+  unverfiedWrapper: {
     width: '100%',
-    background: alpha(colors.invariant.Error, 0.25),
-    border: `1px solid ${colors.invariant.Error}`,
-    ...typography.caption2,
-    color: colors.invariant.Error,
+    gap: 8,
+    display: 'flex'
+  },
+  unknownWarning: {
+    display: 'flex',
+    width: '100%',
+    height: 16,
+    background: alpha(colors.invariant.yellow, 0.05),
+    alignItems: 'center',
+    gap: 8,
+    border: `1px solid ${alpha(colors.invariant.yellow, 0.3)}`,
+    ...typography.caption1,
+    color: colors.invariant.yellow,
     padding: 8,
     paddingInline: 8,
-    borderRadius: 10
+    borderRadius: 8
   },
   pointsBox: {
     height: 27,
@@ -417,7 +455,7 @@ export const useStyles = makeStyles()((theme: Theme) => ({
     backgroundColor: colors.invariant.component,
     color: colors.invariant.textGrey,
     fontSize: 16,
-    fontsWeigth: 500,
+    fontsWeigth: 510,
     cursor: 'pointer',
     userSelect: 'none',
     display: 'flex',
@@ -482,7 +520,7 @@ export const useStyles = makeStyles()((theme: Theme) => ({
     transition: 'all 0.3s ease-in-out'
   },
   borderContainer: {
-    maxWidth: 500,
+    maxWidth: 510,
     width: '100%',
     borderRadius: 24,
     border: `1px solid ${colors.invariant.component}`
@@ -492,6 +530,26 @@ export const useStyles = makeStyles()((theme: Theme) => ({
   },
   relative: {
     position: 'relative'
+  },
+  mobileChangeWrapper: {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    [theme.breakpoints.down('sm')]: {
+      marginTop: 12,
+      flexDirection: 'column-reverse'
+    }
+  },
+  mobileChangeRatioWrapper: {
+    display: 'flex',
+    width: '100%',
+    justifyContent: 'space-between',
+    flexDirection: 'row',
+    marginBottom: 12,
+    [theme.breakpoints.down('sm')]: {
+      flexDirection: 'column-reverse',
+      gap: 4
+    }
   }
 }))
 

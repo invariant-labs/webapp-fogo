@@ -15,7 +15,8 @@ export const {
   status,
   fogoBalanceLoading,
   tokenBalanceLoading,
-  thankYouModalShown
+  thankYouModalShown,
+  overviewSwitch
 } = keySelectors(store, [
   'address',
   'balance',
@@ -23,7 +24,8 @@ export const {
   'status',
   'fogoBalanceLoading',
   'tokenBalanceLoading',
-  'thankYouModalShown'
+  'thankYouModalShown',
+  'overviewSwitch'
 ])
 
 export const balanceLoading = createSelector(
@@ -64,6 +66,7 @@ export interface SwapToken {
   name: string
   logoURI: string
   isUnknown?: boolean
+  coingeckoId?: string
 }
 
 export const swapTokens = createSelector(
@@ -134,6 +137,7 @@ export const solanaWalletSelectors = {
   tokenAccount,
   fogoBalanceLoading,
   tokenBalanceLoading,
-  thankYouModalShown
+  thankYouModalShown,
+  overviewSwitch
 }
 export default solanaWalletSelectors

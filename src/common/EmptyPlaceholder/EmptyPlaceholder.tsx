@@ -1,16 +1,15 @@
 import { Grid, Typography, useMediaQuery } from '@mui/material'
-import classNames from 'classnames'
 import React from 'react'
 import { useStyles } from './style'
 import { emptyIcon } from '@static/icons'
 import { Button } from '@common/Button/Button'
 import ChangeWalletButton from '@components/Header/HeaderButton/ChangeWalletButton'
 import { theme } from '@static/theme'
+import { getSession } from '@store/hooks/session'
 
 export interface IEmptyPlaceholder {
   desc: string
   onAction?: () => void
-  onAction2?: () => void
   className?: string
   style?: React.CSSProperties
   withButton?: boolean
@@ -29,7 +28,6 @@ export interface IEmptyPlaceholder {
 export const EmptyPlaceholder: React.FC<IEmptyPlaceholder> = ({
   desc,
   onAction,
-  onAction2,
   withButton = true,
   buttonName,
   mainTitle = `It's empty here...`,
@@ -43,15 +41,15 @@ export const EmptyPlaceholder: React.FC<IEmptyPlaceholder> = ({
   connectButton,
   withImg = true
 }) => {
-  const { classes } = useStyles({ newVersion, themeDark, roundedCorners, height })
-
+  const { classes, cx } = useStyles({ newVersion, themeDark, roundedCorners, height })
+  const session = getSession()
   const isSm = useMediaQuery(theme.breakpoints.down('sm'))
 
   return (
     <Grid container className={classes.wrapperContainer}>
-      <Grid className={classNames(classes.blur, 'blurLayer')} />
-      <Grid sx={style} className={classNames(classes.container, 'blurLayer')}>
-        <Grid className={classNames(classes.root, 'blurInfo')} gap='24px'>
+      <Grid className={cx(classes.blur, 'blurLayer')} />
+      <Grid sx={style} className={cx(classes.container, 'blurLayer')}>
+        <Grid className={cx(classes.root, 'blurInfo')} gap='24px'>
           {withImg && <img height={80} src={img} alt='Not connected' />}
           <Grid className={classes.buttonContainer}>
             <Typography sx={{ opacity: 0.8 }} className={classes.title}>
@@ -62,15 +60,15 @@ export const EmptyPlaceholder: React.FC<IEmptyPlaceholder> = ({
           <Grid className={classes.buttonContainer}>
             {withButton && (
               <Button scheme='pink' padding='0 48px' onClick={onAction}>
-                {buttonName ? buttonName : 'Add a position'}
+                {buttonName ? buttonName : 'Add position'}
               </Button>
             )}
-            {onAction2 && connectButton && (
+            {connectButton && (
               <ChangeWalletButton
                 name={isSm ? 'Connect' : 'Connect wallet'}
-                onConnect={onAction2}
-                connected={false}
-                onDisconnect={() => {}}
+                width={'100%'}
+                walletConnected={!!session}
+                isSmDown={false}
               />
             )}
           </Grid>

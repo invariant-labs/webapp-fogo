@@ -12,10 +12,9 @@ import {
   Grid
 } from '@mui/material'
 import { WalletToken } from '@store/types/userOverview'
-import { DEFAULT_FEE_TIER, STRATEGIES } from '@store/consts/userStrategies'
 import { unknownTokenIcon, warning2Icon, warningIcon } from '@static/icons'
 import { NetworkType } from '@store/consts/static'
-import { addressToTicker, formatNumberWithoutSuffix } from '@utils/utils'
+import { findStrategy, formatNumberWithoutSuffix } from '@utils/utils'
 import { useStyles } from './styles'
 import { MobileCard } from './MobileCard'
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
@@ -52,30 +51,6 @@ export const YourWallet: React.FC<YourWalletProps> = ({
 
     return { value, isPriceWarning }
   }, [sortedTokens])
-
-  const findStrategy = (poolAddress: string) => {
-    const poolTicker = addressToTicker(currentNetwork, poolAddress)
-    let strategy = STRATEGIES.find(s => {
-      const tickerA = addressToTicker(currentNetwork, s.tokenAddressA)
-      const tickerB = s.tokenAddressB ? addressToTicker(currentNetwork, s.tokenAddressB) : undefined
-      return tickerA === poolTicker || tickerB === poolTicker
-    })
-
-    if (!strategy) {
-      strategy = {
-        tokenAddressA: poolAddress,
-        feeTier: DEFAULT_FEE_TIER
-      }
-    }
-
-    return {
-      ...strategy,
-      tokenSymbolA: addressToTicker(currentNetwork, strategy.tokenAddressA),
-      tokenSymbolB: strategy.tokenAddressB
-        ? addressToTicker(currentNetwork, strategy.tokenAddressB)
-        : '-'
-    }
-  }
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     e.currentTarget.src = unknownTokenIcon
@@ -129,34 +104,36 @@ export const YourWallet: React.FC<YourWalletProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedTokens.map(pool => {
-                  const poolAddress = pool.id.toString()
-                  const strategy = findStrategy(poolAddress)
+                sortedTokens.map(token => {
+                  const tokenAddress = token.id.toString()
+                  const strategy = findStrategy(tokenAddress)
 
                   return (
-                    <TableRow key={pool.id.toString()}>
+                    <TableRow key={token.id.toString()}>
                       <TableCell className={classes.tableCell}>
                         <Box className={classes.tokenContainer}>
-                          <Box className={classes.tokenInfo} sx={{ position: 'relative' }}>
-                            <img
-                              src={pool.icon}
-                              className={classes.tokenIcon}
-                              onError={handleImageError}
-                              alt={pool.symbol}
-                            />
-                            {pool.isUnknown && (
-                              <img className={classes.warningIcon} src={warningIcon} />
-                            )}
+                          <Box className={classes.tokenInfo}>
+                            <Box display='flex' position='relative'>
+                              <img
+                                src={token.icon}
+                                className={classes.tokenIcon}
+                                onError={handleImageError}
+                                alt={token.symbol}
+                              />
+                              {token.isUnknown && (
+                                <img className={classes.warningIcon} src={warningIcon} />
+                              )}
+                            </Box>
 
                             <Typography className={classes.tokenSymbol}>
-                              {pool.symbol.length <= 6
-                                ? pool.symbol
-                                : shortenAddress(pool.symbol, 2)}
+                              {token.symbol.length <= 6
+                                ? token.symbol
+                                : shortenAddress(token.symbol, 2)}
                             </Typography>
                             <TooltipHover title='Copy token address'>
                               <FileCopyOutlinedIcon
                                 onClick={() => {
-                                  navigator.clipboard.writeText(poolAddress)
+                                  navigator.clipboard.writeText(tokenAddress)
 
                                   handleSnackbar('Token address copied.', 'success')
                                 }}
@@ -166,7 +143,7 @@ export const YourWallet: React.FC<YourWalletProps> = ({
                           </Box>
                           <Box className={classes.mobileActions}>
                             <ActionButtons
-                              pool={pool}
+                              pool={token}
                               strategy={strategy}
                               currentNetwork={currentNetwork}
                             />
@@ -180,11 +157,11 @@ export const YourWallet: React.FC<YourWalletProps> = ({
                         <Box className={classes.statsContainer}>
                           <Typography className={classes.statsValue}>
                             $
-                            {formatNumberWithoutSuffix(pool.value.toFixed(2), {
+                            {formatNumberWithoutSuffix(token.value.toFixed(2), {
                               twoDecimals: true
                             })}
                           </Typography>
-                          {pool.isPriceWarning && (
+                          {token.isPriceWarning && (
                             <TooltipHover title='The price might not be shown correctly'>
                               <img src={warning2Icon} width={14} />
                             </TooltipHover>
@@ -194,7 +171,7 @@ export const YourWallet: React.FC<YourWalletProps> = ({
                       <TableCell className={classes.tableCell} align='right'>
                         <Box className={classes.statsContainer}>
                           <Typography className={classes.statsValue}>
-                            {formatNumberWithoutSuffix(pool.amount)}
+                            {formatNumberWithoutSuffix(token.amount)}
                           </Typography>
                         </Box>
                       </TableCell>
@@ -203,7 +180,7 @@ export const YourWallet: React.FC<YourWalletProps> = ({
                         align='right'
                         sx={{ display: 'flex' }}>
                         <ActionButtons
-                          pool={pool}
+                          pool={token}
                           strategy={strategy}
                           currentNetwork={currentNetwork}
                         />
@@ -226,11 +203,11 @@ export const YourWallet: React.FC<YourWalletProps> = ({
           <EmptyState />
         ) : (
           <Box className={classes.mobileCardContainer}>
-            {sortedTokens.map(pool => (
+            {sortedTokens.map(token => (
               <MobileCard
-                key={pool.id.toString()}
-                pool={pool}
-                getStrategy={() => findStrategy(pool.id.toString())}
+                key={token.id.toString()}
+                token={token}
+                getStrategy={() => findStrategy(token.id.toString())}
                 currentNetwork={currentNetwork}
               />
             ))}

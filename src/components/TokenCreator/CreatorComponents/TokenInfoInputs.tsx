@@ -6,13 +6,13 @@ import InfoIcon from '@mui/icons-material/Info'
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
 import AnimatedButton, { ProgressState } from '@common/AnimatedButton/AnimatedButton'
 import { BN } from '@coral-xyz/anchor'
-import classNames from 'classnames'
 import { getCreateTokenLamports, NetworkType } from '@store/consts/static'
 import { printBN, trimZeros } from '@utils/utils'
 import ChangeWalletButton from '@components/Header/HeaderButton/ChangeWalletButton'
 import useStyles from './styles'
 import { validateSupply } from '@utils/tokenCreatorUtils'
 import { FormData } from '@store/consts/tokenCreator/types'
+import { getSession } from '@store/hooks/session'
 
 interface TokenInfoInputsProps {
   formMethods: UseFormReturn<FormData>
@@ -21,7 +21,6 @@ interface TokenInfoInputsProps {
   inProgress: boolean
   fogoBalance: BN
   currentNetwork: NetworkType
-  onConnectWallet: () => void
 }
 
 export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
@@ -30,10 +29,10 @@ export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
   success,
   inProgress,
   fogoBalance,
-  currentNetwork,
-  onConnectWallet
+  currentNetwork
 }) => {
-  const { classes } = useStyles()
+  const { classes, cx } = useStyles()
+  const session = getSession()
   const {
     control,
     watch,
@@ -157,7 +156,7 @@ export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
             type='submit'
             content={buttonText}
             disabled={!isValid}
-            className={classNames(
+            className={cx(
               classes.button,
               isValid && progress === 'none' ? classes.buttonActive : null
             )}
@@ -169,11 +168,10 @@ export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
         )
       ) : (
         <ChangeWalletButton
+          walletConnected={!!session}
+          width={'100%'}
+          height={40}
           name='Connect wallet'
-          onConnect={onConnectWallet}
-          connected={false}
-          onDisconnect={() => {}}
-          className={classes.connectWalletButton}
         />
       )}
     </Box>

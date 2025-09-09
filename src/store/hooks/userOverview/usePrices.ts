@@ -29,11 +29,9 @@ export const usePrices = ({
     if (!tokenX || !tokenY) return
 
     const fetchPrices = async () => {
-      getTokenPrice(tokenX.assetsAddress ?? '', networkType)
-        .then(data => {
-          const price = data ? data : getMockedTokenPrice(tokenX.name ?? '', networkType).price
-
-          setTokenXPriceData({ price, loading: false })
+      getTokenPrice(networkType, tokenX.assetsAddress ?? '')
+        .then(price => {
+          setTokenXPriceData({ price: price ?? 0, loading: false })
         })
         .catch(() => {
           setTokenXPriceData({
@@ -42,12 +40,8 @@ export const usePrices = ({
           })
         })
 
-      getTokenPrice(tokenY.assetsAddress ?? '', networkType)
-        .then(data => {
-          const price = data ? data : getMockedTokenPrice(tokenY.name ?? '', networkType).price
-
-          setTokenYPriceData({ price, loading: false })
-        })
+      getTokenPrice(networkType, tokenY.assetsAddress ?? '')
+        .then(price => setTokenYPriceData({ price: price ?? 0, loading: false }))
         .catch(() => {
           setTokenYPriceData({
             price: getMockedTokenPrice(tokenY.name ?? '', networkType).price,

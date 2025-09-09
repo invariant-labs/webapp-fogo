@@ -2,10 +2,9 @@ import { colors, typography } from '@static/theme'
 import { makeStyles } from 'tss-react/mui'
 
 export const useStyles = makeStyles()(() => ({
-  root: { width: '226px' },
+  root: { width: '226px', position: 'relative' },
   container: {
     position: 'relative',
-    height: 340,
     borderRadius: '24px',
     overflow: 'hidden'
   },
@@ -18,8 +17,8 @@ export const useStyles = makeStyles()(() => ({
     alignItems: 'center'
   },
   skeleton: {
+    transition: 'height 0.3s ease',
     width: '220px',
-    height: '344px',
     opacity: 0.7,
     borderRadius: 24
   },
@@ -29,7 +28,7 @@ export const useStyles = makeStyles()(() => ({
     height: 36,
     marginBottom: '16px'
   },
-  swapIcon: { height: 15, margin: '10.5px 6px' },
+  swapIcon: { height: 15, margin: '10.5px 6px', color: colors.invariant.text },
   iconContainer: {
     minWidth: 36,
     maxWidth: 36,
@@ -138,6 +137,7 @@ export const useStyles = makeStyles()(() => ({
   footerWrapper: {
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 'auto'
+    marginTop: 12,
+    flexWrap: 'nowrap'
   }
 }))

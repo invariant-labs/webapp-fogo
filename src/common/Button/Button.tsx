@@ -1,13 +1,12 @@
 import { ButtonProps, Button as MuiButton } from '@mui/material'
 import useStyles from './styles'
-import classNames from 'classnames'
 export type FontData = {
   fontSize: number
   lineHeight: string
   fontWeight: number
 }
 type Props = {
-  scheme: 'normal' | 'green' | 'pink' | 'rainbow'
+  scheme: 'normal' | 'green' | 'pink' | 'rainbow' | 'grey'
   disabled?: boolean
   margin?: string | number
   height?: string | number
@@ -15,6 +14,7 @@ type Props = {
   width?: string | number
   borderRadius?: string | number
   padding?: string | number
+  gap?: string | number
   children: React.ReactNode
 } & ButtonProps
 
@@ -27,15 +27,25 @@ export const Button = ({
   fontData,
   borderRadius,
   padding,
+  gap,
   children,
   ...props
 }: Props) => {
-  const { classes } = useStyles({ scheme, height, width, borderRadius, padding, margin, fontData })
+  const { classes, cx } = useStyles({
+    scheme,
+    height,
+    width,
+    borderRadius,
+    padding,
+    margin,
+    gap,
+    fontData
+  })
 
   return (
     <MuiButton
       disabled={disabled}
-      className={classNames(classes.button, {
+      className={cx(classes.button, {
         [classes.buttonRainbowBorder]: scheme === 'rainbow'
       })}
       {...props}>

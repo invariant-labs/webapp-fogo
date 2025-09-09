@@ -18,8 +18,8 @@ import ConcentrationSlider from '../ConcentrationSlider/ConcentrationSlider'
 import useStyles from './style'
 import { PositionOpeningMethod } from '@store/consts/types'
 import { getMaxTick, getMinTick } from '@invariant-labs/sdk-fogo/lib/utils'
-import { activeLiquidityIcon } from '@static/icons'
-import { TooltipHover } from '@common/TooltipHover/TooltipHover'
+import PriceWarning from './PriceWarning/PriceWarning'
+
 export interface IRangeSelector {
   updatePath: (concIndex: number) => void
   initialConcentration: string
@@ -58,6 +58,18 @@ export interface IRangeSelector {
   unblockUpdatePriceRange: () => void
   onlyUserPositions: boolean
   setOnlyUserPositions: (onlyUserPositions: boolean) => void
+  usdcPrice: {
+    token: string
+    price?: number
+  } | null
+  suggestedPrice: number
+  oraclePrice: number | null
+  currentFeeIndex: number
+  bestFeeIndex: number
+  showPriceWarning: boolean
+  oraclePriceWarning: boolean
+  diffPercentage: number
+  oracleDiffPercentage: number
 }
 
 export const RangeSelector: React.FC<IRangeSelector> = ({
@@ -88,9 +100,18 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
   shouldReversePlot,
   setShouldReversePlot,
   shouldNotUpdatePriceRange,
-  unblockUpdatePriceRange
+  unblockUpdatePriceRange,
   // onlyUserPositions,
-  // setOnlyUserPositions
+  // setOnlyUserPositions,
+  usdcPrice,
+  suggestedPrice,
+  oraclePrice,
+  currentFeeIndex,
+  bestFeeIndex,
+  showPriceWarning,
+  oraclePriceWarning,
+  diffPercentage,
+  oracleDiffPercentage
 }) => {
   const { classes } = useStyles()
 
@@ -142,7 +163,7 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
     }
 
     setInitReset(true)
-  }, [poolIndex])
+  }, [poolIndex, minimumSliderIndex])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -176,6 +197,51 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
       setPlotMin(newMin)
       setPlotMax(newMax)
     }
+  }
+
+  const moveLeft = () => {
+    const diff = plotMax - plotMin
+
+    const minPrice = isXtoY
+      ? calcPriceByTickIndex(getMinTick(tickSpacing), isXtoY, xDecimal, yDecimal)
+      : calcPriceByTickIndex(getMaxTick(tickSpacing), isXtoY, xDecimal, yDecimal)
+
+    const newLeft = plotMin - diff / 6
+    const newRight = plotMax - diff / 6
+
+    if (newLeft < minPrice - diff / 2) {
+      setPlotMin(minPrice - diff / 2)
+      setPlotMax(minPrice + diff / 2)
+    } else {
+      setPlotMin(newLeft)
+      setPlotMax(newRight)
+    }
+  }
+
+  const moveRight = () => {
+    const diff = plotMax - plotMin
+
+    const maxPrice = isXtoY
+      ? calcPriceByTickIndex(getMaxTick(tickSpacing), isXtoY, xDecimal, yDecimal)
+      : calcPriceByTickIndex(getMinTick(tickSpacing), isXtoY, xDecimal, yDecimal)
+
+    const newLeft = plotMin + diff / 6
+    const newRight = plotMax + diff / 6
+
+    if (newRight > maxPrice + diff / 2) {
+      setPlotMin(maxPrice - diff / 2)
+      setPlotMax(maxPrice + diff / 2)
+    } else {
+      setPlotMin(newLeft)
+      setPlotMax(newRight)
+    }
+  }
+
+  const centerChart = () => {
+    const diff = plotMax - plotMin
+
+    setPlotMin(midPrice.x - diff / 2)
+    setPlotMax(midPrice.x + diff / 2)
   }
 
   const setLeftInputValues = (val: string) => {
@@ -267,7 +333,7 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       setShouldReversePlot(false)
-    }, 600)
+    }, 100)
 
     return () => {
       clearTimeout(timer)
@@ -312,6 +378,25 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
       unblockUpdatePriceRange()
     }
   }, [isLoadingTicksOrTickmap, isMountedRef, midPrice.index, poolIndex])
+
+  //Fix in case of reset chart not triggered correctly
+  useEffect(() => {
+    if (initReset === false) {
+      const timeoutId = setTimeout(() => {
+        if (
+          isXtoY
+            ? leftRange > midPrice.index || rightRange < midPrice.index
+            : leftRange < midPrice.index || rightRange > midPrice.index
+        ) {
+          resetPlot()
+        }
+      }, 100)
+
+      return () => {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [initReset])
 
   const autoZoomHandler = (left: number, right: number, canZoomCloser: boolean = false) => {
     const { leftInRange, rightInRange } = getTicksInsideRange(left, right, isXtoY)
@@ -416,7 +501,7 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
 
     const { leftRange, rightRange } = calculateConcentrationRange(
       tickSpacing,
-      concentrationArray[concentrationIndex],
+      concentrationArray[concentrationIndex] || 34,
       2,
       midPrice.index,
       isXtoY
@@ -430,77 +515,71 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
     <Grid container className={classes.wrapper}>
       <Grid className={classes.topInnerWrapper}>
         <Grid className={classes.headerContainer} container>
-          <Grid>
+          <Grid className={classes.priceRangeContainer}>
             <Typography className={classes.header}>Price range</Typography>
+
             {poolIndex !== null && (
-              <Typography className={classes.currentPrice}>
+              <Typography className={classes.currentPrice} mt={0.5}>
                 {formatNumberWithoutSuffix(midPrice.x)} {tokenBSymbol} per {tokenASymbol}
               </Typography>
             )}
-          </Grid>
-          <Grid className={classes.activeLiquidityContainer} container>
-            <TooltipHover
-              title={
-                <>
-                  <Typography className={classes.liquidityTitle}>Active liquidity</Typography>
-                  <Typography className={classes.liquidityDesc} style={{ marginBottom: 12 }}>
-                    While selecting the price range, note where active liquidity is located. Your
-                    liquidity can be inactive and, as a consequence, not generate profits.
-                  </Typography>
-                  <Grid container className={classes.liquidityDescWrapper}>
-                    <Typography className={classes.liquidityDesc}>
-                      The active liquidity range is represented by white, dashed lines in the
-                      liquidity chart. Active liquidity is determined by the maximum price range
-                      resulting from the statistical volume of exchanges for the last 7 days.
-                    </Typography>
-                    <img
-                      className={classes.liquidityImg}
-                      src={activeLiquidityIcon}
-                      alt='Liquidity'
-                    />
-                  </Grid>
-                  <Typography className={classes.liquidityNote}>
-                    Note: active liquidity borders are always aligned to the nearest initialized
-                    ticks.
-                  </Typography>
-                </>
-              }
-              placement='bottom'
-              increasePadding>
-              <Typography className={classes.activeLiquidity}>
-                Active liquidity <span className={classes.activeLiquidityIcon}>i</span>
+            {poolIndex !== null && usdcPrice !== null && usdcPrice.price && (
+              <Typography className={classes.usdcCurrentPrice}>
+                {usdcPrice.token} ${formatNumberWithoutSuffix(usdcPrice.price)}
               </Typography>
-            </TooltipHover>
-            <Grid>
-              <Typography className={classes.currentPrice}>Current price ━━━</Typography>
-            </Grid>
+            )}
+            {(showPriceWarning || oraclePriceWarning) && !blocked && !isLoadingTicksOrTickmap && (
+              <PriceWarning
+                bestFeeIndex={bestFeeIndex}
+                currentFeeIndex={currentFeeIndex}
+                oraclePrice={oraclePrice}
+                suggestedPrice={suggestedPrice}
+                tokenASymbol={tokenASymbol}
+                tokenBSymbol={tokenBSymbol}
+                diffPercentage={diffPercentage}
+                showPriceWarning={showPriceWarning}
+                oracleDiffPercentage={oracleDiffPercentage}
+                oraclePriceWarning={oraclePriceWarning}
+              />
+            )}
+          </Grid>
+          <Grid className={classes.currentPriceContainer}>
+            <Typography className={classes.currentPrice} mb={0}>
+              Current price
+            </Typography>
+            <Typography className={classes.currentPrice} ml={0.5} mt={'4px'}>
+              ━━━
+            </Typography>
           </Grid>
         </Grid>
         <PriceRangePlot
           className={classes.plot}
-          data={data}
+          plotData={data}
           onChangeRange={changeRangeHandler}
-          leftRange={{
+          leftRangeData={{
             index: leftRange,
             x: calcPriceByTickIndex(leftRange, isXtoY, xDecimal, yDecimal)
           }}
-          rightRange={{
+          rightRangeData={{
             index: rightRange,
             x: calcPriceByTickIndex(rightRange, isXtoY, xDecimal, yDecimal)
           }}
-          midPrice={midPrice}
-          plotMin={plotMin}
-          plotMax={plotMax}
+          midPriceData={midPrice}
+          plotMinData={plotMin}
+          plotMaxData={plotMax}
           zoomMinus={zoomMinus}
           zoomPlus={zoomPlus}
-          loading={isLoadingTicksOrTickmap}
+          loading={isLoadingTicksOrTickmap && !shouldNotUpdatePriceRange && !blocked}
           isXtoY={isXtoY}
-          tickSpacing={tickSpacing}
+          spacing={tickSpacing}
           xDecimal={xDecimal}
           yDecimal={yDecimal}
           disabled={positionOpeningMethod === 'concentration'}
           hasError={hasTicksError}
           reloadHandler={reloadHandler}
+          moveLeft={moveLeft}
+          moveRight={moveRight}
+          centerChart={centerChart}
         />
         {/* <FormControlLabel
           control={

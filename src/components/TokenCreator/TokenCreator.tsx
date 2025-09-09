@@ -9,7 +9,6 @@ import { FormData } from '@store/consts/tokenCreator/types'
 
 export interface ITokenCreator {
   onSubmit: (data: FormData) => void
-  onConnectWallet: () => void
   buttonText: string
   success: boolean
   inProgress: boolean
@@ -19,7 +18,6 @@ export interface ITokenCreator {
 
 export const TokenCreator: React.FC<ITokenCreator> = ({
   onSubmit,
-  onConnectWallet,
   buttonText,
   success,
   inProgress,
@@ -61,7 +59,6 @@ export const TokenCreator: React.FC<ITokenCreator> = ({
                 inProgress={inProgress}
                 fogoBalance={fogoBalance}
                 currentNetwork={currentNetwork}
-                onConnectWallet={onConnectWallet}
               />
               <TokenMetadataInputs formMethods={formMethods} />
             </Box>
