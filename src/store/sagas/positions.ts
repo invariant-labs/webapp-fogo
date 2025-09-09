@@ -71,7 +71,7 @@ import {
 import { actions as connectionActions } from '@store/reducers/solanaConnection'
 import { ClaimAllFee } from '@invariant-labs/sdk-fogo/lib/market'
 import { parseTick, Position } from '@invariant-labs/sdk-fogo/lib/market'
-import { getAssociatedTokenAddressSync, NATIVE_MINT } from '@solana/spl-token'
+import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { unknownTokenIcon } from '@static/icons'
 import { calculateClaimAmount } from '@invariant-labs/sdk-fogo/lib/utils'
 import { getSession } from '@store/hooks/session'
@@ -1283,12 +1283,6 @@ export function* handleClaimAllFees() {
         if (meta?.innerInstructions && meta.innerInstructions) {
           for (const metaInstructions of meta.innerInstructions) {
             try {
-              const nativeTransfer = metaInstructions.instructions.find(
-                ix => (ix as ParsedInstruction).parsed.info.amount
-              ) as ParsedInstruction
-
-              const nativeAmount = nativeTransfer ? nativeTransfer.parsed.info.amount : 0
-
               const splTransfers = metaInstructions.instructions.filter(
                 ix =>
                   (ix as ParsedInstruction).parsed.info.tokenAmount !== undefined ||
@@ -1302,14 +1296,6 @@ export function* handleClaimAllFees() {
               let tokenYSymbol = 'Unknown'
               let tokenXSymbol = 'Unknown'
 
-              if (nativeTransfer) {
-                tokenXAmount = formatNumberWithoutSuffix(
-                  printBN(nativeAmount, allTokens[NATIVE_MINT.toString()].decimals)
-                )
-                tokenXIcon = allTokens[NATIVE_MINT.toString()].logoURI
-                tokenXSymbol = allTokens[NATIVE_MINT.toString()].symbol ?? NATIVE_MINT.toString()
-              }
-
               splTransfers.map((transfer, index) => {
                 const token =
                   allTokens[
@@ -1320,7 +1306,7 @@ export function* handleClaimAllFees() {
                 if (index === 0) {
                   tokenYAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
                   tokenYIcon = token.logoURI
-                } else if (index === 1 && !nativeTransfer) {
+                } else if (index === 1) {
                   tokenXAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
                   tokenXIcon = token.logoURI
                   tokenYSymbol = token.symbol ?? token.address.toString()
