@@ -69,6 +69,7 @@ export const Header: React.FC<IHeader> = ({
   }
 
   const [activePath, setActive] = useState('exchange')
+  const [sessionConnected, setSessionConnected] = useState(false)
 
   useEffect(() => {
     setActive(landing)
@@ -96,8 +97,20 @@ export const Header: React.FC<IHeader> = ({
         sendTransaction: (input: SendTxInput) => session.sendTransaction(input as any)
       })
 
+      setSessionConnected(true)
       dispatch(walletActions.connect(false))
     } else {
+      if (sessionConnected) {
+        dispatch(
+          snackbarsActions.add({
+            message: 'Wallet disconnected',
+            variant: 'success',
+            persist: false
+          })
+        )
+
+        setSessionConnected(false)
+      }
       setSession(null)
       dispatch(walletActions.resetState())
     }

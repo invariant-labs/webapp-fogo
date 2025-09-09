@@ -549,14 +549,6 @@ export function* init(): Generator {
   try {
     if (sessionActive) {
       yield* put(actions.setStatus(Status.Init))
-
-      yield* put(
-        snackbarsActions.add({
-          message: 'Wallet connected',
-          variant: 'success',
-          persist: false
-        })
-      )
     } else {
       yield* put(actions.setStatus(Status.Uninitialized))
       return
