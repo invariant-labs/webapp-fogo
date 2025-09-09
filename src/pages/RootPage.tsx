@@ -48,7 +48,7 @@ const RootPage: React.FC = memo(() => {
 
   return (
     <>
-      {session.type === SessionStateType.Established && <EventsHandlers />}
+      <EventsHandlers />
       <div id={toBlur}>
         <Grid className={classes.root}>
           <HeaderWrapper />
