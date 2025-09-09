@@ -122,7 +122,7 @@ export const PoolInit: React.FC<IPoolInit> = ({
 
     if (isXtoY) {
       if (midPriceTick < minTickLimit) {
-        return Math.max(minPrice, MINIMAL_POOL_INIT_PRICE)
+        return minPrice
       } else if (midPriceTick > maxTickLimit) {
         return maxPrice
       }
@@ -130,11 +130,11 @@ export const PoolInit: React.FC<IPoolInit> = ({
       if (midPriceTick > maxTickLimit) {
         return maxPrice
       } else if (midPriceTick < minTickLimit) {
-        return Math.max(minPrice, MINIMAL_POOL_INIT_PRICE)
+        return minPrice
       }
     }
 
-    return Math.max(numericMidPrice, MINIMAL_POOL_INIT_PRICE)
+    return numericMidPrice
   }
 
   const validateMidPriceInput = (midPriceInput: string) => {

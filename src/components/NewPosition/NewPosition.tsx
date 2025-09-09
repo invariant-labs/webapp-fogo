@@ -1104,25 +1104,20 @@ export const NewPosition: React.FC<INewPosition> = ({
                 ? '0'
                 : tokenADeposit,
             setValue: value => {
-              if (tokenAIndex === null || tokenBIndex === null) {
-                setTokenADeposit(value)
+              if (tokenAIndex === null) {
                 return
               }
 
               setTokenADeposit(value)
-
-              if (!isAutoswapOn && value && value !== '0') {
-                try {
-                  const amount = convertBalanceToBN(value, tokens[tokenAIndex].decimals)
-                  const otherAmount = getOtherTokenAmount(amount, leftRange, rightRange, true)
-
-                  if (otherAmount && otherAmount !== '0.0') {
-                    setTokenBDeposit(otherAmount)
-                  }
-                } catch (error) {
-                  console.warn('Error calculating other token amount:', error)
-                }
-              }
+              !isAutoswapOn &&
+                setTokenBDeposit(
+                  getOtherTokenAmount(
+                    convertBalanceToBN(value, tokens[tokenAIndex].decimals),
+                    leftRange,
+                    rightRange,
+                    true
+                  )
+                )
             },
             blocked:
               (tokenAIndex !== null &&
@@ -1148,25 +1143,20 @@ export const NewPosition: React.FC<INewPosition> = ({
                 ? '0'
                 : tokenBDeposit,
             setValue: value => {
-              if (tokenAIndex === null || tokenBIndex === null) {
-                setTokenADeposit(value)
+              if (tokenBIndex === null) {
                 return
               }
 
-              setTokenADeposit(value)
-
-              if (!isAutoswapOn && value && value !== '0') {
-                try {
-                  const amount = convertBalanceToBN(value, tokens[tokenAIndex].decimals)
-                  const otherAmount = getOtherTokenAmount(amount, leftRange, rightRange, true)
-
-                  if (otherAmount && otherAmount !== '0.0') {
-                    setTokenBDeposit(otherAmount)
-                  }
-                } catch (error) {
-                  console.warn('Error calculating other token amount:', error)
-                }
-              }
+              setTokenBDeposit(value)
+              !isAutoswapOn &&
+                setTokenADeposit(
+                  getOtherTokenAmount(
+                    convertBalanceToBN(value, tokens[tokenBIndex].decimals),
+                    leftRange,
+                    rightRange,
+                    false
+                  )
+                )
             },
             blocked:
               (tokenAIndex !== null &&
