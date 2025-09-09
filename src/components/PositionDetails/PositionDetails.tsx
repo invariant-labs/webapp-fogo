@@ -42,7 +42,6 @@ import { PaginationList } from '@common/Pagination/Pagination/Pagination'
 import { useDispatch } from 'react-redux'
 import { actions } from '@store/reducers/navigation'
 import { ChangeLiquidityModal } from '@components/Modals/ChangeLiquidityModal/ChangeLiquidityModal'
-import { Status } from '@store/reducers/solanaConnection'
 import { PoolWithAddress } from '@store/reducers/pools'
 import { Pair } from '@invariant-labs/sdk-fogo'
 import { Tick, Tickmap } from '@invariant-labs/sdk-fogo/lib/market'
@@ -129,7 +128,6 @@ interface IProps {
     coingeckoId?: string
     isUnknown?: boolean
   }[]
-  walletStatus: Status
   allPools: PoolWithAddress[]
   isBalanceLoading: boolean
   isTimeoutError: boolean
@@ -200,7 +198,6 @@ const PositionDetails: React.FC<IProps> = ({
   interval,
   handleChangePagination,
   tokens,
-  walletStatus,
   allPools,
   isTimeoutError,
   isBalanceLoading,
@@ -445,7 +442,6 @@ const PositionDetails: React.FC<IProps> = ({
             leftRange={leftRange.index}
             rightRange={rightRange.index}
             tokens={tokens}
-            walletStatus={walletStatus}
             allPools={allPools}
             isBalanceLoading={isBalanceLoading}
             currentNetwork={network}

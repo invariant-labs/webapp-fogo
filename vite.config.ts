@@ -80,7 +80,6 @@ export default defineConfig({
             '@walletconnect/utils',
             '@reown/appkit',
             '@reown/appkit-controllers',
-            '@nightlylabs/wallet-selector-solana',
             'ox'
           ],
 

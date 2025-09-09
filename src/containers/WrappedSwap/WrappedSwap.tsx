@@ -14,13 +14,7 @@ import {
   isLoadingPathTokens
 } from '@store/selectors/pools'
 import { network, rpcAddress, timeoutError } from '@store/selectors/solanaConnection'
-import {
-  status,
-  swapTokens,
-  swapTokensDict,
-  balanceLoading,
-  balance
-} from '@store/selectors/solanaWallet'
+import { swapTokens, swapTokensDict, balanceLoading, balance } from '@store/selectors/solanaWallet'
 import { swap as swapPool, accounts, isLoading } from '@store/selectors/swap'
 import { PublicKey } from '@solana/web3.js'
 import { useEffect, useState } from 'react'
@@ -51,7 +45,6 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
 
   const connection = getCurrentSolanaConnection()
 
-  const walletStatus = useSelector(status)
   const swap = useSelector(swapPool)
   const tickmap = useSelector(tickMaps)
   const poolTicksForSimulation = useSelector(nearestPoolTicksForPair)
@@ -371,7 +364,6 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
           )
         }
       }}
-      walletStatus={walletStatus}
       tokens={tokensList}
       pools={allPools}
       swapData={swap}

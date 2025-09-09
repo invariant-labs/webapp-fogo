@@ -2,14 +2,7 @@ import { FEE_TIERS, toDecimal } from '@invariant-labs/sdk-fogo/lib/utils'
 import { BN } from '@coral-xyz/anchor'
 import { PublicKey } from '@solana/web3.js'
 import { ISnackbar } from '@store/reducers/snackbars'
-import {
-  Chain,
-  FormatNumberThreshold,
-  PrefixConfig,
-  Token,
-  TokenPriceData,
-  WalletType
-} from './types'
+import { Chain, FormatNumberThreshold, PrefixConfig, Token, TokenPriceData } from './types'
 import { cat1Icon, cat2Icon, dog1Icon, dog2Icon } from '@static/icons'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import fogoTokenIcon from '@static/fogoTokenIcon.jpg'
@@ -431,13 +424,6 @@ export const TIMEOUT_ERROR_MESSAGE =
 
 export const MAX_CROSSES_IN_SINGLE_TX = 10
 export const MAX_CROSSES_IN_SINGLE_TX_WITH_LUTS = 34
-
-export const walletNames = {
-  [WalletType.NIGHTLY_WALLET]: 'Nightly',
-  [WalletType.BACKPACK]: 'Backpack',
-  [WalletType.OKX]: 'OKX',
-  [WalletType.NIGHTLY]: 'Wallet Selector'
-}
 
 export const defaultImages: string[] = [dog1Icon, dog2Icon, cat1Icon, cat2Icon]
 

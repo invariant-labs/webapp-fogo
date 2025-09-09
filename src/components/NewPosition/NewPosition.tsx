@@ -41,7 +41,6 @@ import RangeSelector from './RangeSelector/RangeSelector'
 import useStyles from './style'
 import { PositionOpeningMethod, TokenPriceData } from '@store/consts/types'
 import { TooltipHover } from '@common/TooltipHover/TooltipHover'
-import { Status } from '@store/reducers/solanaWallet'
 import { SwapToken } from '@store/selectors/solanaWallet'
 import { InitMidPrice } from '@common/PriceRangePlot/PriceRangePlot'
 import { PublicKey } from '@solana/web3.js'
@@ -142,7 +141,6 @@ export interface INewPosition {
   network: NetworkType
   isLoadingTokens: boolean
   fogoBalance: BN
-  walletStatus: Status
   canNavigate: boolean
   feeTiersWithTvl: Record<number, number>
   totalTvl: number
@@ -216,7 +214,6 @@ export const NewPosition: React.FC<INewPosition> = ({
   network,
   isLoadingTokens,
   fogoBalance,
-  walletStatus,
   canNavigate,
   feeTiersWithTvl,
   totalTvl,
@@ -1212,7 +1209,6 @@ export const NewPosition: React.FC<INewPosition> = ({
           isLoadingTicksOrTickmap={isLoadingTicksOrTickmap}
           network={network}
           fogoBalance={fogoBalance}
-          walletStatus={walletStatus}
           canNavigate={canNavigate}
           isCurrentPoolExisting={isCurrentPoolExisting}
           feeTiersWithTvl={feeTiersWithTvl}

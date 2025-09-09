@@ -19,7 +19,7 @@ import { BN } from '@coral-xyz/anchor'
 import { actions as poolsActions } from '@store/reducers/pools'
 import { actions as positionsActions } from '@store/reducers/positions'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
-import { actions, ITokenAccount, Status } from '@store/reducers/solanaWallet'
+import { actions, ITokenAccount } from '@store/reducers/solanaWallet'
 import { tokens } from '@store/selectors/pools'
 import { network } from '@store/selectors/solanaConnection'
 import { accounts } from '@store/selectors/solanaWallet'
@@ -49,7 +49,7 @@ import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token'
 import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
 import { PayloadAction } from '@reduxjs/toolkit'
-import { getSession, isSessionActive } from '@store/hooks/session'
+import { getSession } from '@store/hooks/session'
 import { accounts as solanaAccounts } from '@store/selectors/solanaWallet'
 
 export function* getBalance(_pubKey: PublicKey): SagaGenerator<BN> {
@@ -503,17 +503,7 @@ export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerato
 }
 
 export function* init(): Generator {
-  const sessionActive = isSessionActive()
-
   try {
-    if (sessionActive) {
-      yield* put(actions.setStatus(Status.Init))
-    } else {
-      yield* put(actions.setStatus(Status.Uninitialized))
-      return
-    }
-
-    yield* put(actions.setStatus(Status.Initialized))
     yield* call(handleBalance)
   } catch (e: unknown) {
     const error = ensureError(e)

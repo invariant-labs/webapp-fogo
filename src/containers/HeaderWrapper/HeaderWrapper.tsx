@@ -1,9 +1,9 @@
 import Header from '@components/Header/Header'
 import { RPC, CHAINS, RECOMMENDED_RPC_ADDRESS, NetworkType } from '@store/consts/static'
 import { actions, RpcStatus } from '@store/reducers/solanaConnection'
-import { Status, actions as walletActions } from '@store/reducers/solanaWallet'
+import { actions as walletActions } from '@store/reducers/solanaWallet'
 import { network, rpcAddress, rpcStatus } from '@store/selectors/solanaConnection'
-import { address, balance, status, thankYouModalShown } from '@store/selectors/solanaWallet'
+import { address, balance, thankYouModalShown } from '@store/selectors/solanaWallet'
 import React, { useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -12,10 +12,10 @@ import { Chain } from '@store/consts/types'
 import { RpcErrorModal } from '@components/RpcErrorModal/RpcErrorModal'
 import { ThankYouModal } from '@components/Modals/ThankYouModal/ThankYouModal'
 import { ensureError, generateHash, ROUTES } from '@utils/utils'
+import { isSessionActive } from '@store/hooks/session'
 
 export const HeaderWrapper: React.FC = () => {
   const dispatch = useDispatch()
-  const walletStatus = useSelector(status)
   const currentNetwork = useSelector(network)
   const currentRpc = useSelector(rpcAddress)
   const isThankYouModalShown = useSelector(thankYouModalShown)
@@ -23,6 +23,7 @@ export const HeaderWrapper: React.FC = () => {
   const location = useLocation()
   const walletAddress = useSelector(address)
   const navigate = useNavigate()
+  const walletConnected = isSessionActive()
 
   const hideThankYouModal = () => {
     dispatch(walletActions.showThankYouModal(false))
@@ -148,7 +149,7 @@ export const HeaderWrapper: React.FC = () => {
           dispatch(walletActions.connect(false))
         }}
         landing={location.pathname.substring(1)}
-        walletConnected={walletStatus === Status.Initialized}
+        walletConnected={walletConnected}
         onDisconnectWallet={() => {
           dispatch(walletActions.disconnect())
         }}
@@ -176,7 +177,7 @@ export const HeaderWrapper: React.FC = () => {
         network={currentNetwork}
         rpcStatus={currentRpcStatus}
         defaultMainnetRPC={defaultMainnetRPC}
-        walletBalance={walletStatus === Status.Initialized ? walletBalance : null}
+        walletBalance={walletConnected ? walletBalance : null}
       />
     </>
   )

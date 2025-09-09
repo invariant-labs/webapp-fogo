@@ -25,7 +25,6 @@ import {
 } from '@utils/utils'
 import { BN } from '@coral-xyz/anchor'
 import { PoolWithAddress } from '@store/reducers/pools'
-import { Status } from '@store/reducers/solanaWallet'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { networkTypetoProgramNetwork } from '@utils/web3/connection'
 import { PublicKey } from '@solana/web3.js'
@@ -69,7 +68,6 @@ export interface IProps {
     coingeckoId?: string
     isUnknown?: boolean
   }[]
-  walletStatus: Status
   allPools: PoolWithAddress[]
   isBalanceLoading: boolean
   currentNetwork: NetworkType
@@ -98,7 +96,6 @@ export const RemoveLiquidity: React.FC<IProps> = ({
   tokenXLiquidity,
   tokenYLiquidity,
   tokens,
-  walletStatus,
   allPools,
   isBalanceLoading,
   currentNetwork,
@@ -765,7 +762,7 @@ export const RemoveLiquidity: React.FC<IProps> = ({
     rightRange,
     currentPriceSqrt,
     isBalanceLoading,
-    walletStatus,
+    session,
     depositPercentage,
     positionLiquidity
   ])
@@ -866,7 +863,7 @@ export const RemoveLiquidity: React.FC<IProps> = ({
             value={tokenAInputState.value}
             priceLoading={priceALoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={walletStatus !== Status.Initialized}
+            walletUninitialized={!session}
           />
         </Box>
         <Box className={classes.inputWrapper}>
@@ -916,7 +913,7 @@ export const RemoveLiquidity: React.FC<IProps> = ({
             value={tokenBInputState.value}
             priceLoading={priceBLoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={walletStatus !== Status.Initialized}
+            walletUninitialized={!session}
           />
         </Box>
       </Grid>

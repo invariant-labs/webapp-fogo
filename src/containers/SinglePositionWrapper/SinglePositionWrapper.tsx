@@ -16,7 +16,7 @@ import { actions as connectionActions } from '@store/reducers/solanaConnection'
 import { actions } from '@store/reducers/positions'
 import { actions as lockerActions } from '@store/reducers/locker'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
-import { Status, actions as walletActions } from '@store/reducers/solanaWallet'
+import { actions as walletActions } from '@store/reducers/solanaWallet'
 import { network, timeoutError } from '@store/selectors/solanaConnection'
 import {
   changeLiquidity,
@@ -30,7 +30,7 @@ import {
   singlePositionData,
   showFeesLoader as storeFeesLoader
 } from '@store/selectors/positions'
-import { balance, balanceLoading, poolTokens, status } from '@store/selectors/solanaWallet'
+import { balance, balanceLoading, poolTokens } from '@store/selectors/solanaWallet'
 import { VariantType } from 'notistack'
 import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
@@ -54,6 +54,7 @@ import { Pair } from '@invariant-labs/sdk-fogo'
 import { actions as poolsActions } from '@store/reducers/pools'
 import { actions as positionsActions } from '@store/reducers/positions'
 import { blurContent, unblurContent } from '@utils/uiUtils'
+import { isSessionActive } from '@store/hooks/session'
 
 export interface IProps {
   id: string
@@ -73,6 +74,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const location = useLocation()
+  const walletConnected = isSessionActive()
   const locationHistory = useSelector(address)
   const isFeesLoading = useSelector(storeFeesLoader)
   const currentNetwork = useSelector(network)
@@ -95,7 +97,6 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
     setShowFeesLoader(isFeesLoading)
   }, [isFeesLoading])
 
-  const walletStatus = useSelector(status)
   const fogoBalance = useSelector(balance)
 
   const navigationData = useSelector(positionsNavigationData)
@@ -406,7 +407,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
     if (isFinishedDelayRender) {
       return
     }
-    if (walletStatus === Status.Initialized) {
+    if (walletConnected) {
       setIsFinishedDelayRender(true)
     }
     const timer = setTimeout(() => {
@@ -416,7 +417,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
     return () => {
       clearTimeout(timer)
     }
-  }, [walletStatus])
+  }, [walletConnected])
 
   useEffect(() => {
     if (!isLoadingList) {
@@ -511,8 +512,6 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
       fee: pool.fee
     }
   }, [poolsList, position])
-
-  const isConnected = useMemo(() => walletStatus === Status.Initialized, [walletStatus])
 
   const handleBack = (isConnected: boolean) => {
     const path = locationHistory === ROUTES.ROOT ? ROUTES.PORTFOLIO : locationHistory
@@ -744,7 +743,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
         inProgress={inProgress}
         fogoBalance={fogoBalance}
         poolDetails={poolDetails}
-        onGoBackClick={() => handleBack(isConnected)}
+        onGoBackClick={() => handleBack(walletConnected)}
         showPoolDetailsLoader={isLoadingStats}
         isPreview={isPreview}
         showPositionLoader={position.ticksLoading}
@@ -755,7 +754,6 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
         paginationData={paginationData}
         handleChangePagination={handleChangePagination}
         tokens={tokens}
-        walletStatus={walletStatus}
         allPools={poolsList}
         isBalanceLoading={isBalanceLoading}
         isTimeoutError={isTimeoutError}
@@ -778,11 +776,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
       />
     )
   }
-  if (
-    (isLoadingListDelay && walletStatus === Status.Initialized) ||
-    !isFinishedDelayRender ||
-    positionPreviewLoading
-  ) {
+  if ((isLoadingListDelay && walletConnected) || !isFinishedDelayRender || positionPreviewLoading) {
     return (
       <Grid
         container
@@ -792,7 +786,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
         <img src={loader} className={classes.loading} alt='Loading' />
       </Grid>
     )
-  } else if (walletStatus !== Status.Initialized) {
+  } else if (!walletConnected) {
     return (
       <Grid className={classes.emptyContainer}>
         <EmptyPlaceholder

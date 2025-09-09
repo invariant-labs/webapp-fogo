@@ -27,7 +27,6 @@ import {
   trimLeadingZeros
 } from '@utils/utils'
 import { Swap as SwapData } from '@store/reducers/swap'
-import { Status } from '@store/reducers/solanaWallet'
 import { SwapToken } from '@store/selectors/solanaWallet'
 import { blurContent, createButtonActions, unblurContent } from '@utils/uiUtils'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -71,7 +70,6 @@ export interface Pools {
 export interface ISwap {
   isFetchingNewPool: boolean
   onRefresh: (tokenFrom: number | null, tokenTo: number | null) => void
-  walletStatus: Status
   swapData: SwapData
   tokens: SwapToken[]
   pools: PoolWithAddress[]
@@ -132,7 +130,6 @@ export type SimulationPath = {
 export const Swap: React.FC<ISwap> = ({
   isFetchingNewPool,
   onRefresh,
-  walletStatus,
   tokens,
   pools,
   tickmap,
@@ -986,7 +983,7 @@ export const Swap: React.FC<ISwap> = ({
               current={tokenFromIndex !== null ? tokens[tokenFromIndex] : null}
               onSelect={setTokenFromIndex}
               disabled={tokenFromIndex === tokenToIndex || tokenFromIndex === null}
-              hideBalances={walletStatus !== Status.Initialized}
+              hideBalances={!walletConnected}
               handleAddToken={handleAddToken}
               commonTokens={commonTokens}
               limit={1e14}
@@ -1092,7 +1089,7 @@ export const Swap: React.FC<ISwap> = ({
               current={tokenToIndex !== null ? tokens[tokenToIndex] : null}
               onSelect={setTokenToIndex}
               disabled={tokenFromIndex === tokenToIndex || tokenToIndex === null}
-              hideBalances={walletStatus !== Status.Initialized}
+              hideBalances={!walletConnected}
               handleAddToken={handleAddToken}
               commonTokens={commonTokens}
               limit={1e14}

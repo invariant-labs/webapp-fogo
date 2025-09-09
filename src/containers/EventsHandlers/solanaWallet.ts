@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import * as R from 'remeda'
 import { useDispatch, useSelector } from 'react-redux'
-import { accounts, status as walletStatus } from '@store/selectors/solanaWallet'
+import { accounts } from '@store/selectors/solanaWallet'
 import { status } from '@store/selectors/solanaConnection'
 import { actions } from '@store/reducers/solanaWallet'
 import { AccountInfo } from '@solana/web3.js'
@@ -9,18 +9,18 @@ import { Status } from '@store/reducers/solanaConnection'
 import { getCurrentSolanaConnection } from '@utils/web3/connection'
 import { parseTokenAccountData } from '@utils/web3/data'
 import { WRAPPED_FOGO_ADDRESS } from '@store/consts/static'
+import { isSessionActive } from '@store/hooks/session'
 
 const SolanaWalletEvents = () => {
   const dispatch = useDispatch()
   const networkStatus = useSelector(status)
-
+  const isWalletConnected = isSessionActive()
   const tokensAccounts = useSelector(accounts)
-  const walletStat = useSelector(walletStatus)
   const [initializedAccount, setInitializedAccount] = useState<Set<string>>(new Set())
 
   React.useEffect(() => {
     const connection = getCurrentSolanaConnection()
-    if (!connection || walletStat !== Status.Initialized || networkStatus !== Status.Initialized) {
+    if (!connection || !isWalletConnected || networkStatus !== Status.Initialized) {
       return
     }
     const connectEvents = () => {
@@ -47,7 +47,7 @@ const SolanaWalletEvents = () => {
       setInitializedAccount(tempSet)
     }
     connectEvents()
-  }, [dispatch, tokensAccounts, networkStatus, walletStat])
+  }, [dispatch, tokensAccounts, networkStatus, isWalletConnected])
 
   return null
 }

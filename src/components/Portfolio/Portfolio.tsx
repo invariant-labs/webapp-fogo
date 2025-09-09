@@ -40,7 +40,6 @@ import { ChangeLiquidityModal } from '@components/Modals/ChangeLiquidityModal/Ch
 import { BN } from '@coral-xyz/anchor'
 import { PublicKey } from '@solana/web3.js'
 import { TickPlotPositionData } from '@common/PriceRangePlot/PriceRangePlot'
-import { Status } from '@store/reducers/solanaWallet'
 import { PoolWithAddress } from '@store/reducers/pools'
 import { Tick, Tickmap } from '@invariant-labs/sdk-fogo/lib/market'
 import { Pair } from '@invariant-labs/sdk-fogo'
@@ -89,7 +88,6 @@ interface IProps {
     coingeckoId?: string
     isUnknown?: boolean
   }[]
-  walletStatus: Status
   allPools: PoolWithAddress[]
   currentPrice: number
   tokenX: ILiquidityToken
@@ -173,7 +171,6 @@ const Portfolio: React.FC<IProps> = ({
   leftRange,
   rightRange,
   tokens,
-  walletStatus,
   allPools,
   currentPrice,
   tokenX,
@@ -456,7 +453,6 @@ const Portfolio: React.FC<IProps> = ({
         leftRange={leftRange.index}
         rightRange={rightRange.index}
         tokens={tokens}
-        walletStatus={walletStatus}
         allPools={allPools}
         isBalanceLoading={isBalanceLoading}
         currentNetwork={currentNetwork}

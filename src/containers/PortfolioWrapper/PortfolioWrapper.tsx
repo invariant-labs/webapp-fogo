@@ -18,7 +18,7 @@ import {
 } from '@invariant-labs/sdk-fogo/lib/utils'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { actions, LiquidityPools } from '@store/reducers/positions'
-import { Status, actions as walletActions } from '@store/reducers/solanaWallet'
+import { actions as walletActions } from '@store/reducers/solanaWallet'
 import {
   changeLiquidity,
   isLoadingPositionsList,
@@ -36,7 +36,6 @@ import {
 import {
   address,
   balanceLoading,
-  status,
   swapTokens,
   balance,
   overviewSwitch,
@@ -77,6 +76,7 @@ import poolsSelectors, {
 import { actions as poolsActions } from '@store/reducers/pools'
 import { actions as positionsActions } from '@store/reducers/positions'
 import { blurContent, unblurContent } from '@utils/uiUtils'
+import { isSessionActive } from '@store/hooks/session'
 
 const PortfolioWrapper = () => {
   const { classes } = useStyles()
@@ -88,7 +88,6 @@ const PortfolioWrapper = () => {
   const lockedList = useSelector(lockedPositionsWithPoolsData)
   const isLoading = useSelector(isLoadingPositionsList)
   const lastPage = useSelector(lastPageSelector)
-  const walletStatus = useSelector(status)
   const currentNetwork = useSelector(network)
   const tokensList = useSelector(swapTokens)
   const isBalanceLoading = useSelector(balanceLoading)
@@ -103,6 +102,7 @@ const PortfolioWrapper = () => {
 
   const [maxToken] = [...processedTokens].sort((a, b) => b.value - a.value)
 
+  const isConnected = isSessionActive()
   const navigate = useNavigate()
   const dispatch = useDispatch()
 
@@ -115,8 +115,6 @@ const PortfolioWrapper = () => {
       })
     )
   }
-
-  const isConnected = useMemo(() => walletStatus === Status.Initialized, [walletStatus])
 
   const setLastPage = (page: number) => {
     dispatch(actions.setLastPage(page))
@@ -641,7 +639,7 @@ const PortfolioWrapper = () => {
       data={data}
       lockedData={lockedData}
       loading={isLoading}
-      showNoConnected={walletStatus !== Status.Initialized}
+      showNoConnected={!isConnected}
       itemsPerPage={POSITIONS_PER_PAGE}
       noConnectedBlockerProps={{
         title: 'Start exploring liquidity pools right now!',
@@ -665,7 +663,6 @@ const PortfolioWrapper = () => {
       leftRange={leftRange}
       rightRange={rightRange}
       tokens={tokens}
-      walletStatus={walletStatus}
       allPools={poolsList}
       currentPrice={current}
       tokenX={{
