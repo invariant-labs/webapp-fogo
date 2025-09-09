@@ -98,14 +98,12 @@ export const PoolInit: React.FC<IPoolInit> = ({
   const [leftInputRounded, setLeftInputRounded] = useState((+leftInput).toFixed(12))
   const [rightInputRounded, setRightInputRounded] = useState((+rightInput).toFixed(12))
 
-  const validConcentrationMidPrice = (midPrice: string): number => {
-    const numericMidPrice = parseFloat(midPrice) || 1
-
+  const validConcentrationMidPrice = (midPrice: string) => {
     const minTick = getMinTick(tickSpacing)
     const maxTick = getMaxTick(tickSpacing)
 
     const midPriceTick = calculateTickFromBalance(
-      numericMidPrice,
+      +midPrice,
       tickSpacing,
       isXtoY,
       xDecimal,
@@ -134,7 +132,7 @@ export const PoolInit: React.FC<IPoolInit> = ({
       }
     }
 
-    return numericMidPrice
+    return Number(midPrice)
   }
 
   const validateMidPriceInput = (midPriceInput: string) => {
@@ -168,13 +166,9 @@ export const PoolInit: React.FC<IPoolInit> = ({
     }
   }
 
-  const [midPriceInput, setMidPriceInput] = useState(() => {
-    if (suggestedPrice && suggestedPrice > 0) {
-      return validateMidPriceInput(suggestedPrice.toString())
-    }
-
-    return validateMidPriceInput('1')
-  })
+  const [midPriceInput, setMidPriceInput] = useState(
+    validateMidPriceInput(suggestedPrice.toString() || '')
+  )
 
   const handleUpdateConcentrationFromURL = (concentrationValue: number) => {
     const mappedIndex = getConcentrationIndex(concentrationArray, concentrationValue)
