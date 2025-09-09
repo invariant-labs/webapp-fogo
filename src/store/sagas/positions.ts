@@ -519,15 +519,27 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     }
 
     if (createPoolTx) {
-      const { blockhash } = yield* call([connection, connection.getLatestBlockhash])
+      const { blockhash, lastValidBlockHeight } = yield* call([
+        connection,
+        connection.getLatestBlockhash
+      ])
       const messageV0 = new TransactionMessage({
         payerKey: session.payer,
         recentBlockhash: blockhash,
         instructions: createPoolTx.instructions
       }).compileToV0Message([])
-      const tx = new VersionedTransaction(messageV0)
-      tx.sign(poolSigners)
-      yield* call([session, session.adapter.sendTransaction], undefined, tx)
+      const txV = new VersionedTransaction(messageV0)
+      txV.sign(poolSigners)
+      const { signature: txidV } = yield* call(
+        [session, session.adapter.sendTransaction],
+        undefined,
+        txV
+      )
+      yield* call([connection, connection.confirmTransaction], {
+        blockhash,
+        lastValidBlockHeight,
+        signature: txidV
+      })
     }
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
