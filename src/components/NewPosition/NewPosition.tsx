@@ -328,6 +328,7 @@ export const NewPosition: React.FC<INewPosition> = ({
       isAutoSwapAvailable && (tokenACheckbox || tokenBCheckbox) && alignment == DepositOptions.Auto,
     [isAutoSwapAvailable, tokenACheckbox, tokenBCheckbox, alignment]
   )
+
   useEffect(() => {
     if (isAutoSwapAvailable) {
       setAlignment(DepositOptions.Auto)
@@ -376,7 +377,7 @@ export const NewPosition: React.FC<INewPosition> = ({
     const calcIndex = byFirst ? tokenAIndex : tokenBIndex
 
     if (printIndex === null || calcIndex === null) {
-      return byFirst ? tokenBDeposit : tokenADeposit
+      return '0.0'
     }
 
     try {

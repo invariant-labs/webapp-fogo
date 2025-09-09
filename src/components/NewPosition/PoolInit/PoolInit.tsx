@@ -343,23 +343,15 @@ export const PoolInit: React.FC<IPoolInit> = ({
         </Grid>
 
         <SimpleInput
-          setValue={value => {
-            const validatedValue = value || '0'
-            setMidPriceInput(validatedValue)
-          }}
-          value={midPriceInput || '1'}
+          setValue={setMidPriceInput}
+          value={midPriceInput}
           decimal={isXtoY ? xDecimal : yDecimal}
           className={classes.midPrice}
-          placeholder='1.0'
+          placeholder='0.0'
           onBlur={e => {
-            const inputValue = e.target.value || '1'
-            const validated = validateMidPriceInput(inputValue)
-            setMidPriceInput(validated)
+            setMidPriceInput(validateMidPriceInput(e.target.value || '0'))
           }}
-          formatterFunction={value => {
-            if (!value || value === '') return '1'
-            return validateMidPriceInput(value)
-          }}
+          formatterFunction={validateMidPriceInput}
           suggestedPrice={suggestedPrice}
           tooltipTitle={
             bestFeeIndex !== -1 && suggestedPrice ? (
