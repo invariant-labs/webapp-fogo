@@ -1299,8 +1299,8 @@ export function* handleClaimAllFees() {
               let tokenYAmount = '0'
               let tokenXIcon = unknownTokenIcon
               let tokenYIcon = unknownTokenIcon
-              let tokenXSymbol = 'Unknown'
               let tokenYSymbol = 'Unknown'
+              let tokenXSymbol = 'Unknown'
 
               if (nativeTransfer) {
                 tokenXAmount = formatNumberWithoutSuffix(
