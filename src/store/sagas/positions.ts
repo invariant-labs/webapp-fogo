@@ -1161,9 +1161,8 @@ export function* handleClaimAllFees() {
     const connection = yield* call(getConnection)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
     const allTokens = yield* select(tokens)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
     const positionsData = yield* select(positionsWithPoolsData)
     const filteredPositions = positionsData.filter(position => {
       const [bnX, bnY] = calculateClaimAmount({
@@ -1228,7 +1227,12 @@ export function* handleClaimAllFees() {
           const programId =
             allTokens[tokenX.toString()].tokenProgram ??
             (yield* call(getTokenProgramId, connection, tokenX))
-          const ataX = getAssociatedTokenAddressSync(tokenX, wallet.publicKey, false, programId)
+          const ataX = getAssociatedTokenAddressSync(
+            tokenX,
+            session.walletPublicKey,
+            false,
+            programId
+          )
           accountToMint[ataX.toString()] = tokenX.toString()
         }
       }
@@ -1240,42 +1244,27 @@ export function* handleClaimAllFees() {
           const programId =
             allTokens[tokenY.toString()].tokenProgram ??
             (yield* call(getTokenProgramId, connection, tokenY))
-          const ataY = getAssociatedTokenAddressSync(tokenY, wallet.publicKey, false, programId)
+          const ataY = getAssociatedTokenAddressSync(
+            tokenY,
+            session.walletPublicKey,
+            false,
+            programId
+          )
           accountToMint[ataY.toString()] = tokenY.toString()
         }
       }
     }
 
     const txs = yield* call([marketProgram, marketProgram.claimAllFeesTxs], session, {
-      owner: wallet.publicKey,
       positions: formattedPositions
     } as ClaimAllFee)
-
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    for (const { tx, additionalSigner } of txs) {
+    for (const { tx } of txs) {
       const { blockhash, lastValidBlockHeight } = yield* call([
         connection,
         connection.getLatestBlockhash
       ])
-      tx.recentBlockhash = blockhash
-      tx.lastValidBlockHeight = lastValidBlockHeight
-      tx.feePayer = wallet.publicKey
-
-      //   let signedTx: Transaction
-      if (additionalSigner) {
-        tx.partialSign(additionalSigner)
-
-        // const partiallySignedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
-        // signedTx = partiallySignedTx
-      } else {
-        // signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-      }
-
-      //   const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      //     skipPreflight: false
-      //   })
 
       const { signature: txid } = yield* call([session, session.sendTransaction], tx.instructions)
 
