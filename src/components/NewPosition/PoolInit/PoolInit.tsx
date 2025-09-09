@@ -166,9 +166,13 @@ export const PoolInit: React.FC<IPoolInit> = ({
     }
   }
 
-  const [midPriceInput, setMidPriceInput] = useState(
-    validateMidPriceInput(suggestedPrice.toString() || '')
-  )
+  const [midPriceInput, setMidPriceInput] = useState(() => {
+    if (suggestedPrice && suggestedPrice > 0) {
+      return validateMidPriceInput(suggestedPrice.toString())
+    }
+
+    return validateMidPriceInput('1')
+  })
 
   const handleUpdateConcentrationFromURL = (concentrationValue: number) => {
     const mappedIndex = getConcentrationIndex(concentrationArray, concentrationValue)

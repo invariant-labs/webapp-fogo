@@ -761,7 +761,7 @@ export const NewPositionWrapper: React.FC<IProps> = ({
 
   const suggestedPrice = useMemo(() => {
     if (tokenAIndex === null || tokenBIndex === null) {
-      return 1
+      return 0
     }
 
     const feeTiersTVLValues = Object.values(feeTiersWithTvl)
@@ -771,7 +771,7 @@ export const NewPositionWrapper: React.FC<IProps> = ({
     })
 
     if (bestTierIndex === -1) {
-      return 1
+      return 0
     }
 
     const poolIndex = allPools.findIndex(
@@ -792,12 +792,12 @@ export const NewPositionWrapper: React.FC<IProps> = ({
           })
         )
       )
-      return 1
+      return 0
     }
 
     return poolIndex !== -1
       ? calcPriceBySqrtPrice(allPools[poolIndex].sqrtPrice, isXtoY, xDecimal, yDecimal)
-      : 1
+      : 0
   }, [tokenAIndex, tokenBIndex, allPools.length, currentPairReversed])
 
   const oraclePrice = useMemo(() => {
