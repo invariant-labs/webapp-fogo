@@ -520,6 +520,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
         }
       )
     }
+
     if (createPoolTx) {
       const { blockhash, lastValidBlockHeight } = yield* call([
         connection,
@@ -543,6 +544,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
         signature: txidV
       })
     }
+
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     closeSnackbar(loaderSigningTx)

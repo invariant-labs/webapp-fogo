@@ -375,18 +375,12 @@ export const NewPosition: React.FC<INewPosition> = ({
   const getOtherTokenAmount = (amount: BN, left: number, right: number, byFirst: boolean) => {
     const printIndex = byFirst ? tokenBIndex : tokenAIndex
     const calcIndex = byFirst ? tokenAIndex : tokenBIndex
-
     if (printIndex === null || calcIndex === null) {
       return '0.0'
     }
-
-    try {
-      const result = calcAmount(amount, left, right, tokens[calcIndex].assetAddress)
-      updateLiquidity(result.liquidity)
-      return trimLeadingZeros(printBN(result.amount, tokens[printIndex].decimals))
-    } catch (error) {
-      return byFirst ? tokenBDeposit : tokenADeposit
-    }
+    const result = calcAmount(amount, left, right, tokens[calcIndex].assetAddress)
+    updateLiquidity(result.liquidity)
+    return trimLeadingZeros(printBN(result.amount, tokens[printIndex].decimals))
   }
 
   const getTicksInsideRange = (left: number, right: number, isXtoY: boolean) => {
