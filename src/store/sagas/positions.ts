@@ -15,7 +15,7 @@ import {
 } from '@store/reducers/positions'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { poolsArraySortedByFees, tokens } from '@store/selectors/pools'
-import { IWallet, Pair } from '@invariant-labs/sdk-fogo'
+import { IWallet, Pair, sleep } from '@invariant-labs/sdk-fogo'
 import { accounts } from '@store/selectors/solanaWallet'
 import { actions as RPCAction, RpcStatus } from '@store/reducers/solanaConnection'
 import {
@@ -71,7 +71,7 @@ import {
 import { actions as connectionActions } from '@store/reducers/solanaConnection'
 import { ClaimAllFee } from '@invariant-labs/sdk-fogo/lib/market'
 import { parseTick, Position } from '@invariant-labs/sdk-fogo/lib/market'
-import { getAssociatedTokenAddressSync, NATIVE_MINT } from '@solana/spl-token'
+import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { unknownTokenIcon } from '@static/icons'
 import { calculateClaimAmount } from '@invariant-labs/sdk-fogo/lib/utils'
 import { getSession } from '@store/hooks/session'
@@ -1173,9 +1173,8 @@ export function* handleClaimAllFees() {
     const connection = yield* call(getConnection)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
     const allTokens = yield* select(tokens)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
     const positionsData = yield* select(positionsWithPoolsData)
     const filteredPositions = positionsData.filter(position => {
       const [bnX, bnY] = calculateClaimAmount({
@@ -1240,7 +1239,12 @@ export function* handleClaimAllFees() {
           const programId =
             allTokens[tokenX.toString()].tokenProgram ??
             (yield* call(getTokenProgramId, connection, tokenX))
-          const ataX = getAssociatedTokenAddressSync(tokenX, wallet.publicKey, false, programId)
+          const ataX = getAssociatedTokenAddressSync(
+            tokenX,
+            session.walletPublicKey,
+            false,
+            programId
+          )
           accountToMint[ataX.toString()] = tokenX.toString()
         }
       }
@@ -1252,42 +1256,27 @@ export function* handleClaimAllFees() {
           const programId =
             allTokens[tokenY.toString()].tokenProgram ??
             (yield* call(getTokenProgramId, connection, tokenY))
-          const ataY = getAssociatedTokenAddressSync(tokenY, wallet.publicKey, false, programId)
+          const ataY = getAssociatedTokenAddressSync(
+            tokenY,
+            session.walletPublicKey,
+            false,
+            programId
+          )
           accountToMint[ataY.toString()] = tokenY.toString()
         }
       }
     }
 
     const txs = yield* call([marketProgram, marketProgram.claimAllFeesTxs], session, {
-      owner: wallet.publicKey,
       positions: formattedPositions
     } as ClaimAllFee)
-
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    for (const { tx, additionalSigner } of txs) {
+    for (const { tx } of txs) {
       const { blockhash, lastValidBlockHeight } = yield* call([
         connection,
         connection.getLatestBlockhash
       ])
-      tx.recentBlockhash = blockhash
-      tx.lastValidBlockHeight = lastValidBlockHeight
-      tx.feePayer = wallet.publicKey
-
-      //   let signedTx: Transaction
-      if (additionalSigner) {
-        tx.partialSign(additionalSigner)
-
-        // const partiallySignedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
-        // signedTx = partiallySignedTx
-      } else {
-        // signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-      }
-
-      //   const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      //     skipPreflight: false
-      //   })
 
       const { signature: txid } = yield* call([session, session.sendTransaction], tx.instructions)
 
@@ -1306,12 +1295,6 @@ export function* handleClaimAllFees() {
         if (meta?.innerInstructions && meta.innerInstructions) {
           for (const metaInstructions of meta.innerInstructions) {
             try {
-              const nativeTransfer = metaInstructions.instructions.find(
-                ix => (ix as ParsedInstruction).parsed.info.amount
-              ) as ParsedInstruction
-
-              const nativeAmount = nativeTransfer ? nativeTransfer.parsed.info.amount : 0
-
               const splTransfers = metaInstructions.instructions.filter(
                 ix =>
                   (ix as ParsedInstruction).parsed.info.tokenAmount !== undefined ||
@@ -1322,16 +1305,8 @@ export function* handleClaimAllFees() {
               let tokenYAmount = '0'
               let tokenXIcon = unknownTokenIcon
               let tokenYIcon = unknownTokenIcon
-              let tokenXSymbol = 'Unknown'
               let tokenYSymbol = 'Unknown'
-
-              if (nativeTransfer) {
-                tokenXAmount = formatNumberWithoutSuffix(
-                  printBN(nativeAmount, allTokens[NATIVE_MINT.toString()].decimals)
-                )
-                tokenXIcon = allTokens[NATIVE_MINT.toString()].logoURI
-                tokenXSymbol = allTokens[NATIVE_MINT.toString()].symbol ?? NATIVE_MINT.toString()
-              }
+              let tokenXSymbol = 'Unknown'
 
               splTransfers.map((transfer, index) => {
                 const token =
@@ -1343,7 +1318,7 @@ export function* handleClaimAllFees() {
                 if (index === 0) {
                   tokenYAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
                   tokenYIcon = token.logoURI
-                } else if (index === 1 && !nativeTransfer) {
+                } else if (index === 1) {
                   tokenXAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
                   tokenXIcon = token.logoURI
                   tokenYSymbol = token.symbol ?? token.address.toString()
@@ -1402,6 +1377,7 @@ export function* handleClaimAllFees() {
     closeSnackbar(loaderClaimAllFees)
     yield put(snackbarsActions.remove(loaderClaimAllFees))
 
+    yield sleep(500)
     yield put(actions.getPositionsList())
 
     yield* put(actions.setAllClaimLoader(false))
