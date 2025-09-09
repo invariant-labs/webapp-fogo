@@ -285,7 +285,6 @@ export function* getCollateralTokenAirdrop(
   collateralsQuantities: number[]
 ): Generator {
   const session = getSession()
-  console.log(window)
   if (!session) throw new Error('No session provided')
   const instructions: TransactionInstruction[] = []
   yield* call(setEmptyAccounts, collateralsAddresses)
