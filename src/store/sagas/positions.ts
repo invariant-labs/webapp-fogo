@@ -15,7 +15,7 @@ import {
 } from '@store/reducers/positions'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { poolsArraySortedByFees, tokens } from '@store/selectors/pools'
-import { IWallet, Pair } from '@invariant-labs/sdk-fogo'
+import { IWallet, Pair, sleep } from '@invariant-labs/sdk-fogo'
 import { accounts } from '@store/selectors/solanaWallet'
 import { actions as RPCAction, RpcStatus } from '@store/reducers/solanaConnection'
 import {
@@ -1379,6 +1379,7 @@ export function* handleClaimAllFees() {
     closeSnackbar(loaderClaimAllFees)
     yield put(snackbarsActions.remove(loaderClaimAllFees))
 
+    yield sleep(500)
     yield put(actions.getPositionsList())
 
     yield* put(actions.setAllClaimLoader(false))
