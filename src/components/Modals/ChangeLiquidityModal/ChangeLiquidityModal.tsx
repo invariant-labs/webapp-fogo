@@ -57,8 +57,6 @@ export interface IChangeLiquidityModal {
   ticksLoading: boolean
   isTimeoutError: boolean
   getCurrentPlotTicks: () => void
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   getPoolData: (pair: Pair) => void
   setShouldNotUpdateRange: () => void
   autoSwapPoolData: PoolWithAddress | null
@@ -120,8 +118,6 @@ export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
   ticksLoading,
   isBalanceLoading,
   getCurrentPlotTicks,
-  onConnectWallet,
-  onDisconnectWallet,
   getPoolData,
   setShouldNotUpdateRange,
   autoSwapPoolData,
@@ -288,8 +284,6 @@ export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
               currentNetwork={currentNetwork}
               ticksLoading={ticksLoading}
               getCurrentPlotTicks={getCurrentPlotTicks}
-              onConnectWallet={onConnectWallet}
-              onDisconnectWallet={onDisconnectWallet}
               getPoolData={getPoolData}
               setShouldNotUpdateRange={setShouldNotUpdateRange}
               autoSwapPoolData={autoSwapPoolData}
@@ -322,8 +316,6 @@ export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
               currentNetwork={currentNetwork}
               ticksLoading={ticksLoading}
               getCurrentPlotTicks={getCurrentPlotTicks}
-              onConnectWallet={onConnectWallet}
-              onDisconnectWallet={onDisconnectWallet}
               getPoolData={getPoolData}
               setShouldNotUpdateRange={setShouldNotUpdateRange}
               changeLiquidity={changeLiquidity}

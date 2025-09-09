@@ -1,39 +1,23 @@
-import { useEffect, useCallback, memo, useRef } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
+import { useEffect, useCallback, memo } from 'react'
+import { useDispatch } from 'react-redux'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import EventsHandlers from '@containers/EventsHandlers'
 import FooterWrapper from '@containers/FooterWrapper'
 import HeaderWrapper from '@containers/HeaderWrapper/HeaderWrapper'
 import { Grid } from '@mui/material'
-import { Status, actions as solanaConnectionActions } from '@store/reducers/solanaConnection'
-import { status as connectionStatus } from '@store/selectors/solanaConnection'
+import { actions as solanaConnectionActions } from '@store/reducers/solanaConnection'
 import { toBlur } from '@utils/uiUtils'
 import useStyles from './style'
-import { status } from '@store/selectors/solanaWallet'
-import { Status as WalletStatus } from '@store/reducers/solanaWallet'
-import { actions as walletActions } from '@store/reducers/solanaWallet'
 import { actions } from '@store/reducers/positions'
-import { DEFAULT_PUBLICKEY } from '@store/consts/static'
-import { getFogoWallet } from '@utils/web3/wallet'
-import { ROUTES } from '@utils/utils'
+import { metaData, ROUTES } from '@utils/utils'
+import { SessionStateType, useSession } from '@fogo/sessions-sdk-react'
 
 const RootPage: React.FC = memo(() => {
   const dispatch = useDispatch()
-  const signerStatus = useSelector(connectionStatus)
-  const walletStatus = useSelector(status)
+  const session = useSession()
   const navigate = useNavigate()
   const { classes } = useStyles()
   const location = useLocation()
-
-  const metaData = new Map([
-    [ROUTES.EXCHANGE, 'Invariant | Exchange'],
-    [ROUTES.LIQUIDITY, 'Invariant | Liquidity'],
-    [ROUTES.PORTFOLIO, 'Invariant | Portfolio'],
-    [ROUTES.NEW_POSITION, 'Invariant | New Position'],
-    [ROUTES.POSITION, 'Invariant | Position Details'],
-    [ROUTES.STATISTICS, 'Invariant | Statistics'],
-    [ROUTES.CREATOR, 'Invariant | Creator']
-  ])
 
   useEffect(() => {
     const title =
@@ -56,52 +40,15 @@ const RootPage: React.FC = memo(() => {
     initConnection()
   }, [initConnection])
 
-  const walletAddressRef = useRef('')
-
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      const addr = getFogoWallet()?.publicKey.toString()
-      if (
-        !walletAddressRef.current ||
-        (walletAddressRef.current === DEFAULT_PUBLICKEY.toString() &&
-          addr !== DEFAULT_PUBLICKEY.toString())
-      ) {
-        walletAddressRef.current = addr
-        return
-      }
-
-      if (
-        !document.hasFocus() &&
-        walletAddressRef.current !== DEFAULT_PUBLICKEY.toString() &&
-        walletAddressRef.current !== addr
-      ) {
-        walletAddressRef.current = addr
-        dispatch(walletActions.changeWalletInExtension())
-        dispatch(actions.getPositionsList())
-        // dispatch(saleActions.getUserStats())
-      }
-
-      if (
-        document.hasFocus() &&
-        walletAddressRef.current !== DEFAULT_PUBLICKEY.toString() &&
-        walletAddressRef.current !== addr
-      ) {
-        walletAddressRef.current = addr
-      }
-    }, 500)
-
-    return () => clearInterval(intervalId)
-  }, [])
-
-  useEffect(() => {
-    if (signerStatus === Status.Initialized && walletStatus === WalletStatus.Initialized) {
+    if (session.type === SessionStateType.Established) {
       dispatch(actions.getPositionsList())
     }
-  }, [signerStatus, walletStatus])
+  }, [session.type, dispatch])
 
   return (
     <>
-      {signerStatus === Status.Initialized && <EventsHandlers />}
+      <EventsHandlers />
       <div id={toBlur}>
         <Grid className={classes.root}>
           <HeaderWrapper />

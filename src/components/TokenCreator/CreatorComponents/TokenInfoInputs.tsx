@@ -12,6 +12,7 @@ import ChangeWalletButton from '@components/Header/HeaderButton/ChangeWalletButt
 import useStyles from './styles'
 import { validateSupply } from '@utils/tokenCreatorUtils'
 import { FormData } from '@store/consts/tokenCreator/types'
+import { getSession } from '@store/hooks/session'
 
 interface TokenInfoInputsProps {
   formMethods: UseFormReturn<FormData>
@@ -20,7 +21,6 @@ interface TokenInfoInputsProps {
   inProgress: boolean
   fogoBalance: BN
   currentNetwork: NetworkType
-  onConnectWallet: () => void
 }
 
 export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
@@ -29,10 +29,10 @@ export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
   success,
   inProgress,
   fogoBalance,
-  currentNetwork,
-  onConnectWallet
+  currentNetwork
 }) => {
   const { classes, cx } = useStyles()
+  const session = getSession()
   const {
     control,
     watch,
@@ -168,11 +168,10 @@ export const TokenInfoInputs: React.FC<TokenInfoInputsProps> = ({
         )
       ) : (
         <ChangeWalletButton
+          walletConnected={!!session}
+          width={'100%'}
+          height={40}
           name='Connect wallet'
-          onConnect={onConnectWallet}
-          connected={false}
-          onDisconnect={() => {}}
-          className={classes.connectWalletButton}
         />
       )}
     </Box>

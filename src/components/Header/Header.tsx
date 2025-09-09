@@ -1,12 +1,10 @@
 import NavbarButton from '@components/Navbar/NavbarButton'
-import DotIcon from '@mui/icons-material/FiberManualRecordRounded'
 import { CardMedia, Grid, useMediaQuery } from '@mui/material'
 import { logoShortIcon, logoTitleIcon } from '@static/icons'
 import { theme } from '@static/theme'
 import { RPC, NetworkType } from '@store/consts/static'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import ChangeWalletButton from './HeaderButton/ChangeWalletButton'
 import useStyles from './style'
 import { ISelectChain, ISelectNetwork } from '@store/consts/types'
 import { RpcStatus } from '@store/reducers/solanaConnection'
@@ -14,6 +12,13 @@ import { PublicKey } from '@solana/web3.js'
 import { BN } from '@coral-xyz/anchor'
 import { Bar } from '@components/Bar/Bar'
 import { ROUTES } from '@utils/utils'
+import { isEstablished, useSession } from '@fogo/sessions-sdk-react'
+import { getSession, SendTxInput, setSession } from '@store/hooks/session'
+import { actions as snackbarsActions } from '@store/reducers/snackbars'
+import { useDispatch } from 'react-redux'
+
+import ChangeWalletButton from './HeaderButton/ChangeWalletButton'
+import { actions as walletActions } from '@store/reducers/solanaWallet'
 
 export interface IHeader {
   address: PublicKey
@@ -36,20 +41,16 @@ export interface IHeader {
 }
 
 export const Header: React.FC<IHeader> = ({
-  address,
   onNetworkSelect,
-  onConnectWallet,
-  walletConnected,
   landing,
   typeOfNetwork,
   rpc,
   onFaucet,
-  onDisconnectWallet,
-  onCopyAddress,
   onChainSelect
 }) => {
   const { classes } = useStyles()
   const navigate = useNavigate()
+  const dispatch = useDispatch()
   const isSmDown = useMediaQuery(theme.breakpoints.down('sm'))
 
   const routes = [
@@ -68,10 +69,52 @@ export const Header: React.FC<IHeader> = ({
   }
 
   const [activePath, setActive] = useState('exchange')
+  const [sessionConnected, setSessionConnected] = useState(false)
 
   useEffect(() => {
     setActive(landing)
   }, [landing])
+
+  const session = useSession()
+  const hookSession = getSession()
+
+  useEffect(() => {
+    if (isEstablished(session)) {
+      dispatch(
+        snackbarsActions.add({
+          message: 'Wallet connected',
+          variant: 'success',
+          persist: false
+        })
+      )
+
+      setSession({
+        type: 'Established',
+        walletPublicKey: session.walletPublicKey,
+        sessionPublicKey: session.sessionPublicKey,
+        payer: session.payer,
+        adapter: session.adapter,
+        sendTransaction: (input: SendTxInput) => session.sendTransaction(input as any)
+      })
+
+      setSessionConnected(true)
+      dispatch(walletActions.connect(false))
+    } else {
+      if (sessionConnected) {
+        dispatch(
+          snackbarsActions.add({
+            message: 'Wallet disconnected',
+            variant: 'success',
+            persist: false
+          })
+        )
+
+        setSessionConnected(false)
+      }
+      setSession(null)
+      dispatch(walletActions.resetState())
+    }
+  }, [session])
 
   const testnetRPCs: ISelectNetwork[] = [
     {
@@ -160,26 +203,11 @@ export const Header: React.FC<IHeader> = ({
           />
 
           <ChangeWalletButton
-            name={
-              walletConnected
-                ? `${address.toString().slice(0, 4)}...${
-                    !isSmDown
-                      ? address
-                          .toString()
-                          .slice(address.toString().length - 4, address.toString().length)
-                      : ''
-                  }`
-                : isSmDown
-                  ? 'Connect'
-                  : 'Connect wallet'
-            }
-            onConnect={onConnectWallet}
-            connected={walletConnected}
-            onDisconnect={onDisconnectWallet}
-            startIcon={
-              walletConnected ? <DotIcon className={classes.connectedWalletIcon} /> : undefined
-            }
-            onCopyAddress={onCopyAddress}
+            address={hookSession?.walletPublicKey?.toString()}
+            isSmDown={isSmDown}
+            walletConnected={session.type === 7}
+            name=''
+            enableModal
           />
         </Grid>
       </Grid>

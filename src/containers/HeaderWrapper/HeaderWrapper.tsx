@@ -4,16 +4,13 @@ import { actions, RpcStatus } from '@store/reducers/solanaConnection'
 import { Status, actions as walletActions } from '@store/reducers/solanaWallet'
 import { network, rpcAddress, rpcStatus } from '@store/selectors/solanaConnection'
 import { address, balance, status, thankYouModalShown } from '@store/selectors/solanaWallet'
-import { nightlyConnectAdapter } from '@utils/web3/selector'
 import React, { useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
-import { Chain, WalletType } from '@store/consts/types'
+import { Chain } from '@store/consts/types'
 import { RpcErrorModal } from '@components/RpcErrorModal/RpcErrorModal'
 import { ThankYouModal } from '@components/Modals/ThankYouModal/ThankYouModal'
-import { changeToNightlyAdapter, connectStaticWallet, getFogoWallet } from '@utils/web3/wallet'
-import { sleep } from '@invariant-labs/sdk-fogo'
 import { ensureError, generateHash, ROUTES } from '@utils/utils'
 
 export const HeaderWrapper: React.FC = () => {
@@ -32,55 +29,10 @@ export const HeaderWrapper: React.FC = () => {
   }
 
   useEffect(() => {
-    const reconnectStaticWallet = async (wallet: WalletType) => {
-      const isConnected = await connectStaticWallet(wallet)
-      if (!isConnected) localStorage.setItem('WALLET_TYPE', '')
-      else {
-        dispatch(walletActions.connect(true))
-      }
+    if (currentNetwork === NetworkType.Devnet) {
+      dispatch(actions.setNetwork(NetworkType.Testnet))
+      dispatch(actions.setRPCAddress(RPC.TEST))
     }
-
-    const eagerConnectToNightly = async () => {
-      try {
-        changeToNightlyAdapter()
-        const nightlyAdapter = getFogoWallet()
-
-        await nightlyAdapter.connect()
-        await sleep(500)
-        if (!nightlyAdapter.connected) {
-          await nightlyAdapter.connect()
-          await sleep(500)
-        }
-        dispatch(walletActions.connect(true))
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        console.error('Error during Nightly eager connection:', error)
-      }
-    }
-
-    ;(async () => {
-      if (currentNetwork === NetworkType.Devnet) {
-        dispatch(actions.setNetwork(NetworkType.Testnet))
-        dispatch(actions.setRPCAddress(RPC.TEST))
-      }
-
-      const walletType = localStorage.getItem('WALLET_TYPE') as WalletType | null
-
-      if (walletType === WalletType.NIGHTLY) {
-        const canEagerConnect = await nightlyConnectAdapter
-          .canEagerConnect()
-          .catch((e: unknown) => {
-            const error = ensureError(e)
-            console.error('Error checking eager connect:', error)
-            return false
-          })
-        if (canEagerConnect) {
-          await eagerConnectToNightly()
-        }
-      } else if (walletType) {
-        await reconnectStaticWallet(walletType)
-      }
-    })()
   }, [])
 
   const shouldResetRpc = useMemo(() => {

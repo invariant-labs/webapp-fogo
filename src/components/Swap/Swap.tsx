@@ -4,14 +4,13 @@ import ExchangeAmountInput from '@components/Inputs/ExchangeAmountInput/Exchange
 import Slippage from '@components/Modals/Slippage/Slippage'
 import Refresher from '@common/Refresher/Refresher'
 import { BN } from '@coral-xyz/anchor'
-import { Box, Button, Collapse, Grid, Typography, useMediaQuery } from '@mui/material'
+import { Box, Button, Grid, Typography, useMediaQuery } from '@mui/material'
 import {
   DEFAULT_TOKEN_DECIMAL,
   inputTarget,
   NetworkType,
   REFRESHER_INTERVAL,
   SwapType,
-  WFOGO_MAIN,
   WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN,
   WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST,
   WRAPPED_FOGO_ADDRESS
@@ -20,7 +19,6 @@ import {
   addressToTicker,
   convertBalanceToBN,
   findPairs,
-  formatNumberWithoutSuffix,
   handleSimulate,
   handleSimulateWithHop,
   initialXtoY,
@@ -48,6 +46,7 @@ import { auditIcon, refreshIcon, settingIcon, swapArrowsIcon, warningIcon } from
 import { useNavigate } from 'react-router-dom'
 import { FetcherRecords, Pair, SimulationTwoHopResult } from '@invariant-labs/sdk-fogo'
 import { theme } from '@static/theme'
+import { getSession } from '@store/hooks/session'
 
 export interface Pools {
   tokenX: PublicKey
@@ -93,8 +92,6 @@ export interface ISwap {
   progress: ProgressState
   poolTicks: { [x: string]: Tick[] }
   isWaitingForNewPool: boolean
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   initialTokenFromIndex: number | null
   initialTokenToIndex: number | null
   handleAddToken: (address: string) => void
@@ -111,8 +108,6 @@ export interface ISwap {
   copyTokenAddressHandler: (message: string, variant: VariantType) => void
   network: NetworkType
   fogoBalance: BN
-  unwrapWFOGO: () => void
-  wrappedFOGOAccountExist: boolean
   isTimeoutError: boolean
   deleteTimeoutError: () => void
   canNavigate: boolean
@@ -120,7 +115,6 @@ export interface ISwap {
   tokensDict: Record<string, SwapToken>
   swapAccounts: FetcherRecords
   swapIsLoading: boolean
-  wrappedFOGOBalance: BN | null
 }
 
 export type SimulationPath = {
@@ -147,8 +141,6 @@ export const Swap: React.FC<ISwap> = ({
   progress,
   poolTicks,
   isWaitingForNewPool,
-  onConnectWallet,
-  onDisconnectWallet,
   initialTokenFromIndex,
   initialTokenToIndex,
   handleAddToken,
@@ -165,9 +157,7 @@ export const Swap: React.FC<ISwap> = ({
   copyTokenAddressHandler,
   network,
   fogoBalance,
-  unwrapWFOGO,
-  wrappedFOGOAccountExist,
-  wrappedFOGOBalance,
+
   isTimeoutError,
   deleteTimeoutError,
   canNavigate,
@@ -177,6 +167,8 @@ export const Swap: React.FC<ISwap> = ({
   swapIsLoading
 }) => {
   const { classes, cx } = useStyles()
+
+  const session = getSession()
 
   const [tokenFromIndex, setTokenFromIndex] = React.useState<number | null>(null)
   const [tokenToIndex, setTokenToIndex] = React.useState<number | null>(null)
@@ -194,8 +186,8 @@ export const Swap: React.FC<ISwap> = ({
   const [rateReversed, setRateReversed] = React.useState<boolean>(
     tokenFromIndex && tokenToIndex
       ? !initialXtoY(
-          tokens[tokenFromIndex].assetAddress.toString(),
-          tokens[tokenToIndex].assetAddress.toString()
+          tokens[tokenFromIndex]?.assetAddress.toString(),
+          tokens[tokenToIndex]?.assetAddress.toString()
         )
       : false
   )
@@ -204,8 +196,17 @@ export const Swap: React.FC<ISwap> = ({
   const [hideUnknownTokens, setHideUnknownTokens] = React.useState<boolean>(
     initialHideUnknownTokensValue
   )
+  const [walletConnected, setWalletConnected] = useState(false)
   const txDown = useMediaQuery(theme.breakpoints.down(483))
   const txDown2 = useMediaQuery(theme.breakpoints.down(360))
+
+  useEffect(() => {
+    if (!!session) {
+      setWalletConnected(true)
+    } else {
+      setWalletConnected(false)
+    }
+  }, [session])
 
   const [simulateResult, setSimulateResult] = React.useState<{
     amountOut: BN
@@ -246,8 +247,6 @@ export const Swap: React.FC<ISwap> = ({
   const [wasIsFetchingNewPoolRun, setWasIsFetchingNewPoolRun] = useState(false)
   const [wasSwapIsLoadingRun, setWasSwapIsLoadingRun] = useState(false)
   const [isReversingTokens, setIsReversingTokens] = useState(false)
-  const shortenText = useMediaQuery(theme.breakpoints.down(500))
-  const shortenTextXS = useMediaQuery(theme.breakpoints.down(360))
 
   const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT = useMemo(() => {
     if (network === NetworkType.Testnet) {
@@ -273,14 +272,14 @@ export const Swap: React.FC<ISwap> = ({
     }
   }, [isTimeoutError])
 
-  const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
+  const urlUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!tokens.length) return
     if (tokenFromIndex === null || tokenToIndex === null) return
     if (!tokens[tokenFromIndex] || !tokens[tokenToIndex]) return
 
-    clearTimeout(urlUpdateTimeoutRef.current)
+    if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
     urlUpdateTimeoutRef.current = setTimeout(() => {
       const fromTicker = addressToTicker(network, tokens[tokenFromIndex].assetAddress.toString())
       const toTicker = addressToTicker(network, tokens[tokenToIndex].assetAddress.toString())
@@ -291,7 +290,9 @@ export const Swap: React.FC<ISwap> = ({
       }
     }, 500)
 
-    return () => clearTimeout(urlUpdateTimeoutRef.current)
+    return () => {
+      if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
+    }
   }, [
     tokenFromIndex,
     tokenToIndex,
@@ -645,7 +646,7 @@ export const Swap: React.FC<ISwap> = ({
     if (tokenFromIndex !== null && tokenToIndex !== null && amountFrom === '' && amountTo === '') {
       return 'Enter amount'
     }
-    if (walletStatus !== Status.Initialized) {
+    if (!walletConnected) {
       return 'Connect a wallet'
     }
 
@@ -938,17 +939,7 @@ export const Swap: React.FC<ISwap> = ({
           />
         </Grid>
       </Grid>
-      <Collapse in={wrappedFOGOAccountExist} className={classes.collapseWrapper}>
-        <Grid className={classes.unwrapContainer}>
-          {shortenText
-            ? `You have ${!shortenTextXS ? 'wrapped' : ''} ${formatNumberWithoutSuffix(printBN(wrappedFOGOBalance, WFOGO_MAIN.decimals))} ${shortenTextXS ? 'W' : ''}FOGO`
-            : `          You currently hold ${formatNumberWithoutSuffix(printBN(wrappedFOGOBalance, WFOGO_MAIN.decimals))} wrapped Fogo in your
-          wallet`}
-          <span className={classes.unwrapNowButton} onClick={unwrapWFOGO}>
-            Unwrap now
-          </span>
-        </Grid>
-      </Collapse>
+
       <Box className={classes.borderContainer}>
         <Grid container className={classes.root} direction='column'>
           <Typography className={classes.swapLabel}>Pay</Typography>
@@ -1258,14 +1249,14 @@ export const Swap: React.FC<ISwap> = ({
                 network={network}
               />
             </Box>
-            {walletStatus !== Status.Initialized && getStateMessage() !== 'Loading' ? (
+            {!walletConnected ? (
               <ChangeWalletButton
                 height={48}
                 name='Connect wallet'
-                onConnect={onConnectWallet}
-                connected={false}
-                onDisconnect={onDisconnectWallet}
                 isSwap={true}
+                width={'100%'}
+                walletConnected={walletConnected}
+                isSmDown={false}
               />
             ) : getStateMessage() === 'Insufficient FOGO' ? (
               <TooltipHover

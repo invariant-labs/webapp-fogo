@@ -133,8 +133,6 @@ interface IProps {
   allPools: PoolWithAddress[]
   isBalanceLoading: boolean
   isTimeoutError: boolean
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   getPoolData: (pair: Pair) => void
   setShouldNotUpdateRange: () => void
   autoSwapPoolData: PoolWithAddress | null
@@ -206,8 +204,6 @@ const PositionDetails: React.FC<IProps> = ({
   allPools,
   isTimeoutError,
   isBalanceLoading,
-  onConnectWallet,
-  onDisconnectWallet,
   getPoolData,
   setShouldNotUpdateRange,
   autoSwapPoolData,
@@ -456,8 +452,6 @@ const PositionDetails: React.FC<IProps> = ({
             ticksLoading={ticksLoading}
             isTimeoutError={isTimeoutError}
             getCurrentPlotTicks={reloadHandler}
-            onConnectWallet={onConnectWallet}
-            onDisconnectWallet={onDisconnectWallet}
             getPoolData={getPoolData}
             setShouldNotUpdateRange={setShouldNotUpdateRange}
             autoSwapPoolData={autoSwapPoolData}

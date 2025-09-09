@@ -5,20 +5,32 @@ import { theme } from '@static/theme'
 import { ThemeProvider } from '@mui/material/styles'
 import Notifier from '@containers/Notifier/Notifier'
 import { AppRouter } from '@pages/AppRouter'
-// import { filterConsoleMessages, messagesToHide } from './hideErrors'
-
-// filterConsoleMessages(messagesToHide)
+import { FogoSessionProvider } from '@fogo/sessions-sdk-react'
+import { PublicKey } from '@solana/web3.js'
+import { NATIVE_MINT } from '@solana/spl-token'
+import { ETH_TEST, SOL_TEST, USDC_TEST } from '@store/consts/static'
 
 function App() {
+  const isPreviewHost =
+    typeof window !== 'undefined' && /\.vercel\.app$/.test(window.location.hostname)
+
+  const shouldOverrideDomain = isPreviewHost || process.env.NODE_ENV !== 'production'
   return (
     <>
       <Provider store={store}>
         <ThemeProvider theme={theme}>
           <SnackbarProvider maxSnack={99}>
-            <>
-              <Notifier />
-              <AppRouter />
-            </>
+            <FogoSessionProvider
+              sponsor={new PublicKey('B7g4WMqgNrn39sgKef23GKtqpWD7JvNj3waLx3RmTco2')}
+              endpoint='https://testnet.fogo.io/'
+              domain={shouldOverrideDomain ? 'https://fogo.invariant.app' : undefined}
+              tokens={[NATIVE_MINT, USDC_TEST.address, SOL_TEST.address, ETH_TEST.address]}
+              enableUnlimited>
+              <>
+                <Notifier />
+                <AppRouter />
+              </>
+            </FogoSessionProvider>
           </SnackbarProvider>
         </ThemeProvider>
       </Provider>

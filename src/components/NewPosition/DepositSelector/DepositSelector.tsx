@@ -60,6 +60,7 @@ import {
 import DepoSitOptionsModal from '@components/Modals/DepositOptionsModal/DepositOptionsModal'
 import loadingAnimation from '@static/gif/loading.gif'
 import { theme } from '@static/theme'
+import { getSession } from '@store/hooks/session'
 
 export interface InputState {
   value: string
@@ -118,8 +119,6 @@ export interface IDepositSelector {
   network: NetworkType
   fogoBalance: BN
   walletStatus: Status
-  onConnectWallet: () => void
-  onDisconnectWallet: () => void
   tokenAIndex: number | null
   tokenBIndex: number | null
   setTokenAIndex: (index: number | null) => void
@@ -187,9 +186,6 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
   isGetLiquidityError,
   isLoadingTicksOrTickmap,
   network,
-  walletStatus,
-  onConnectWallet,
-  onDisconnectWallet,
   fogoBalance,
   canNavigate,
   isCurrentPoolExisting,
@@ -220,6 +216,7 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
   updateLiquidity
 }) => {
   const { classes, cx } = useStyles()
+  const session = getSession()
 
   const isSm = useMediaQuery(theme.breakpoints.down(370))
 
@@ -1082,7 +1079,7 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
             value={tokenACheckbox ? tokenAInputState.value : '0'}
             priceLoading={priceALoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={walletStatus !== Status.Initialized}
+            walletUninitialized={!session}
           />
         </Box>
         <Box className={cx(classes.inputWrapper, classes.inputSecond)}>
@@ -1153,20 +1150,18 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
             value={tokenBCheckbox ? tokenBInputState.value : '0'}
             priceLoading={priceBLoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={walletStatus !== Status.Initialized}
+            walletUninitialized={!session}
           />
         </Box>
       </Grid>
       <Box width='100%'>
-        {walletStatus !== Status.Initialized ? (
+        {!session ? (
           <ChangeWalletButton
-            margin={'30px 0'}
+            walletConnected={!!session}
             width={'100%'}
             height={48}
             name='Connect wallet'
-            onConnect={onConnectWallet}
-            connected={false}
-            onDisconnect={onDisconnectWallet}
+            margin='30px 0'
           />
         ) : getButtonMessage() === 'Insufficient FOGO' ? (
           <TooltipHover

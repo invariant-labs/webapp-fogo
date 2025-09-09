@@ -15,27 +15,25 @@ import {
 } from '@store/reducers/positions'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { poolsArraySortedByFees, tokens } from '@store/selectors/pools'
-import { IWallet, Pair } from '@invariant-labs/sdk-fogo'
+import { IWallet, Pair, sleep } from '@invariant-labs/sdk-fogo'
 import { accounts } from '@store/selectors/solanaWallet'
 import { actions as RPCAction, RpcStatus } from '@store/reducers/solanaConnection'
 import {
   Transaction,
-  sendAndConfirmRawTransaction,
   Keypair,
   TransactionExpiredTimeoutError,
-  VersionedTransaction,
   PublicKey,
   ParsedInstruction,
   SendTransactionError,
-  ComputeBudgetProgram
+  ComputeBudgetProgram,
+  TransactionMessage,
+  VersionedTransaction
 } from '@solana/web3.js'
 import {
-  APPROVAL_DENIED_MESSAGE,
   COMMON_ERROR_MESSAGE,
   ErrorCodeExtractionKeys,
   SIGNING_SNACKBAR_CONFIG,
-  TIMEOUT_ERROR_MESSAGE,
-  WRAPPED_FOGO_ADDRESS
+  TIMEOUT_ERROR_MESSAGE
 } from '@store/consts/static'
 import {
   plotTicks,
@@ -51,7 +49,6 @@ import {
   createLiquidityPlot,
   createLoaderKey,
   createPlaceholderLiquidityPlot,
-  ensureApprovalDenied,
   ensureError,
   extractErrorCode,
   extractRuntimeErrorCode,
@@ -72,1020 +69,23 @@ import {
   SwapTokenType
 } from '@utils/utils'
 import { actions as connectionActions } from '@store/reducers/solanaConnection'
-import {
-  calculateClaimAmount,
-  createNativeAtaInstructions,
-  createNativeAtaWithTransferInstructions
-} from '@invariant-labs/sdk-fogo/lib/utils'
-import { networkTypetoProgramNetwork } from '@utils/web3/connection'
 import { ClaimAllFee } from '@invariant-labs/sdk-fogo/lib/market'
-import nacl from 'tweetnacl'
-import { BN } from '@coral-xyz/anchor'
 import { parseTick, Position } from '@invariant-labs/sdk-fogo/lib/market'
-import { getAssociatedTokenAddressSync, NATIVE_MINT } from '@solana/spl-token'
+import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { unknownTokenIcon } from '@static/icons'
-
-function* handleInitPositionAndPoolWithFOGO(action: PayloadAction<InitPositionData>): Generator {
-  const data = action.payload
-
-  if (
-    (data.tokenX.toString() === WRAPPED_FOGO_ADDRESS && data.xAmount === 0) ||
-    (data.tokenY.toString() === WRAPPED_FOGO_ADDRESS && data.yAmount === 0)
-  ) {
-    return yield* call(handleInitPosition, action)
-  }
-
-  const loaderCreatePool = createLoaderKey()
-  const loaderSigningTx = createLoaderKey()
-  try {
-    yield put(
-      snackbarsActions.add({
-        message: 'Creating pool...',
-        variant: 'pending',
-        persist: true,
-        key: loaderCreatePool
-      })
-    )
-
-    const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
-    const networkType = yield* select(network)
-    const rpc = yield* select(rpcAddress)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet(wallet as IWallet)
-
-    const tokensAccounts = yield* select(accounts)
-    const allTokens = yield* select(tokens)
-
-    const wrappedFogoAccount = Keypair.generate()
-    const net = networkTypetoProgramNetwork(networkType)
-
-    const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-      wrappedFogoAccount.publicKey,
-      wallet.publicKey,
-      net,
-      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? data.xAmount
-        : data.yAmount
-    )
-
-    let userTokenX =
-      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[data.tokenX.toString()]
-          ? tokensAccounts[data.tokenX.toString()].address
-          : null
-
-    if (userTokenX === null) {
-      userTokenX = yield* call(createAccount, data.tokenX)
-    }
-
-    let userTokenY =
-      allTokens[data.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[data.tokenY.toString()]
-          ? tokensAccounts[data.tokenY.toString()].address
-          : null
-
-    if (userTokenY === null) {
-      userTokenY = yield* call(createAccount, data.tokenY)
-    }
-
-    const combinedTransaction = new Transaction()
-    const pair = new Pair(data.tokenX, data.tokenY, {
-      fee: data.fee,
-      tickSpacing: data.tickSpacing
-    })
-
-    const { createPoolTx, createPoolSigners, createPositionTx } = yield* call(
-      [marketProgram, marketProgram.createPoolWithSqrtPriceAndPositionTx],
-      {
-        pair,
-        userTokenX,
-        userTokenY,
-        lowerTick: data.lowerTick,
-        upperTick: data.upperTick,
-        liquidityDelta: data.liquidityDelta,
-        owner: wallet.publicKey,
-        initTick: data.initTick,
-        slippage: data.slippage,
-        knownPrice: data.knownPrice
-      },
-      undefined,
-      {
-        tokenXProgramAddress: allTokens[data.tokenX.toString()].tokenProgram,
-        tokenYProgramAddress: allTokens[data.tokenY.toString()].tokenProgram
-      }
-    )
-
-    combinedTransaction
-      .add(createIx)
-      .add(transferIx)
-      .add(initIx)
-      .add(createPositionTx)
-      .add(unwrapIx)
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const { blockhash: createPoolBlockhash, lastValidBlockHeight: createPoolLastValidBlockheight } =
-      yield* call([connection, connection.getLatestBlockhash])
-
-    createPoolTx.recentBlockhash = createPoolBlockhash
-    createPoolTx.lastValidBlockHeight = createPoolLastValidBlockheight
-    createPoolTx.feePayer = wallet.publicKey
-    if (createPoolSigners.length) {
-      createPoolTx.partialSign(...createPoolSigners)
-    }
-
-    const createPoolSignedTx = (yield* call(
-      [wallet, wallet.signTransaction],
-      createPoolTx
-    )) as Transaction
-
-    yield* call(sendAndConfirmRawTransaction, connection, createPoolSignedTx.serialize(), {
-      skipPreflight: false
-    })
-
-    const {
-      blockhash: createPositionBlockhash,
-      lastValidBlockHeight: createPositionLastValidBlockheight
-    } = yield* call([connection, connection.getLatestBlockhash])
-
-    combinedTransaction.recentBlockhash = createPositionBlockhash
-    combinedTransaction.lastValidBlockHeight = createPositionLastValidBlockheight
-    combinedTransaction.feePayer = wallet.publicKey
-    combinedTransaction.partialSign(wrappedFogoAccount)
-
-    const signedCombinedTransactionTx = (yield* call(
-      [wallet, wallet.signTransaction],
-      combinedTransaction
-    )) as Transaction
-
-    const createPositionTxid = yield* call(
-      sendAndConfirmRawTransaction,
-      connection,
-      signedCombinedTransactionTx.serialize(),
-      {
-        skipPreflight: false
-      }
-    )
-
-    if (!createPositionTxid.length) {
-      yield put(actions.setInitPositionSuccess(false))
-
-      closeSnackbar(loaderCreatePool)
-      yield put(snackbarsActions.remove(loaderCreatePool))
-
-      return yield put(
-        snackbarsActions.add({
-          message: 'Position adding failed. Please try again',
-          variant: 'error',
-          persist: false,
-          txid: createPositionTxid
-        })
-      )
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Position added successfully',
-          variant: 'success',
-          persist: false,
-          txid: createPositionTxid
-        })
-      )
-
-      const txDetails = yield* call(
-        [connection, connection.getParsedTransaction],
-        createPositionTxid
-      )
-
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(actions.setInitPositionSuccess(false))
-
-            closeSnackbar(loaderCreatePool)
-            yield put(snackbarsActions.remove(loaderCreatePool))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
-
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          try {
-            const nativeAmount = (
-              meta.innerInstructions[0].instructions.find(
-                ix => (ix as ParsedInstruction).parsed.info.amount
-              ) as ParsedInstruction
-            ).parsed.info.amount
-
-            const splIx = meta.innerInstructions[0].instructions.find(
-              ix =>
-                (ix as ParsedInstruction).parsed.info.tokenAmount !== undefined ||
-                (ix as ParsedInstruction).parsed.info.amount !== undefined
-            ) as ParsedInstruction
-            const splAmount = splIx.parsed.info.tokenAmount.amount || splIx.parsed.info.amount
-
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
-
-            const nativeX = pair.tokenX.equals(NATIVE_MINT)
-
-            const amountX = nativeX ? nativeAmount : splAmount
-            const amountY = nativeX ? splAmount : nativeAmount
-
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'deposit',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
-                  tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
-                  tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
-                },
-                persist: false
-              })
-            )
-          } catch {
-            // Should never be triggered
-          }
-        }
-      }
-
-      yield put(actions.getPositionsList())
-    }
-
-    // const unwrapTxid = yield* call(
-    //   sendAndConfirmRawTransaction,
-    //   connection,
-    //   unwrapSignedTx.serialize(),
-    //   {
-    //     skipPreflight: false
-    //   }
-    // )
-
-    yield put(actions.setInitPositionSuccess(true))
-
-    // if (!unwrapTxid.length) {
-    //   yield put(
-    //     snackbarsActions.add({
-    //       message: 'Wrapped FOGO unwrap failed. Try to unwrap it in your wallet.',
-    //       variant: 'warning',
-    //       persist: false,
-    //       txid: unwrapTxid
-    //     })
-    //   )
-    // } else {
-    //   yield put(
-    //     snackbarsActions.add({
-    //       message: 'FOGO unwrapped successfully.',
-    //       variant: 'success',
-    //       persist: false,
-    //       txid: unwrapTxid
-    //     })
-    //   )
-    // }
-
-    closeSnackbar(loaderCreatePool)
-    yield put(snackbarsActions.remove(loaderCreatePool))
-  } catch (e: unknown) {
-    const error = ensureError(e)
-    console.log(error)
-
-    let msg: string = ''
-    if (error instanceof SendTransactionError) {
-      const err = error.transactionError
-      try {
-        const errorCode = extractRuntimeErrorCode(err)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      }
-    } else {
-      try {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
-      }
-    }
-
-    yield put(actions.setInitPositionSuccess(false))
-
-    closeSnackbar(loaderCreatePool)
-    yield put(snackbarsActions.remove(loaderCreatePool))
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (error instanceof TransactionExpiredTimeoutError) {
-      yield put(
-        snackbarsActions.add({
-          message: TIMEOUT_ERROR_MESSAGE,
-          variant: 'info',
-          persist: true,
-          txid: error.signature
-        })
-      )
-      yield put(connectionActions.setTimeoutError(true))
-      yield put(RPCAction.setRpcStatus(RpcStatus.Error))
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: msg,
-          variant: 'error',
-          persist: false
-        })
-      )
-    }
-
-    yield* call(handleRpcError, error.message)
-  }
-}
-
-function* handleInitPositionWithFOGO(action: PayloadAction<InitPositionData>): Generator {
-  const data = action.payload
-
-  if (
-    (data.tokenX.toString() === WRAPPED_FOGO_ADDRESS && data.xAmount === 0) ||
-    (data.tokenY.toString() === WRAPPED_FOGO_ADDRESS && data.yAmount === 0)
-  ) {
-    return yield* call(handleInitPosition, action)
-  }
-
-  // To initialize both the pool and position, separate transactions are necessary, as a single transaction does not have enough space to accommodate all instructions for both pool and position creation with FOGO.
-  if (data.initPool) {
-    return yield* call(handleInitPositionAndPoolWithFOGO, action)
-  }
-
-  const loaderCreatePosition = createLoaderKey()
-  const loaderSigningTx = createLoaderKey()
-  try {
-    yield put(
-      snackbarsActions.add({
-        message: 'Creating position...',
-        variant: 'pending',
-        persist: true,
-        key: loaderCreatePosition
-      })
-    )
-
-    const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
-    const networkType = yield* select(network)
-    const rpc = yield* select(rpcAddress)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
-
-    const tokensAccounts = yield* select(accounts)
-    const allTokens = yield* select(tokens)
-    const allPools = yield* select(poolsArraySortedByFees)
-    const ticks = yield* select(plotTicks)
-
-    const pair = new Pair(data.tokenX, data.tokenY, {
-      fee: data.fee,
-      tickSpacing: data.tickSpacing
-    })
-    const userPositionList = yield* select(positionsList)
-
-    const wrappedFogoAccount = Keypair.generate()
-
-    const net = networkTypetoProgramNetwork(networkType)
-
-    const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-      wrappedFogoAccount.publicKey,
-      wallet.publicKey,
-      net,
-      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? data.xAmount
-        : data.yAmount
-    )
-
-    let userTokenX =
-      allTokens[data.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[data.tokenX.toString()]
-          ? tokensAccounts[data.tokenX.toString()].address
-          : null
-
-    if (userTokenX === null) {
-      userTokenX = yield* call(createAccount, data.tokenX)
-    }
-
-    let userTokenY =
-      allTokens[data.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[data.tokenY.toString()]
-          ? tokensAccounts[data.tokenY.toString()].address
-          : null
-
-    if (userTokenY === null) {
-      userTokenY = yield* call(createAccount, data.tokenY)
-    }
-
-    const poolSigners: Keypair[] = []
-
-    const combinedTransaction = new Transaction()
-
-    combinedTransaction.add(createIx).add(transferIx).add(initIx)
-
-    const upperTickExists =
-      !ticks.hasError &&
-      !ticks.loading &&
-      ticks.rawTickIndexes.find(t => t === data.upperTick) !== undefined
-        ? true
-        : undefined
-    const lowerTickExists =
-      !ticks.hasError &&
-      !ticks.loading &&
-      ticks.rawTickIndexes.find(t => t === data.lowerTick) !== undefined
-        ? true
-        : undefined
-
-    const initPositionTx = yield* call(
-      [marketProgram, marketProgram.createPositionTx],
-      {
-        pair,
-        userTokenX,
-        userTokenY,
-        lowerTick: data.lowerTick,
-        upperTick: data.upperTick,
-        liquidityDelta: data.liquidityDelta,
-        owner: wallet.publicKey,
-        slippage: data.slippage,
-        knownPrice: data.knownPrice
-      },
-      {
-        lowerTickExists,
-        upperTickExists,
-        pool: data.poolIndex !== null ? allPools[data.poolIndex] : undefined,
-        tokenXProgramAddress: allTokens[data.tokenX.toString()].tokenProgram,
-        tokenYProgramAddress: allTokens[data.tokenY.toString()].tokenProgram,
-        positionsList: !userPositionList.loading ? userPositionList : undefined
-      }
-    )
-
-    combinedTransaction.add(initPositionTx)
-    combinedTransaction.add(unwrapIx)
-
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    combinedTransaction.recentBlockhash = blockhash
-    combinedTransaction.lastValidBlockHeight = lastValidBlockHeight
-    combinedTransaction.feePayer = wallet.publicKey
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    combinedTransaction.partialSign(wrappedFogoAccount)
-
-    if (poolSigners.length) {
-      combinedTransaction.partialSign(...poolSigners)
-    }
-
-    const signedTx = (yield* call(
-      [wallet, wallet.signTransaction],
-      combinedTransaction
-    )) as Transaction
-
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const txId = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
-
-    if (!txId.length) {
-      yield put(actions.setInitPositionSuccess(false))
-
-      closeSnackbar(loaderCreatePosition)
-      yield put(snackbarsActions.remove(loaderCreatePosition))
-
-      return yield put(
-        snackbarsActions.add({
-          message: 'Position adding failed. Please try again',
-          variant: 'error',
-          persist: false,
-          txid: txId
-        })
-      )
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Position added successfully',
-          variant: 'success',
-          persist: false,
-          txid: txId
-        })
-      )
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txId)
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(actions.setInitPositionSuccess(false))
-
-            closeSnackbar(loaderCreatePosition)
-            yield put(snackbarsActions.remove(loaderCreatePosition))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
-
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
-
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
-
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'deposit',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
-                  tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
-                  tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
-                },
-                persist: false
-              })
-            )
-          } catch {
-            // Should never be triggered
-          }
-        }
-      }
-
-      yield put(actions.getPositionsList())
-    }
-
-    yield put(actions.setInitPositionSuccess(true))
-
-    closeSnackbar(loaderCreatePosition)
-    yield put(snackbarsActions.remove(loaderCreatePosition))
-  } catch (e: unknown) {
-    const error = ensureError(e)
-    console.log(error)
-
-    let msg: string = ''
-    if (error instanceof SendTransactionError) {
-      const err = error.transactionError
-      try {
-        const errorCode = extractRuntimeErrorCode(err)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      }
-    } else {
-      try {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
-      }
-    }
-
-    yield put(actions.setInitPositionSuccess(false))
-
-    closeSnackbar(loaderCreatePosition)
-    yield put(snackbarsActions.remove(loaderCreatePosition))
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (error instanceof TransactionExpiredTimeoutError) {
-      yield put(
-        snackbarsActions.add({
-          message: TIMEOUT_ERROR_MESSAGE,
-          variant: 'info',
-          persist: true,
-          txid: error.signature
-        })
-      )
-      yield put(connectionActions.setTimeoutError(true))
-      yield put(RPCAction.setRpcStatus(RpcStatus.Error))
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: msg,
-          variant: 'error',
-          persist: false
-        })
-      )
-    }
-
-    yield* call(handleRpcError, error.message)
-  }
-}
-
-export function* handleSwapAndInitPositionWithFOGO(
-  action: PayloadAction<SwapAndCreatePosition>
-): Generator {
-  const loaderCreatePosition = createLoaderKey()
-  const loaderSigningTx = createLoaderKey()
-
-  try {
-    const allTokens = yield* select(tokens)
-
-    yield put(
-      snackbarsActions.add({
-        message: 'Creating position',
-        variant: 'pending',
-        persist: true,
-        key: loaderCreatePosition
-      })
-    )
-
-    const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
-    const networkType = yield* select(network)
-    const rpc = yield* select(rpcAddress)
-    const allPools = yield* select(poolsArraySortedByFees)
-    const ticks = yield* select(plotTicks)
-
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
-
-    const swapPair = new Pair(action.payload.tokenX, action.payload.tokenY, {
-      fee: action.payload.swapPool.fee,
-      tickSpacing: action.payload.swapPool.tickSpacing
-    })
-
-    const tokensAccounts = yield* select(accounts)
-    const userPositionList = yield* select(positionsList)
-
-    const wrappedFogoAccount = Keypair.generate()
-    const net = networkTypetoProgramNetwork(networkType)
-
-    const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-      wrappedFogoAccount.publicKey,
-      wallet.publicKey,
-      net,
-      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? action.payload.xAmount
-        : action.payload.yAmount
-    )
-
-    let userTokenX =
-      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[action.payload.tokenX.toString()]
-          ? tokensAccounts[action.payload.tokenX.toString()].address
-          : null
-
-    if (userTokenX === null) {
-      userTokenX = yield* call(createAccount, action.payload.tokenX)
-    }
-
-    let userTokenY =
-      allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[action.payload.tokenY.toString()]
-          ? tokensAccounts[action.payload.tokenY.toString()].address
-          : null
-
-    if (userTokenY === null) {
-      userTokenY = yield* call(createAccount, action.payload.tokenY)
-    }
-
-    const swapAndCreateOnDifferentPools = action.payload.isSamePool
-      ? undefined
-      : {
-          positionPair: new Pair(action.payload.tokenX, action.payload.tokenY, {
-            fee: action.payload.positionPair.fee,
-            tickSpacing: action.payload.positionPair.tickSpacing
-          }),
-          positionPoolPrice: action.payload.positionPoolPrice,
-          positionSlippage: action.payload.positionSlippage
-        }
-
-    const upperTickExists =
-      !ticks.hasError &&
-      !ticks.loading &&
-      ticks.rawTickIndexes.find(t => t === action.payload.upperTick) !== undefined
-        ? true
-        : undefined
-    const lowerTickExists =
-      !ticks.hasError &&
-      !ticks.loading &&
-      ticks.rawTickIndexes.find(t => t === action.payload.lowerTick) !== undefined
-        ? true
-        : undefined
-
-    const isInitialFogoZero =
-      (allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
-        action.payload.xAmount.eq(new BN(0))) ||
-      (allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
-        action.payload.yAmount.eq(new BN(0)))
-
-    const prependedIxs = [createIx, ...(isInitialFogoZero ? [] : [transferIx]), initIx]
-
-    const tx = yield* call(
-      [marketProgram, marketProgram.versionedSwapAndCreatePositionTx],
-      {
-        amountX: action.payload.xAmount,
-        amountY: action.payload.yAmount,
-        swapPair,
-        userTokenX,
-        userTokenY,
-        lowerTick: action.payload.lowerTick,
-        upperTick: action.payload.upperTick,
-        owner: wallet.publicKey,
-        slippage: action.payload.swapSlippage,
-        amount: action.payload.swapAmount,
-        xToY: action.payload.xToY,
-        byAmountIn: action.payload.byAmountIn,
-        estimatedPriceAfterSwap: action.payload.estimatedPriceAfterSwap,
-        minUtilizationPercentage: action.payload.minUtilizationPercentage,
-        liquidityDelta: action.payload.liquidityDelta,
-        swapAndCreateOnDifferentPools
-      },
-      { tickIndexes: action.payload.crossedTicks },
-      {
-        position: {
-          lowerTickExists,
-          upperTickExists,
-          pool:
-            action.payload.positionPoolIndex !== null
-              ? allPools[action.payload.positionPoolIndex]
-              : undefined,
-          tokenXProgramAddress: allTokens[action.payload.tokenX.toString()].tokenProgram,
-          tokenYProgramAddress: allTokens[action.payload.tokenY.toString()].tokenProgram,
-          positionsList: !userPositionList.loading ? userPositionList : undefined
-        },
-        swap: {
-          tickmap: action.payload.swapPoolTickmap,
-          pool: action.payload.swapPool
-        }
-      },
-      prependedIxs,
-      [unwrapIx]
-    )
-    const xToY = action.payload.xToY
-
-    const tokenX = xToY
-      ? allTokens[swapPair.tokenX.toString()]
-      : allTokens[swapPair.tokenY.toString()]
-    const tokenY = xToY
-      ? allTokens[swapPair.tokenY.toString()]
-      : allTokens[swapPair.tokenX.toString()]
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    const serializedMessage = tx.message.serialize()
-    const signatureUint8 = nacl.sign.detached(serializedMessage, wrappedFogoAccount.secretKey)
-
-    tx.addSignature(wrappedFogoAccount.publicKey, signatureUint8)
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
-
-    closeSnackbar(loaderSigningTx)
-
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const txid = yield* call([connection, connection.sendTransaction], signedTx)
-
-    yield* call([connection, connection.confirmTransaction], txid)
-
-    yield put(actions.setInitPositionSuccess(!!txid.length))
-
-    if (!txid.length) {
-      yield put(
-        snackbarsActions.add({
-          message: 'Position adding failed. Please try again.',
-          variant: 'error',
-          persist: false,
-          txid
-        })
-      )
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Position added successfully.',
-          variant: 'success',
-          persist: false,
-          txid
-        })
-      )
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
-        maxSupportedTransactionVersion: 0
-      })
-
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(actions.setInitPositionSuccess(false))
-
-            closeSnackbar(loaderCreatePosition)
-            yield put(snackbarsActions.remove(loaderCreatePosition))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
-
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          try {
-            const index = meta.innerInstructions.length
-            const targetInner = meta.innerInstructions[index - 1]
-            const depositInstructions = targetInner.instructions.slice(5)
-
-            const exchangeInstructions = targetInner.instructions.slice(1, 3)
-
-            const fromExchangeAmount =
-              (exchangeInstructions[1] as ParsedInstruction).parsed?.info?.amount ??
-              (exchangeInstructions[1] as ParsedInstruction).parsed?.info?.tokenAmount?.amount
-
-            const toExchangeAmount =
-              (exchangeInstructions[0] as ParsedInstruction).parsed?.info?.amount ??
-              (exchangeInstructions[0] as ParsedInstruction).parsed?.info?.tokenAmount?.amount
-
-            const tokenXDeposit =
-              (depositInstructions[xToY ? 0 : 1] as ParsedInstruction).parsed?.info?.amount ??
-              (depositInstructions[xToY ? 0 : 1] as ParsedInstruction).parsed?.info?.tokenAmount
-                ?.amount
-
-            const tokenYDeposit =
-              (depositInstructions[xToY ? 1 : 0] as ParsedInstruction).parsed?.info?.amount ??
-              (depositInstructions[xToY ? 1 : 0] as ParsedInstruction).parsed?.info?.tokenAmount
-                ?.amount
-
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'deposit',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(tokenXDeposit, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(tokenYDeposit, tokenY.decimals)),
-                  tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
-                  tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString(),
-                  tokenXAmountAutoSwap: formatNumberWithoutSuffix(
-                    printBN(fromExchangeAmount, tokenX.decimals)
-                  ),
-                  tokenYAmountAutoSwap: formatNumberWithoutSuffix(
-                    printBN(toExchangeAmount, tokenY.decimals)
-                  ),
-                  tokenXIconAutoSwap: tokenX.logoURI,
-                  tokenYIconAutoSwap: tokenY.logoURI
-                },
-
-                persist: false
-              })
-            )
-          } catch {
-            // Should never be triggered
-          }
-        }
-      }
-
-      yield put(actions.getPositionsList())
-    }
-
-    closeSnackbar(loaderCreatePosition)
-    yield put(snackbarsActions.remove(loaderCreatePosition))
-  } catch (e: unknown) {
-    const error = ensureError(e)
-    console.log(error)
-
-    let msg: string = ''
-    if (error instanceof SendTransactionError) {
-      const err = error.transactionError
-      try {
-        const errorCode = extractRuntimeErrorCode(err)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      }
-    } else {
-      try {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
-      }
-    }
-
-    yield put(actions.setInitPositionSuccess(false))
-
-    closeSnackbar(loaderCreatePosition)
-    yield put(snackbarsActions.remove(loaderCreatePosition))
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (error instanceof TransactionExpiredTimeoutError) {
-      yield put(
-        snackbarsActions.add({
-          message: TIMEOUT_ERROR_MESSAGE,
-          variant: 'info',
-          persist: true,
-          txid: error.signature
-        })
-      )
-      yield put(connectionActions.setTimeoutError(true))
-      yield put(RPCAction.setRpcStatus(RpcStatus.Error))
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: msg,
-          variant: 'error',
-          persist: false
-        })
-      )
-    }
-
-    yield* call(handleRpcError, (error as Error).message)
-  }
-}
+import { calculateClaimAmount } from '@invariant-labs/sdk-fogo/lib/utils'
+import { getSession } from '@store/hooks/session'
 
 export function* handleSwapAndInitPosition(
   action: PayloadAction<SwapAndCreatePosition>
 ): Generator {
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   const loaderCreatePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
   try {
     const allTokens = yield* select(tokens)
-
-    if (
-      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS ||
-      allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-    ) {
-      return yield* call(handleSwapAndInitPositionWithFOGO, action)
-    }
 
     yield put(
       snackbarsActions.add({
@@ -1097,19 +97,15 @@ export function* handleSwapAndInitPosition(
     )
 
     const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
+    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const userPositionList = yield* select(positionsList)
     const allPools = yield* select(poolsArraySortedByFees)
     const ticks = yield* select(plotTicks)
-
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
+    const session = getSession()
+    if (!session) throw Error('No session provided')
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
     const swapPair = new Pair(action.payload.tokenX, action.payload.tokenY, {
       fee: action.payload.swapPool.fee,
@@ -1157,8 +153,10 @@ export function* handleSwapAndInitPosition(
       ticks.rawTickIndexes.find(t => t === action.payload.lowerTick) !== undefined
         ? true
         : undefined
+
     const tx = yield* call(
       [marketProgram, marketProgram.versionedSwapAndCreatePositionTx],
+      session,
       {
         amountX: action.payload.xAmount,
         amountY: action.payload.yAmount,
@@ -1167,7 +165,7 @@ export function* handleSwapAndInitPosition(
         userTokenY,
         lowerTick: action.payload.lowerTick,
         upperTick: action.payload.upperTick,
-        owner: wallet.publicKey,
+        owner: session.walletPublicKey,
         slippage: action.payload.swapSlippage,
         amount: action.payload.swapAmount,
         xToY: action.payload.xToY,
@@ -1194,20 +192,25 @@ export function* handleSwapAndInitPosition(
           tickmap: action.payload.swapPoolTickmap,
           pool: action.payload.swapPool
         }
-      }
+      },
+      [],
+      [],
+      []
     )
 
     const xToY = action.payload.xToY
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
+    const { signature: txid } = yield* call([session, session.sendTransaction], tx)
+    // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
+    // // const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
 
-    const txid = yield* call([connection, connection.sendTransaction], signedTx)
+    // closeSnackbar(loaderSigningTx)
+    // yield put(snackbarsActions.remove(loaderSigningTx))
 
-    yield* call([connection, connection.confirmTransaction], txid)
+    // const txid = yield* call([connection, connection.sendTransaction], signedTx)
+
+    // yield* call([connection, connection.confirmTransaction], txid)
 
     yield put(actions.setInitPositionSuccess(!!txid.length))
 
@@ -1360,8 +363,7 @@ export function* handleSwapAndInitPosition(
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 
@@ -1403,15 +405,11 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
   try {
     const allTokens = yield* select(tokens)
 
-    if (
-      (allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
-        action.payload.xAmount !== 0) ||
-      (allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
-        action.payload.yAmount !== 0)
-    ) {
-      return yield* call(handleInitPositionWithFOGO, action)
-    }
+    const session = getSession()
 
+    if (!session) {
+      throw Error('No session provided')
+    }
     yield put(
       snackbarsActions.add({
         message: 'Creating position...',
@@ -1422,16 +420,11 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     )
 
     const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
+    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
 
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
     const allPools = yield* select(poolsArraySortedByFees)
     const ticks = yield* select(plotTicks)
@@ -1467,6 +460,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     if (action.payload.initPool) {
       const txs = yield* call(
         [marketProgram, marketProgram.createPoolWithSqrtPriceAndPositionTx],
+        session,
         {
           pair,
           userTokenX,
@@ -1474,7 +468,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
           lowerTick: action.payload.lowerTick,
           upperTick: action.payload.upperTick,
           liquidityDelta: action.payload.liquidityDelta,
-          owner: wallet.publicKey,
+          owner: session.walletPublicKey,
           slippage: action.payload.slippage,
           knownPrice: action.payload.knownPrice
         },
@@ -1491,6 +485,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     } else {
       tx = yield* call(
         [marketProgram, marketProgram.createPositionTx],
+        session,
         {
           pair,
           userTokenX,
@@ -1498,7 +493,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
           lowerTick: action.payload.lowerTick,
           upperTick: action.payload.upperTick,
           liquidityDelta: action.payload.liquidityDelta,
-          owner: wallet.publicKey,
+          owner: session.walletPublicKey,
           slippage: action.payload.slippage,
           knownPrice: action.payload.knownPrice
         },
@@ -1524,47 +519,41 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     }
 
     if (createPoolTx) {
-      createPoolTx.feePayer = wallet.publicKey
       const { blockhash, lastValidBlockHeight } = yield* call([
         connection,
         connection.getLatestBlockhash
       ])
-      createPoolTx.recentBlockhash = blockhash
-      createPoolTx.lastValidBlockHeight = lastValidBlockHeight
-
-      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-      if (poolSigners.length) {
-        createPoolTx.partialSign(...poolSigners)
-      }
-      const signedTx = (yield* call([wallet, wallet.signTransaction], createPoolTx)) as Transaction
-
-      closeSnackbar(loaderSigningTx)
-
-      yield put(snackbarsActions.remove(loaderSigningTx))
-
-      yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-        skipPreflight: false
+      const messageV0 = new TransactionMessage({
+        payerKey: session.payer,
+        recentBlockhash: blockhash,
+        instructions: createPoolTx.instructions
+      }).compileToV0Message([])
+      const txV = new VersionedTransaction(messageV0)
+      txV.sign(poolSigners)
+      const { signature: txidV } = yield* call(
+        [session, session.adapter.sendTransaction],
+        undefined,
+        txV
+      )
+      yield* call([connection, connection.confirmTransaction], {
+        blockhash,
+        lastValidBlockHeight,
+        signature: txidV
       })
     }
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    tx.recentBlockhash = blockhash
-    tx.lastValidBlockHeight = lastValidBlockHeight
-    tx.feePayer = wallet.publicKey
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
+    const txResult = yield* call([session, session.sendTransaction], tx.instructions)
 
-    yield put(actions.setInitPositionSuccess(!!txid.length))
+    const { signature: txid, type: resultType } = txResult
+
+    // const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+    //   skipPreflight: false
+    // })
 
     if (!txid.length) {
       yield put(
@@ -1576,28 +565,26 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
         })
       )
     } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Position added successfully',
-          variant: 'success',
-          persist: false,
-          txid
-        })
-      )
-
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+        maxSupportedTransactionVersion: 0
+      })
 
       if (txDetails) {
         if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
+          if (txDetails.meta.logMessages && resultType === 1) {
+            const resultError = txResult.error as any
+
+            const customError = resultError?.InstructionError[1]?.Custom
+
             const errorLog = txDetails.meta.logMessages.find(log =>
               log.includes(ErrorCodeExtractionKeys.ErrorNumber)
             )
+
             const errorCode = errorLog
               ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
               .split(ErrorCodeExtractionKeys.Dot)[0]
               .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
+            const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
             yield put(actions.setInitPositionSuccess(false))
 
             closeSnackbar(loaderCreatePosition)
@@ -1614,27 +601,43 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
             )
             return
           }
+        } else {
+          yield put(actions.setInitPositionSuccess(true))
+          yield put(
+            snackbarsActions.add({
+              message: 'Position added successfully',
+              variant: 'success',
+              persist: false,
+              txid
+            })
+          )
         }
 
         const meta = txDetails.meta
         if (meta?.innerInstructions && meta.innerInstructions) {
           try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
+            const { amount: amountX, token: tokenXAddress } = getAmountFromInitPositionInstruction(
+              meta,
+              TokenType.TokenX
+            )
+            const { amount: amountY, token: tokenYAddress } = getAmountFromInitPositionInstruction(
+              meta,
+              TokenType.TokenY
+            )
 
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
+            const tokenX = allTokens[tokenXAddress]
+            const tokenY = tokenYAddress ? allTokens[tokenYAddress] : null
 
             yield put(
               snackbarsActions.add({
                 tokensDetails: {
                   ikonType: 'deposit',
                   tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
+                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY?.decimals || 0)),
                   tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
+                  tokenYIcon: tokenY?.logoURI,
                   tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
+                  tokenYSymbol: tokenY?.symbol ?? tokenY?.address.toString()
                 },
                 persist: false
               })
@@ -1669,8 +672,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 
@@ -1718,8 +720,8 @@ export function* handleGetCurrentPlotTicks(action: PayloadAction<GetCurrentTicks
   try {
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+    // const wallet = yield* call(getWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
     const rawTicks = yield* call(
       [marketProgram, marketProgram.getAllTicks],
@@ -1774,11 +776,12 @@ export function* handleGetPositionsList() {
   try {
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    const lockerProgram = yield* call(getLockerProgram, networkType, rpc, wallet as IWallet)
+    const session = getSession()
+    if (!session) throw Error('No session provided')
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
+    const lockerProgram = yield* call(getLockerProgram, networkType, rpc, {} as IWallet)
 
-    if (!wallet) {
+    if (!session.walletPublicKey) {
       yield* put(actions.setLockedPositionsList([]))
       yield* put(actions.setPositionsList([[], { head: 0, bump: 0 }, false]))
       return
@@ -1786,22 +789,28 @@ export function* handleGetPositionsList() {
 
     const { head, bump } = yield* call(
       [marketProgram, marketProgram.getPositionList],
-      wallet.publicKey
+      session.walletPublicKey
     )
 
     const { list, addresses } = yield* all({
       list: call(
         [marketProgram, marketProgram.getPositionsFromRange],
-        wallet.publicKey,
+        session.walletPublicKey,
         0,
         head - 1
       ),
-      addresses: call(getPositionsAddressesFromRange, marketProgram, wallet.publicKey, 0, head - 1)
+      addresses: call(
+        getPositionsAddressesFromRange,
+        marketProgram,
+        session.walletPublicKey,
+        0,
+        head - 1
+      )
     })
 
     const pools = new Set(list.map(pos => pos.pool.toString()))
 
-    const [lockerAuth] = lockerProgram.getUserLocksAddress(wallet.publicKey)
+    const [lockerAuth] = lockerProgram.getUserLocksAddress(session.walletPublicKey)
 
     let lockedPositions: (Position & { address: PublicKey })[] = []
 
@@ -1949,244 +958,11 @@ export function* handleGetPositionsList() {
   }
 }
 
-export function* handleClaimFeeWithFOGO({ index, isLocked }: { index: number; isLocked: boolean }) {
-  const loaderClaimFee = createLoaderKey()
-  const loaderSigningTx = createLoaderKey()
-
-  try {
-    yield put(
-      snackbarsActions.add({
-        message: 'Claiming fee...',
-        variant: 'pending',
-        persist: true,
-        key: loaderClaimFee
-      })
-    )
-
-    const connection = yield* call(getConnection)
-    const networkType = yield* select(network)
-    const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    const lockerProgram = yield* call(getLockerProgram, networkType, rpc, wallet as IWallet)
-
-    const data = isLocked ? lockedPositionsWithPoolsData : positionsWithPoolsData
-    const allPositionsData = yield* select(data)
-    const tokensAccounts = yield* select(accounts)
-    const allTokens = yield* select(tokens)
-
-    const wrappedFogoAccount = Keypair.generate()
-
-    const net = networkTypetoProgramNetwork(networkType)
-
-    const { createIx, initIx, unwrapIx } = createNativeAtaInstructions(
-      wrappedFogoAccount.publicKey,
-      wallet.publicKey,
-      net
-    )
-
-    const poolForIndex = allPositionsData[index].poolData
-    const position = allPositionsData[index]
-
-    let userTokenX =
-      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[poolForIndex.tokenX.toString()]
-          ? tokensAccounts[poolForIndex.tokenX.toString()].address
-          : null
-
-    if (userTokenX === null) {
-      userTokenX = yield* call(createAccount, poolForIndex.tokenX)
-    }
-
-    let userTokenY =
-      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[poolForIndex.tokenY.toString()]
-          ? tokensAccounts[poolForIndex.tokenY.toString()].address
-          : null
-
-    if (userTokenY === null) {
-      userTokenY = yield* call(createAccount, poolForIndex.tokenY)
-    }
-
-    const tx = new Transaction().add(createIx).add(initIx)
-    const pair = new Pair(poolForIndex.tokenX, poolForIndex.tokenY, {
-      fee: poolForIndex.fee,
-      tickSpacing: poolForIndex.tickSpacing
-    })
-    if (isLocked) {
-      const ix = yield* call(
-        [lockerProgram, lockerProgram.claimFeeIx],
-        {
-          authorityListIndex: index,
-          market: marketProgram as any,
-          pair,
-          userTokenX,
-          userTokenY
-        },
-        wallet.publicKey
-      )
-      tx.add(...ix).add(unwrapIx)
-    } else {
-      const ix = yield* call(
-        [marketProgram, marketProgram.claimFeeIx],
-        {
-          pair,
-          userTokenX,
-          userTokenY,
-          owner: wallet.publicKey,
-          index: index
-        },
-        {
-          position: position,
-          pool: poolForIndex,
-          tokenXProgram: allTokens[poolForIndex.tokenX.toString()].tokenProgram,
-          tokenYProgram: allTokens[poolForIndex.tokenY.toString()].tokenProgram
-        }
-      )
-      tx.add(ix).add(unwrapIx)
-    }
-
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    tx.recentBlockhash = blockhash
-    tx.lastValidBlockHeight = lastValidBlockHeight
-    tx.feePayer = wallet.publicKey
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    tx.partialSign(wrappedFogoAccount)
-
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
-
-    if (!txid.length) {
-      yield put(
-        snackbarsActions.add({
-          message: 'Failed to claim fee. Please try again',
-          variant: 'error',
-          persist: false,
-          txid
-        })
-      )
-    } else {
-      yield put(actions.getPositionsList())
-
-      yield put(
-        snackbarsActions.add({
-          message: 'Fee claimed successfully',
-          variant: 'success',
-          persist: false,
-          txid
-        })
-      )
-
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
-
-      if (txDetails) {
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          try {
-            const amountX = getAmountFromClaimFeeInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromClaimFeeInstruction(meta, TokenType.TokenY)
-
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
-
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'claim',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
-                  tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
-                  tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
-                },
-                persist: false
-              })
-            )
-          } catch {
-            // Should never be triggered
-          }
-        }
-      }
-    }
-
-    yield put(actions.getSinglePosition({ index, isLocked }))
-
-    closeSnackbar(loaderClaimFee)
-    yield put(snackbarsActions.remove(loaderClaimFee))
-    yield put(actions.setFeesLoader(false))
-  } catch (e: unknown) {
-    const error = ensureError(e)
-    console.log(error)
-    yield put(actions.setFeesLoader(false))
-
-    let msg: string = ''
-    if (error instanceof SendTransactionError) {
-      const err = error.transactionError
-      try {
-        const errorCode = extractRuntimeErrorCode(err)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      }
-    } else {
-      try {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
-      }
-    }
-
-    closeSnackbar(loaderClaimFee)
-    yield put(snackbarsActions.remove(loaderClaimFee))
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (error instanceof TransactionExpiredTimeoutError) {
-      yield put(
-        snackbarsActions.add({
-          message: TIMEOUT_ERROR_MESSAGE,
-          variant: 'info',
-          persist: true,
-          txid: error.signature
-        })
-      )
-      yield put(connectionActions.setTimeoutError(true))
-      yield put(RPCAction.setRpcStatus(RpcStatus.Error))
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: msg,
-          variant: 'error',
-          persist: false
-        })
-      )
-    }
-
-    yield* call(handleRpcError, error.message)
-  }
-}
-
 export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked: boolean }>) {
   const loaderClaimFee = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
-
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   try {
     const allTokens = yield* select(tokens)
     const data = action.payload.isLocked ? lockedPositionsWithPoolsData : positionsWithPoolsData
@@ -2194,13 +970,6 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
     const position = allPositionsData[action.payload.index]
     const poolForIndex = position.poolData
 
-    if (
-      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS ||
-      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-    ) {
-      return yield* call(handleClaimFeeWithFOGO, action.payload)
-    }
-
     yield put(
       snackbarsActions.add({
         message: 'Claiming fee...',
@@ -2213,9 +982,9 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
     const connection = yield* call(getConnection)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    const lockerProgram = yield* call(getLockerProgram, networkType, rpc, wallet as IWallet)
+    // const wallet = yield* call(getWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
+    const lockerProgram = yield* call(getLockerProgram, networkType, rpc, {} as IWallet)
 
     const tokensAccounts = yield* select(accounts)
 
@@ -2246,26 +1015,24 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
           units: 230000
         })
       )
-      const ix = yield* call(
-        [lockerProgram, lockerProgram.claimFeeIx],
-        {
-          authorityListIndex: action.payload.index,
-          market: marketProgram as any,
-          pair,
-          userTokenX,
-          userTokenY
-        },
-        wallet.publicKey
-      )
+      const ix = yield* call([lockerProgram, lockerProgram.claimFeeIx], session, {
+        authorityListIndex: action.payload.index,
+        market: marketProgram as any,
+        pair,
+        userTokenX,
+        userTokenY
+      })
+
       tx.add(...ix)
     } else {
       const ix = yield* call(
         [marketProgram, marketProgram.claimFeeIx],
+        session,
         {
           pair,
           userTokenX,
           userTokenY,
-          owner: wallet.publicKey,
+          owner: session.walletPublicKey,
           index: action.payload.index
         },
         {
@@ -2278,24 +1045,9 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
       tx.add(ix)
     }
 
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    tx.recentBlockhash = blockhash
-    tx.lastValidBlockHeight = lastValidBlockHeight
-    tx.feePayer = wallet.publicKey
+    const txResult = yield* call([session, session.sendTransaction], tx.instructions)
 
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
+    const { signature: txid } = txResult
 
     if (!txid.length) {
       yield put(
@@ -2318,7 +1070,9 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
         })
       )
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+        maxSupportedTransactionVersion: 0
+      })
 
       if (txDetails) {
         const meta = txDetails.meta
@@ -2375,8 +1129,7 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 
@@ -2414,14 +1167,14 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
 export function* handleClaimAllFees() {
   const loaderClaimAllFees = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
-
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   try {
     const connection = yield* call(getConnection)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
     const allTokens = yield* select(tokens)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
     const positionsData = yield* select(positionsWithPoolsData)
     const filteredPositions = positionsData.filter(position => {
       const [bnX, bnY] = calculateClaimAmount({
@@ -2486,7 +1239,12 @@ export function* handleClaimAllFees() {
           const programId =
             allTokens[tokenX.toString()].tokenProgram ??
             (yield* call(getTokenProgramId, connection, tokenX))
-          const ataX = getAssociatedTokenAddressSync(tokenX, wallet.publicKey, false, programId)
+          const ataX = getAssociatedTokenAddressSync(
+            tokenX,
+            session.walletPublicKey,
+            false,
+            programId
+          )
           accountToMint[ataX.toString()] = tokenX.toString()
         }
       }
@@ -2498,56 +1256,45 @@ export function* handleClaimAllFees() {
           const programId =
             allTokens[tokenY.toString()].tokenProgram ??
             (yield* call(getTokenProgramId, connection, tokenY))
-          const ataY = getAssociatedTokenAddressSync(tokenY, wallet.publicKey, false, programId)
+          const ataY = getAssociatedTokenAddressSync(
+            tokenY,
+            session.walletPublicKey,
+            false,
+            programId
+          )
           accountToMint[ataY.toString()] = tokenY.toString()
         }
       }
     }
 
-    const txs = yield* call([marketProgram, marketProgram.claimAllFeesTxs], {
-      owner: wallet.publicKey,
+    const txs = yield* call([marketProgram, marketProgram.claimAllFeesTxs], session, {
       positions: formattedPositions
     } as ClaimAllFee)
-
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    for (const { tx, additionalSigner } of txs) {
+    for (const { tx } of txs) {
       const { blockhash, lastValidBlockHeight } = yield* call([
         connection,
         connection.getLatestBlockhash
       ])
-      tx.recentBlockhash = blockhash
-      tx.lastValidBlockHeight = lastValidBlockHeight
-      tx.feePayer = wallet.publicKey
 
-      let signedTx: Transaction
-      if (additionalSigner) {
-        tx.partialSign(additionalSigner)
+      const { signature: txid } = yield* call([session, session.sendTransaction], tx.instructions)
 
-        const partiallySignedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
-        signedTx = partiallySignedTx
-      } else {
-        signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-      }
-
-      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-        skipPreflight: false
+      yield* call([connection, connection.confirmTransaction], {
+        signature: txid,
+        blockhash,
+        lastValidBlockHeight
       })
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+        maxSupportedTransactionVersion: 0
+      })
 
       if (txDetails) {
         const meta = txDetails.meta
         if (meta?.innerInstructions && meta.innerInstructions) {
           for (const metaInstructions of meta.innerInstructions) {
             try {
-              const nativeTransfer = metaInstructions.instructions.find(
-                ix => (ix as ParsedInstruction).parsed.info.amount
-              ) as ParsedInstruction
-
-              const nativeAmount = nativeTransfer ? nativeTransfer.parsed.info.amount : 0
-
               const splTransfers = metaInstructions.instructions.filter(
                 ix =>
                   (ix as ParsedInstruction).parsed.info.tokenAmount !== undefined ||
@@ -2558,16 +1305,8 @@ export function* handleClaimAllFees() {
               let tokenYAmount = '0'
               let tokenXIcon = unknownTokenIcon
               let tokenYIcon = unknownTokenIcon
-              let tokenXSymbol = 'Unknown'
               let tokenYSymbol = 'Unknown'
-
-              if (nativeTransfer) {
-                tokenXAmount = formatNumberWithoutSuffix(
-                  printBN(nativeAmount, allTokens[NATIVE_MINT.toString()].decimals)
-                )
-                tokenXIcon = allTokens[NATIVE_MINT.toString()].logoURI
-                tokenXSymbol = allTokens[NATIVE_MINT.toString()].symbol ?? NATIVE_MINT.toString()
-              }
+              let tokenXSymbol = 'Unknown'
 
               splTransfers.map((transfer, index) => {
                 const token =
@@ -2579,7 +1318,7 @@ export function* handleClaimAllFees() {
                 if (index === 0) {
                   tokenYAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
                   tokenYIcon = token.logoURI
-                } else if (index === 1 && !nativeTransfer) {
+                } else if (index === 1) {
                   tokenXAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
                   tokenXIcon = token.logoURI
                   tokenYSymbol = token.symbol ?? token.address.toString()
@@ -2638,6 +1377,7 @@ export function* handleClaimAllFees() {
     closeSnackbar(loaderClaimAllFees)
     yield put(snackbarsActions.remove(loaderClaimAllFees))
 
+    yield sleep(500)
     yield put(actions.getPositionsList())
 
     yield* put(actions.setAllClaimLoader(false))
@@ -2660,8 +1400,7 @@ export function* handleClaimAllFees() {
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 
@@ -2693,236 +1432,10 @@ export function* handleClaimAllFees() {
   }
 }
 
-export function* handleClosePositionWithFOGO(data: ClosePositionData) {
-  const loaderClosePosition = createLoaderKey()
-  const loaderSigningTx = createLoaderKey()
-
-  try {
-    yield put(
-      snackbarsActions.add({
-        message: 'Closing position...',
-        variant: 'pending',
-        persist: true,
-        key: loaderClosePosition
-      })
-    )
-
-    const connection = yield* call(getConnection)
-    const networkType = yield* select(network)
-    const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-
-    const allPositionsData = yield* select(positionsWithPoolsData)
-    const tokensAccounts = yield* select(accounts)
-    const allTokens = yield* select(tokens)
-    const userPositionList = yield* select(positionsList)
-
-    const wrappedFogoAccount = Keypair.generate()
-
-    const net = networkTypetoProgramNetwork(networkType)
-
-    const { createIx, initIx, unwrapIx } = createNativeAtaInstructions(
-      wrappedFogoAccount.publicKey,
-      wallet.publicKey,
-      net
-    )
-    const position = allPositionsData[data.positionIndex]
-    const poolForIndex = position.poolData
-
-    let userTokenX =
-      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[poolForIndex.tokenX.toString()]
-          ? tokensAccounts[poolForIndex.tokenX.toString()].address
-          : null
-
-    if (userTokenX === null) {
-      userTokenX = yield* call(createAccount, poolForIndex.tokenX)
-    }
-
-    let userTokenY =
-      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[poolForIndex.tokenY.toString()]
-          ? tokensAccounts[poolForIndex.tokenY.toString()].address
-          : null
-
-    if (userTokenY === null) {
-      userTokenY = yield* call(createAccount, poolForIndex.tokenY)
-    }
-    const pair = new Pair(poolForIndex.tokenX, poolForIndex.tokenY, {
-      fee: poolForIndex.fee,
-      tickSpacing: poolForIndex.tickSpacing
-    })
-    const ix = yield* call(
-      [marketProgram, marketProgram.removePositionIx],
-      {
-        pair,
-        owner: wallet.publicKey,
-        index: data.positionIndex,
-        userTokenX,
-        userTokenY
-      },
-      {
-        position: position,
-        pool: poolForIndex,
-        tokenXProgram: allTokens[poolForIndex.tokenX.toString()].tokenProgram,
-        tokenYProgram: allTokens[poolForIndex.tokenY.toString()].tokenProgram,
-        positionList: !userPositionList.loading ? userPositionList : undefined
-      }
-    )
-
-    const tx: Transaction = new Transaction().add(createIx).add(initIx).add(ix).add(unwrapIx)
-
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    tx.recentBlockhash = blockhash
-    tx.lastValidBlockHeight = lastValidBlockHeight
-    tx.feePayer = wallet.publicKey
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-    yield put(actions.setShouldDisable(true))
-
-    tx.partialSign(wrappedFogoAccount)
-
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
-
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
-
-    if (!txid.length) {
-      yield put(
-        snackbarsActions.add({
-          message: 'Failed to close position. Please try again',
-          variant: 'error',
-          persist: false,
-          txid
-        })
-      )
-
-      if (data.isRemoveLiquidity) {
-        yield put(actions.setChangeLiquiditySuccess(false))
-      }
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Position closed successfully',
-          variant: 'success',
-          persist: false,
-          txid
-        })
-      )
-
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
-
-      if (txDetails) {
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          try {
-            const amountX = getAmountFromClosePositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromClosePositionInstruction(meta, TokenType.TokenY)
-
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
-
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'withdraw',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
-                  tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
-                  tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
-                },
-                persist: false
-              })
-            )
-          } catch {
-            // Should never be triggered
-          }
-        }
-      }
-    }
-
-    yield put(actions.getPositionsList())
-    yield put(actions.setShouldDisable(false))
-
-    data.onSuccess()
-
-    closeSnackbar(loaderClosePosition)
-    yield put(snackbarsActions.remove(loaderClosePosition))
-
-    if (data.isRemoveLiquidity) {
-      yield put(actions.setChangeLiquiditySuccess(true))
-    }
-  } catch (e: unknown) {
-    if (data.isRemoveLiquidity) {
-      yield put(actions.setChangeLiquiditySuccess(false))
-    }
-
-    const error = ensureError(e)
-    console.log(error)
-    let msg: string = ''
-    if (error instanceof SendTransactionError) {
-      const err = error.transactionError
-      try {
-        const errorCode = extractRuntimeErrorCode(err)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      }
-    } else {
-      try {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
-      }
-    }
-    yield put(actions.setShouldDisable(false))
-
-    closeSnackbar(loaderClosePosition)
-    yield put(snackbarsActions.remove(loaderClosePosition))
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (error instanceof TransactionExpiredTimeoutError) {
-      yield put(
-        snackbarsActions.add({
-          message: TIMEOUT_ERROR_MESSAGE,
-          variant: 'info',
-          persist: true,
-          txid: error.signature
-        })
-      )
-      yield put(connectionActions.setTimeoutError(true))
-      yield put(RPCAction.setRpcStatus(RpcStatus.Error))
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: msg,
-          variant: 'error',
-          persist: false
-        })
-      )
-    }
-
-    yield* call(handleRpcError, error.message)
-  }
-}
-
 export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
+  const session = getSession()
+  if (!session) throw Error('No session provided')
+
   const loaderClosePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
@@ -2932,12 +1445,6 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
     const poolForIndex = allPositionsData[action.payload.positionIndex].poolData
     const position = allPositionsData[action.payload.positionIndex]
 
-    if (
-      allTokens[poolForIndex.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS ||
-      allTokens[poolForIndex.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-    ) {
-      return yield* call(handleClosePositionWithFOGO, action.payload)
-    }
     yield put(actions.setShouldDisable(true))
 
     yield put(
@@ -2952,8 +1459,8 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
     const connection = yield* call(getConnection)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+    // const wallet = yield* call(getWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
     const tokensAccounts = yield* select(accounts)
 
     let userTokenX = tokensAccounts[poolForIndex.tokenX.toString()]
@@ -2979,9 +1486,10 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
 
     const ix = yield* call(
       [marketProgram, marketProgram.removePositionIx],
+      session,
       {
         pair,
-        owner: wallet.publicKey,
+        owner: session.walletPublicKey,
         index: action.payload.positionIndex,
         userTokenX,
         userTokenY
@@ -2994,26 +1502,18 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
       }
     )
 
-    const tx: Transaction = new Transaction().add(ix)
-
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    tx.recentBlockhash = blockhash
-    tx.lastValidBlockHeight = lastValidBlockHeight
-    tx.feePayer = wallet.publicKey
-
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+    // const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
+    const { signature: txid } = yield* call([session, session.sendTransaction], [ix])
+
+    // const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+    //   skipPreflight: false
+    // })
 
     if (!txid.length) {
       yield put(
@@ -3034,7 +1534,9 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
         })
       )
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid)
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+        maxSupportedTransactionVersion: 0
+      })
 
       if (txDetails) {
         const meta = txDetails.meta
@@ -3091,8 +1593,7 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 
@@ -3130,18 +1631,12 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
 
 export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>): Generator {
   const data = action.payload
-
   const positionsData = yield* select(positionsWithPoolsData)
   const position = positionsData[data.positionIndex]
-  if (
-    position.poolData.tokenX.toString() === WRAPPED_FOGO_ADDRESS ||
-    position.poolData.tokenY.toString() === WRAPPED_FOGO_ADDRESS
-  ) {
-    return yield* call(handleAddLiquidityWithFOGO, action)
-  }
-
   const loaderAddLiquidity = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   try {
     yield put(
       snackbarsActions.add({
@@ -3151,94 +1646,61 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
         key: loaderAddLiquidity
       })
     )
-
     const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
+    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
-
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
+    // marketProgram.setWallet({
+    //   signAllTransactions: wallet.signAllTransactions,
+    //   signTransaction: wallet.signTransaction,
+    //   publicKey: wallet.publicKey
+    // } as IWallet)
     const tokensAccounts = yield* select(accounts)
     const allTokens = yield* select(tokens)
-
     const pair = new Pair(position.poolData.tokenX, position.poolData.tokenY, {
       fee: position.poolData.fee,
       tickSpacing: position.poolData.tickSpacing
     })
-
     let userTokenX = tokensAccounts[position.poolData.tokenX.toString()]
       ? tokensAccounts[position.poolData.tokenX.toString()].address
       : null
-
     if (userTokenX === null) {
       userTokenX = yield* call(createAccount, position.poolData.tokenX)
     }
-
     let userTokenY = tokensAccounts[position.poolData.tokenY.toString()]
       ? tokensAccounts[position.poolData.tokenY.toString()].address
       : null
-
     if (userTokenY === null) {
       userTokenY = yield* call(createAccount, position.poolData.tokenY)
     }
 
-    const poolSigners: Keypair[] = []
+    const changeLiquidityIx = yield* call(
+      [marketProgram, marketProgram.changeLiquidityIx],
+      session,
+      {
+        pair,
+        knownPrice: position.poolData.sqrtPrice,
+        slippage: data.slippage,
+        index: data.positionIndex,
+        lowerTickIndex: position.lowerTick.index,
+        upperTickIndex: position.upperTick.index,
+        liquidityDelta: data.liquidity,
+        addLiquidity: true,
+        owner: session.walletPublicKey,
+        accountX: userTokenX,
+        accountY: userTokenY
+      }
+    )
 
-    const combinedTransaction = new Transaction()
+    const txResult = yield* call([session, session.sendTransaction], [changeLiquidityIx])
 
-    const changeLiquidityIx = yield* call([marketProgram, marketProgram.changeLiquidityIx], {
-      pair,
-      knownPrice: position.poolData.sqrtPrice,
-      slippage: data.slippage,
-      index: data.positionIndex,
-      lowerTickIndex: position.lowerTick.index,
-      upperTickIndex: position.upperTick.index,
-      liquidityDelta: data.liquidity,
-      addLiquidity: true,
-      owner: wallet.publicKey,
-      accountX: userTokenX,
-      accountY: userTokenY
-    })
-
-    combinedTransaction.add(changeLiquidityIx)
-
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    combinedTransaction.recentBlockhash = blockhash
-    combinedTransaction.lastValidBlockHeight = lastValidBlockHeight
-    combinedTransaction.feePayer = wallet.publicKey
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    if (poolSigners.length) {
-      combinedTransaction.partialSign(...poolSigners)
-    }
-
-    const signedTx = (yield* call(
-      [wallet, wallet.signTransaction],
-      combinedTransaction
-    )) as Transaction
-
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const txId = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
+    const { signature: txId, type: resultType } = txResult
 
     if (!txId.length) {
       yield put(actions.setChangeLiquiditySuccess(false))
-
       closeSnackbar(loaderAddLiquidity)
       yield put(snackbarsActions.remove(loaderAddLiquidity))
-
       return yield put(
         snackbarsActions.add({
           message: 'Adding liquidity failed. Please try again',
@@ -3248,298 +1710,17 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
         })
       )
     } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Liquidity added',
-          variant: 'success',
-          persist: false,
-          txid: txId
-        })
-      )
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txId)
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(actions.setChangeLiquiditySuccess(false))
-
-            closeSnackbar(loaderAddLiquidity)
-            yield put(snackbarsActions.remove(loaderAddLiquidity))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
-
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
-
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
-
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'deposit',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
-                  tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
-                  tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
-                },
-                persist: false
-              })
-            )
-          } catch {
-            // Should never be triggered
-          }
-        }
-      }
-    }
-
-    yield put(actions.getSinglePosition({ index: data.positionIndex, isLocked: false }))
-    yield put(actions.setChangeLiquiditySuccess(true))
-
-    closeSnackbar(loaderAddLiquidity)
-    yield put(snackbarsActions.remove(loaderAddLiquidity))
-  } catch (e: unknown) {
-    yield put(actions.setChangeLiquiditySuccess(false))
-
-    const error = ensureError(e)
-    console.log(error)
-
-    let msg: string = ''
-    if (error instanceof SendTransactionError) {
-      const err = error.transactionError
-      try {
-        const errorCode = extractRuntimeErrorCode(err)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      }
-    } else {
-      try {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
-      }
-    }
-
-    closeSnackbar(loaderAddLiquidity)
-    yield put(snackbarsActions.remove(loaderAddLiquidity))
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (error instanceof TransactionExpiredTimeoutError) {
-      yield put(
-        snackbarsActions.add({
-          message: TIMEOUT_ERROR_MESSAGE,
-          variant: 'info',
-          persist: true,
-          txid: error.signature
-        })
-      )
-      yield put(connectionActions.setTimeoutError(true))
-      yield put(RPCAction.setRpcStatus(RpcStatus.Error))
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: msg,
-          variant: 'error',
-          persist: false
-        })
-      )
-    }
-
-    yield* call(handleRpcError, error.message)
-  }
-}
-
-function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>): Generator {
-  const data = action.payload
-  const positionsData = yield* select(positionsWithPoolsData)
-  const position = positionsData[data.positionIndex]
-
-  const loaderAddLiquidity = createLoaderKey()
-  const loaderSigningTx = createLoaderKey()
-
-  try {
-    yield put(
-      snackbarsActions.add({
-        message: 'Adding liquidity...',
-        variant: 'pending',
-        persist: true,
-        key: loaderAddLiquidity
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txId, {
+        maxSupportedTransactionVersion: 0
       })
-    )
 
-    const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
-    const networkType = yield* select(network)
-    const rpc = yield* select(rpcAddress)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
-
-    const tokensAccounts = yield* select(accounts)
-    const allTokens = yield* select(tokens)
-
-    const pair = new Pair(position.poolData.tokenX, position.poolData.tokenY, {
-      fee: position.poolData.fee,
-      tickSpacing: position.poolData.tickSpacing
-    })
-
-    const wrappedFogoAccount = Keypair.generate()
-
-    const net = networkTypetoProgramNetwork(networkType)
-
-    const fogoAmount =
-      allTokens[position.poolData.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? data.xAmount
-        : data.yAmount
-
-    const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-      wrappedFogoAccount.publicKey,
-      wallet.publicKey,
-      net,
-      fogoAmount ? fogoAmount : new BN(0)
-    )
-
-    let userTokenX =
-      allTokens[position.poolData.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[position.poolData.tokenX.toString()]
-          ? tokensAccounts[position.poolData.tokenX.toString()].address
-          : null
-
-    if (userTokenX === null) {
-      userTokenX = yield* call(createAccount, position.poolData.tokenX)
-    }
-
-    let userTokenY =
-      allTokens[position.poolData.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[position.poolData.tokenY.toString()]
-          ? tokensAccounts[position.poolData.tokenY.toString()].address
-          : null
-
-    if (userTokenY === null) {
-      userTokenY = yield* call(createAccount, position.poolData.tokenY)
-    }
-
-    const poolSigners: Keypair[] = []
-
-    const combinedTransaction = new Transaction()
-
-    combinedTransaction.add(createIx).add(transferIx).add(initIx)
-
-    const changeLiquidityIx = yield* call([marketProgram, marketProgram.changeLiquidityIx], {
-      pair,
-      knownPrice: position.poolData.sqrtPrice,
-      slippage: data.slippage,
-      index: data.positionIndex,
-      lowerTickIndex: position.lowerTick.index,
-      upperTickIndex: position.upperTick.index,
-      liquidityDelta: data.liquidity,
-      addLiquidity: true,
-      owner: wallet.publicKey,
-      accountX: userTokenX,
-      accountY: userTokenY
-    })
-
-    combinedTransaction.add(changeLiquidityIx)
-    combinedTransaction.add(unwrapIx)
-
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-
-    combinedTransaction.recentBlockhash = blockhash
-    combinedTransaction.lastValidBlockHeight = lastValidBlockHeight
-    combinedTransaction.feePayer = wallet.publicKey
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    combinedTransaction.partialSign(wrappedFogoAccount)
-
-    if (poolSigners.length) {
-      combinedTransaction.partialSign(...poolSigners)
-    }
-
-    const signedTx = (yield* call(
-      [wallet, wallet.signTransaction],
-      combinedTransaction
-    )) as Transaction
-
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-    console.table({
-      fogoAmount: fogoAmount?.toString(),
-      isXWrapped:
-        allTokens[position.poolData.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS,
-      isYWrapped:
-        allTokens[position.poolData.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS,
-      userTokenX: userTokenX?.toString(),
-      userTokenY: userTokenY?.toString()
-    })
-
-    const txId = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
-
-    if (!txId.length) {
-      yield put(actions.setChangeLiquiditySuccess(false))
-
-      closeSnackbar(loaderAddLiquidity)
-      yield put(snackbarsActions.remove(loaderAddLiquidity))
-
-      return yield put(
-        snackbarsActions.add({
-          message: 'Adding liquidity failed. Please try again',
-          variant: 'error',
-          persist: false,
-          txid: txId
-        })
-      )
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Liquidity added',
-          variant: 'success',
-          persist: false,
-          txid: txId
-        })
-      )
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txId)
       if (txDetails) {
         if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
+          if (txDetails.meta.logMessages && resultType === 1) {
+            const resultError = txResult.error as any
+
+            const customError = resultError?.InstructionError[1]?.Custom
+
             const errorLog = txDetails.meta.logMessages.find(log =>
               log.includes(ErrorCodeExtractionKeys.ErrorNumber)
             )
@@ -3547,14 +1728,12 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
               ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
               .split(ErrorCodeExtractionKeys.Dot)[0]
               .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
+            const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
             yield put(actions.setChangeLiquiditySuccess(false))
-
             closeSnackbar(loaderAddLiquidity)
             yield put(snackbarsActions.remove(loaderAddLiquidity))
             closeSnackbar(loaderSigningTx)
             yield put(snackbarsActions.remove(loaderSigningTx))
-
             yield put(
               snackbarsActions.add({
                 message,
@@ -3566,25 +1745,41 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
           }
         }
 
+        yield put(actions.setChangeLiquiditySuccess(true))
+        yield put(
+          snackbarsActions.add({
+            message: 'Liquidity added',
+            variant: 'success',
+            persist: false,
+            txid: txId
+          })
+        )
+
         const meta = txDetails.meta
         if (meta?.innerInstructions && meta.innerInstructions) {
           try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
+            const { amount: amountX, token: tokenXAddress } = getAmountFromInitPositionInstruction(
+              meta,
+              TokenType.TokenX
+            )
+            const { amount: amountY, token: tokenYAddress } = getAmountFromInitPositionInstruction(
+              meta,
+              TokenType.TokenY
+            )
 
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
+            const tokenX = allTokens[tokenXAddress]
+            const tokenY = tokenYAddress ? allTokens[tokenYAddress] : null
 
             yield put(
               snackbarsActions.add({
                 tokensDetails: {
                   ikonType: 'deposit',
                   tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
+                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY?.decimals || 0)),
                   tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
+                  tokenYIcon: tokenY?.logoURI,
                   tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
+                  tokenYSymbol: tokenY?.symbol ?? tokenY?.address.toString()
                 },
                 persist: false
               })
@@ -3595,18 +1790,14 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
         }
       }
     }
-
     yield put(actions.getSinglePosition({ index: data.positionIndex, isLocked: false }))
     yield put(actions.setChangeLiquiditySuccess(true))
-
     closeSnackbar(loaderAddLiquidity)
     yield put(snackbarsActions.remove(loaderAddLiquidity))
   } catch (e: unknown) {
     yield put(actions.setChangeLiquiditySuccess(false))
-
     const error = ensureError(e)
     console.log(error)
-
     let msg: string = ''
     if (error instanceof SendTransactionError) {
       const err = error.transactionError
@@ -3622,16 +1813,13 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
-
     closeSnackbar(loaderAddLiquidity)
     yield put(snackbarsActions.remove(loaderAddLiquidity))
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
-
     if (error instanceof TransactionExpiredTimeoutError) {
       yield put(
         snackbarsActions.add({
@@ -3652,17 +1840,16 @@ function* handleAddLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>)
         })
       )
     }
-
     yield* call(handleRpcError, error.message)
   }
 }
 
 export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData>): Generator {
   const data = action.payload
-
   const positionsData = yield* select(positionsWithPoolsData)
   const position = positionsData[data.positionIndex]
-
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   if (data.isClosePosition) {
     return yield* call(handleClosePosition, {
       payload: {
@@ -3673,14 +1860,6 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
       type: 'positions/closePosition'
     })
   }
-
-  if (
-    position.poolData.tokenX.toString() === WRAPPED_FOGO_ADDRESS ||
-    position.poolData.tokenY.toString() === WRAPPED_FOGO_ADDRESS
-  ) {
-    return yield* call(handleRemoveLiquidityWithFOGO, action)
-  }
-
   const loaderRemoveLiquidity = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
   try {
@@ -3692,94 +1871,61 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
         key: loaderRemoveLiquidity
       })
     )
-
     const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
+    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
-
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
+    // marketProgram.setWallet({
+    //   signAllTransactions: wallet.signAllTransactions,
+    //   signTransaction: wallet.signTransaction,
+    //   publicKey: wallet.publicKey
+    // } as IWallet)
     const tokensAccounts = yield* select(accounts)
     const allTokens = yield* select(tokens)
-
     const pair = new Pair(position.poolData.tokenX, position.poolData.tokenY, {
       fee: position.poolData.fee,
       tickSpacing: position.poolData.tickSpacing
     })
-
     let userTokenX = tokensAccounts[position.poolData.tokenX.toString()]
       ? tokensAccounts[position.poolData.tokenX.toString()].address
       : null
-
     if (userTokenX === null) {
       userTokenX = yield* call(createAccount, position.poolData.tokenX)
     }
-
     let userTokenY = tokensAccounts[position.poolData.tokenY.toString()]
       ? tokensAccounts[position.poolData.tokenY.toString()].address
       : null
-
     if (userTokenY === null) {
       userTokenY = yield* call(createAccount, position.poolData.tokenY)
     }
 
-    const poolSigners: Keypair[] = []
+    const changeLiquidityIx = yield* call(
+      [marketProgram, marketProgram.changeLiquidityIx],
+      session,
+      {
+        pair,
+        knownPrice: position.poolData.sqrtPrice,
+        slippage: data.slippage,
+        index: data.positionIndex,
+        lowerTickIndex: position.lowerTick.index,
+        upperTickIndex: position.upperTick.index,
+        liquidityDelta: data.liquidity,
+        addLiquidity: false,
+        owner: session.walletPublicKey,
+        accountX: userTokenX,
+        accountY: userTokenY
+      }
+    )
 
-    const combinedTransaction = new Transaction()
+    const txResult = yield* call([session, session.sendTransaction], [changeLiquidityIx])
 
-    const changeLiquidityIx = yield* call([marketProgram, marketProgram.changeLiquidityIx], {
-      pair,
-      knownPrice: position.poolData.sqrtPrice,
-      slippage: data.slippage,
-      index: data.positionIndex,
-      lowerTickIndex: position.lowerTick.index,
-      upperTickIndex: position.upperTick.index,
-      liquidityDelta: data.liquidity,
-      addLiquidity: false,
-      owner: wallet.publicKey,
-      accountX: userTokenX,
-      accountY: userTokenY
-    })
-
-    combinedTransaction.add(changeLiquidityIx)
-
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    combinedTransaction.recentBlockhash = blockhash
-    combinedTransaction.lastValidBlockHeight = lastValidBlockHeight
-    combinedTransaction.feePayer = wallet.publicKey
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    if (poolSigners.length) {
-      combinedTransaction.partialSign(...poolSigners)
-    }
-
-    const signedTx = (yield* call(
-      [wallet, wallet.signTransaction],
-      combinedTransaction
-    )) as Transaction
-
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const txId = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
+    const { signature: txId, type: resultType } = txResult
 
     if (!txId.length) {
       yield put(actions.setChangeLiquiditySuccess(false))
-
       closeSnackbar(loaderRemoveLiquidity)
       yield put(snackbarsActions.remove(loaderRemoveLiquidity))
-
       return yield put(
         snackbarsActions.add({
           message: 'Removing liquidity failed. Please try again',
@@ -3789,282 +1935,16 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
         })
       )
     } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Liquidity removed',
-          variant: 'success',
-          persist: false,
-          txid: txId
-        })
-      )
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txId)
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(actions.setChangeLiquiditySuccess(false))
-
-            closeSnackbar(loaderRemoveLiquidity)
-            yield put(snackbarsActions.remove(loaderRemoveLiquidity))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
-
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
-
-            const tokenX = allTokens[pair.tokenX.toString()]
-            const tokenY = allTokens[pair.tokenY.toString()]
-
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'withdraw',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
-                  tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
-                  tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString()
-                },
-                persist: false
-              })
-            )
-          } catch {
-            // Should never be triggered
-          }
-        }
-      }
-    }
-
-    yield put(actions.getSinglePosition({ index: data.positionIndex, isLocked: false }))
-    yield put(actions.setChangeLiquiditySuccess(true))
-
-    closeSnackbar(loaderRemoveLiquidity)
-    yield put(snackbarsActions.remove(loaderRemoveLiquidity))
-  } catch (e: unknown) {
-    yield put(actions.setChangeLiquiditySuccess(false))
-
-    const error = ensureError(e)
-    console.log(error)
-
-    let msg: string = ''
-    if (error instanceof SendTransactionError) {
-      const err = error.transactionError
-      try {
-        const errorCode = extractRuntimeErrorCode(err)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      }
-    } else {
-      try {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
-      }
-    }
-
-    closeSnackbar(loaderRemoveLiquidity)
-    yield put(snackbarsActions.remove(loaderRemoveLiquidity))
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (error instanceof TransactionExpiredTimeoutError) {
-      yield put(
-        snackbarsActions.add({
-          message: TIMEOUT_ERROR_MESSAGE,
-          variant: 'info',
-          persist: true,
-          txid: error.signature
-        })
-      )
-      yield put(connectionActions.setTimeoutError(true))
-      yield put(RPCAction.setRpcStatus(RpcStatus.Error))
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: msg,
-          variant: 'error',
-          persist: false
-        })
-      )
-    }
-
-    yield* call(handleRpcError, error.message)
-  }
-}
-
-function* handleRemoveLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityData>): Generator {
-  const data = action.payload
-
-  const positionsData = yield* select(positionsWithPoolsData)
-  const position = positionsData[data.positionIndex]
-
-  const loaderRemoveLiquidity = createLoaderKey()
-  const loaderSigningTx = createLoaderKey()
-  try {
-    yield put(
-      snackbarsActions.add({
-        message: 'Removing liquidity...',
-        variant: 'pending',
-        persist: true,
-        key: loaderRemoveLiquidity
+      const txDetails = yield* call([connection, connection.getParsedTransaction], txId, {
+        maxSupportedTransactionVersion: 0
       })
-    )
-
-    const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
-    const networkType = yield* select(network)
-    const rpc = yield* select(rpcAddress)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
-
-    const tokensAccounts = yield* select(accounts)
-    const allTokens = yield* select(tokens)
-
-    const pair = new Pair(position.poolData.tokenX, position.poolData.tokenY, {
-      fee: position.poolData.fee,
-      tickSpacing: position.poolData.tickSpacing
-    })
-
-    const wrappedFogoAccount = Keypair.generate()
-
-    const net = networkTypetoProgramNetwork(networkType)
-
-    const { createIx, initIx, unwrapIx } = createNativeAtaInstructions(
-      wrappedFogoAccount.publicKey,
-      wallet.publicKey,
-      net
-    )
-
-    let userTokenX =
-      allTokens[position.poolData.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[position.poolData.tokenX.toString()]
-          ? tokensAccounts[position.poolData.tokenX.toString()].address
-          : null
-
-    if (userTokenX === null) {
-      userTokenX = yield* call(createAccount, position.poolData.tokenX)
-    }
-
-    let userTokenY =
-      allTokens[position.poolData.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[position.poolData.tokenY.toString()]
-          ? tokensAccounts[position.poolData.tokenY.toString()].address
-          : null
-
-    if (userTokenY === null) {
-      userTokenY = yield* call(createAccount, position.poolData.tokenY)
-    }
-
-    const poolSigners: Keypair[] = []
-
-    const combinedTransaction = new Transaction()
-
-    combinedTransaction.add(createIx).add(initIx)
-
-    const changeLiquidityIx = yield* call([marketProgram, marketProgram.changeLiquidityIx], {
-      pair,
-      knownPrice: position.poolData.sqrtPrice,
-      slippage: data.slippage,
-      index: data.positionIndex,
-      lowerTickIndex: position.lowerTick.index,
-      upperTickIndex: position.upperTick.index,
-      liquidityDelta: data.liquidity,
-      addLiquidity: false,
-      owner: wallet.publicKey,
-      accountX: userTokenX,
-      accountY: userTokenY
-    })
-
-    combinedTransaction.add(changeLiquidityIx)
-    combinedTransaction.add(unwrapIx)
-
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
-    combinedTransaction.recentBlockhash = blockhash
-    combinedTransaction.lastValidBlockHeight = lastValidBlockHeight
-    combinedTransaction.feePayer = wallet.publicKey
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    combinedTransaction.partialSign(wrappedFogoAccount)
-
-    if (poolSigners.length) {
-      combinedTransaction.partialSign(...poolSigners)
-    }
-
-    const signedTx = (yield* call(
-      [wallet, wallet.signTransaction],
-      combinedTransaction
-    )) as Transaction
-
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const txId = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
-      skipPreflight: false
-    })
-
-    if (!txId.length) {
-      yield put(actions.setChangeLiquiditySuccess(false))
-
-      closeSnackbar(loaderRemoveLiquidity)
-      yield put(snackbarsActions.remove(loaderRemoveLiquidity))
-
-      return yield put(
-        snackbarsActions.add({
-          message: 'Removing liquidity failed. Please try again',
-          variant: 'error',
-          persist: false,
-          txid: txId
-        })
-      )
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Liquidity removed',
-          variant: 'success',
-          persist: false,
-          txid: txId
-        })
-      )
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txId)
       if (txDetails) {
         if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
+          if (txDetails.meta.logMessages && resultType === 1) {
+            const resultError = txResult.error as any
+
+            const customError = resultError?.InstructionError[1]?.Custom
+
             const errorLog = txDetails.meta.logMessages.find(log =>
               log.includes(ErrorCodeExtractionKeys.ErrorNumber)
             )
@@ -4072,14 +1952,12 @@ function* handleRemoveLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityDat
               ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
               .split(ErrorCodeExtractionKeys.Dot)[0]
               .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
+            const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
             yield put(actions.setChangeLiquiditySuccess(false))
-
             closeSnackbar(loaderRemoveLiquidity)
             yield put(snackbarsActions.remove(loaderRemoveLiquidity))
             closeSnackbar(loaderSigningTx)
             yield put(snackbarsActions.remove(loaderSigningTx))
-
             yield put(
               snackbarsActions.add({
                 message,
@@ -4091,11 +1969,21 @@ function* handleRemoveLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityDat
           }
         }
 
+        yield put(actions.setChangeLiquiditySuccess(true))
+        yield put(
+          snackbarsActions.add({
+            message: 'Liquidity removed',
+            variant: 'success',
+            persist: false,
+            txid: txId
+          })
+        )
+
         const meta = txDetails.meta
         if (meta?.innerInstructions && meta.innerInstructions) {
           try {
-            const amountX = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
-            const amountY = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
+            const { amount: amountX } = getAmountFromInitPositionInstruction(meta, TokenType.TokenX)
+            const { amount: amountY } = getAmountFromInitPositionInstruction(meta, TokenType.TokenY)
 
             const tokenX = allTokens[pair.tokenX.toString()]
             const tokenY = allTokens[pair.tokenY.toString()]
@@ -4120,18 +2008,14 @@ function* handleRemoveLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityDat
         }
       }
     }
-
     yield put(actions.getSinglePosition({ index: data.positionIndex, isLocked: false }))
     yield put(actions.setChangeLiquiditySuccess(true))
-
     closeSnackbar(loaderRemoveLiquidity)
     yield put(snackbarsActions.remove(loaderRemoveLiquidity))
   } catch (e: unknown) {
     yield put(actions.setChangeLiquiditySuccess(false))
-
     const error = ensureError(e)
     console.log(error)
-
     let msg: string = ''
     if (error instanceof SendTransactionError) {
       const err = error.transactionError
@@ -4147,16 +2031,13 @@ function* handleRemoveLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityDat
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
-
     closeSnackbar(loaderRemoveLiquidity)
     yield put(snackbarsActions.remove(loaderRemoveLiquidity))
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
-
     if (error instanceof TransactionExpiredTimeoutError) {
       yield put(
         snackbarsActions.add({
@@ -4177,7 +2058,6 @@ function* handleRemoveLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityDat
         })
       )
     }
-
     yield* call(handleRpcError, error.message)
   }
 }
@@ -4185,18 +2065,13 @@ function* handleRemoveLiquidityWithFOGO(action: PayloadAction<ChangeLiquidityDat
 export function* handleSwapAndAddLiquidity(
   action: PayloadAction<SwapAndAddLiquidityData>
 ): Generator {
+  const session = getSession()
+  if (!session) throw Error('No session provided')
   const loaderAddPosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
   try {
     const allTokens = yield* select(tokens)
-
-    if (
-      allTokens[action.payload.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS ||
-      allTokens[action.payload.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-    ) {
-      return yield* call(handleSwapAndAddLiquidityWithFOGO, action)
-    }
 
     yield put(
       snackbarsActions.add({
@@ -4208,17 +2083,12 @@ export function* handleSwapAndAddLiquidity(
     )
 
     const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
+    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const allPools = yield* select(poolsArraySortedByFees)
 
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
     const swapPair = new Pair(action.payload.tokenX, action.payload.tokenY, {
       fee: action.payload.swapPool.fee,
@@ -4256,13 +2126,14 @@ export function* handleSwapAndAddLiquidity(
 
     const tx = yield* call(
       [marketProgram, marketProgram.versionedSwapAndIncreaseLiquidityTx],
+      session,
       {
         amountX: action.payload.xAmount,
         amountY: action.payload.yAmount,
         swapPair,
         userTokenX,
         userTokenY,
-        owner: wallet.publicKey,
+        owner: session.walletPublicKey,
         slippage: action.payload.swapSlippage,
         amount: action.payload.swapAmount,
         xToY: action.payload.xToY,
@@ -4289,19 +2160,24 @@ export function* handleSwapAndAddLiquidity(
           tickmap: action.payload.swapPoolTickmap,
           pool: action.payload.swapPool
         }
-      }
+      },
+      [],
+      [],
+      []
     )
 
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+    // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
+    // const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
 
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
+    // closeSnackbar(loaderSigningTx)
+    // yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txid = yield* call([connection, connection.sendTransaction], signedTx)
+    // const txid = yield* call([connection, connection.sendTransaction], signedTx)
 
-    yield* call([connection, connection.confirmTransaction], txid)
+    // yield* call([connection, connection.confirmTransaction], txid)
+
+    const { signature: txid } = yield* call([session, session.sendTransaction], tx)
 
     yield put(actions.setChangeLiquiditySuccess(!!txid.length))
 
@@ -4441,8 +2317,7 @@ export function* handleSwapAndAddLiquidity(
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 
@@ -4478,343 +2353,23 @@ export function* handleSwapAndAddLiquidity(
   }
 }
 
-export function* handleSwapAndAddLiquidityWithFOGO(
-  action: PayloadAction<SwapAndAddLiquidityData>
-): Generator {
-  const loaderAddLiquidity = createLoaderKey()
-  const loaderSigningTx = createLoaderKey()
-
-  try {
-    const allTokens = yield* select(tokens)
-
-    yield put(
-      snackbarsActions.add({
-        message: 'Adding liquidity',
-        variant: 'pending',
-        persist: true,
-        key: loaderAddLiquidity
-      })
-    )
-    const connection = yield* call(getConnection)
-    const wallet = yield* call(getWallet)
-    const networkType = yield* select(network)
-    const rpc = yield* select(rpcAddress)
-    const allPools = yield* select(poolsArraySortedByFees)
-
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    marketProgram.setWallet({
-      signAllTransactions: wallet.signAllTransactions,
-      signTransaction: wallet.signTransaction,
-      publicKey: wallet.publicKey
-    } as IWallet)
-
-    const swapPair = new Pair(action.payload.tokenX, action.payload.tokenY, {
-      fee: action.payload.swapPool.fee,
-      tickSpacing: action.payload.swapPool.tickSpacing
-    })
-
-    const tokensAccounts = yield* select(accounts)
-
-    const wrappedFogoAccount = Keypair.generate()
-    const net = networkTypetoProgramNetwork(networkType)
-
-    const { createIx, initIx, transferIx, unwrapIx } = createNativeAtaWithTransferInstructions(
-      wrappedFogoAccount.publicKey,
-      wallet.publicKey,
-      net,
-      allTokens[swapPair.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? action.payload.xAmount
-        : action.payload.yAmount
-    )
-
-    let userTokenX =
-      allTokens[swapPair.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[swapPair.tokenX.toString()]
-          ? tokensAccounts[swapPair.tokenX.toString()].address
-          : null
-
-    if (userTokenX === null) {
-      userTokenX = yield* call(createAccount, swapPair.tokenX)
-    }
-
-    let userTokenY =
-      allTokens[swapPair.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS
-        ? wrappedFogoAccount.publicKey
-        : tokensAccounts[swapPair.tokenY.toString()]
-          ? tokensAccounts[swapPair.tokenY.toString()].address
-          : null
-
-    if (userTokenY === null) {
-      userTokenY = yield* call(createAccount, swapPair.tokenY)
-    }
-
-    const swapAndAddOnDifferentPools = action.payload.isSamePool
-      ? undefined
-      : {
-          positionPair: new Pair(action.payload.tokenX, action.payload.tokenY, {
-            fee: action.payload.positionPair.fee,
-            tickSpacing: action.payload.positionPair.tickSpacing
-          }),
-          positionPoolPrice: action.payload.positionPoolPrice,
-          positionSlippage: action.payload.positionSlippage
-        }
-
-    const isInitialFogoZero =
-      (allTokens[swapPair.tokenX.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
-        action.payload.xAmount.eq(new BN(0))) ||
-      (allTokens[swapPair.tokenY.toString()].address.toString() === WRAPPED_FOGO_ADDRESS &&
-        action.payload.yAmount.eq(new BN(0)))
-
-    const prependedIxs = [createIx, ...(isInitialFogoZero ? [] : [transferIx]), initIx]
-
-    const tx = yield* call(
-      [marketProgram, marketProgram.versionedSwapAndIncreaseLiquidityTx],
-      {
-        amountX: action.payload.xAmount,
-        amountY: action.payload.yAmount,
-        swapPair,
-        userTokenX,
-        userTokenY,
-        owner: wallet.publicKey,
-        slippage: action.payload.swapSlippage,
-        amount: action.payload.swapAmount,
-        xToY: action.payload.xToY,
-        byAmountIn: action.payload.byAmountIn,
-        estimatedPriceAfterSwap: action.payload.estimatedPriceAfterSwap,
-        minUtilizationPercentage: action.payload.minUtilizationPercentage,
-        swapAndCreateOnDifferentPools: swapAndAddOnDifferentPools,
-        liquidityDelta: action.payload.liquidityDelta,
-        positionIndex: action.payload.positionIndex
-      },
-      { tickIndexes: action.payload.crossedTicks },
-      {
-        position: {
-          pool:
-            action.payload.positionPoolIndex !== null
-              ? allPools[action.payload.positionPoolIndex]
-              : undefined,
-          lowerTick: action.payload.lowerTick,
-          upperTick: action.payload.upperTick,
-          tokenXProgramAddress: allTokens[action.payload.tokenX.toString()].tokenProgram,
-          tokenYProgramAddress: allTokens[action.payload.tokenY.toString()].tokenProgram
-        },
-        swap: {
-          tickmap: action.payload.swapPoolTickmap,
-          pool: action.payload.swapPool
-        }
-      },
-      prependedIxs,
-      [unwrapIx]
-    )
-
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
-
-    const serializedMessage = tx.message.serialize()
-    const signatureUint8 = nacl.sign.detached(serializedMessage, wrappedFogoAccount.secretKey)
-
-    tx.addSignature(wrappedFogoAccount.publicKey, signatureUint8)
-    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
-
-    closeSnackbar(loaderSigningTx)
-
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    const txid = yield* call([connection, connection.sendTransaction], signedTx)
-
-    yield* call([connection, connection.confirmTransaction], txid)
-
-    yield put(actions.setChangeLiquiditySuccess(!!txid.length))
-
-    if (!txid.length) {
-      yield put(
-        snackbarsActions.add({
-          message: 'Liquidity adding failed. Please try again.',
-          variant: 'error',
-          persist: false,
-          txid
-        })
-      )
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: 'Liquidity added.',
-          variant: 'success',
-          persist: false,
-          txid
-        })
-      )
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
-        maxSupportedTransactionVersion: 0
-      })
-
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(actions.setChangeLiquiditySuccess(false))
-
-            closeSnackbar(loaderAddLiquidity)
-            yield put(snackbarsActions.remove(loaderAddLiquidity))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
-
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          try {
-            const tokenIn = action.payload.xToY
-              ? allTokens[swapPair.tokenX.toString()]
-              : allTokens[swapPair.tokenY.toString()]
-            const tokenOut = action.payload.xToY
-              ? allTokens[swapPair.tokenY.toString()]
-              : allTokens[swapPair.tokenX.toString()]
-
-            const amountX = getAddAmountFromSwapAndAddLiquidity(meta, TokenType.TokenX)
-            const amountY = getAddAmountFromSwapAndAddLiquidity(meta, TokenType.TokenY)
-
-            const swapAmountIn = getSwapAmountFromSwapAndAddLiquidity(
-              meta,
-              marketProgram.programAuthority.address.toString(),
-              tokenIn.address.toString(),
-              SwapTokenType.TokenIn
-            )
-            const swapAmountOut = getSwapAmountFromSwapAndAddLiquidity(
-              meta,
-              marketProgram.programAuthority.address.toString(),
-              tokenOut.address.toString(),
-              SwapTokenType.TokenOut
-            )
-
-            const tokenX = allTokens[swapPair.tokenX.toString()]
-            const tokenY = allTokens[swapPair.tokenY.toString()]
-
-            yield put(
-              snackbarsActions.add({
-                tokensDetails: {
-                  ikonType: 'deposit',
-                  tokenXAmount: formatNumberWithoutSuffix(printBN(amountX, tokenX.decimals)),
-                  tokenYAmount: formatNumberWithoutSuffix(printBN(amountY, tokenY.decimals)),
-                  tokenXIcon: tokenX.logoURI,
-                  tokenYIcon: tokenY.logoURI,
-                  tokenXSymbol: tokenX.symbol ?? tokenX.address.toString(),
-                  tokenYSymbol: tokenY.symbol ?? tokenY.address.toString(),
-                  tokenXAmountAutoSwap: formatNumberWithoutSuffix(
-                    printBN(swapAmountIn, tokenIn.decimals)
-                  ),
-                  tokenYAmountAutoSwap: formatNumberWithoutSuffix(
-                    printBN(swapAmountOut, tokenOut.decimals)
-                  ),
-                  tokenXIconAutoSwap: tokenIn.logoURI,
-                  tokenYIconAutoSwap: tokenOut.logoURI
-                },
-
-                persist: false
-              })
-            )
-          } catch (e) {
-            console.log(e)
-            // Should never be triggered
-          }
-        }
-      }
-
-      yield put(actions.getSinglePosition({ index: action.payload.positionIndex, isLocked: false }))
-      yield put(actions.setChangeLiquiditySuccess(true))
-    }
-
-    closeSnackbar(loaderAddLiquidity)
-    yield put(snackbarsActions.remove(loaderAddLiquidity))
-  } catch (e: unknown) {
-    yield put(actions.setChangeLiquiditySuccess(false))
-
-    const error = ensureError(e)
-    console.log(error)
-
-    let msg: string = ''
-    if (error instanceof SendTransactionError) {
-      const err = error.transactionError
-      try {
-        const errorCode = extractRuntimeErrorCode(err)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      }
-    } else {
-      try {
-        const errorCode = extractErrorCode(error)
-        msg = mapErrorCodeToMessage(errorCode)
-      } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
-      }
-    }
-
-    yield put(actions.setChangeLiquiditySuccess(false))
-
-    closeSnackbar(loaderAddLiquidity)
-    yield put(snackbarsActions.remove(loaderAddLiquidity))
-    closeSnackbar(loaderSigningTx)
-    yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (error instanceof TransactionExpiredTimeoutError) {
-      yield put(
-        snackbarsActions.add({
-          message: TIMEOUT_ERROR_MESSAGE,
-          variant: 'info',
-          persist: true,
-          txid: error.signature
-        })
-      )
-      yield put(connectionActions.setTimeoutError(true))
-      yield put(RPCAction.setRpcStatus(RpcStatus.Error))
-    } else {
-      yield put(
-        snackbarsActions.add({
-          message: msg,
-          variant: 'error',
-          persist: false
-        })
-      )
-    }
-
-    yield* call(handleRpcError, (error as Error).message)
-  }
-}
-
 export function* handleGetSinglePosition(
   action: PayloadAction<{ index: number; isLocked: boolean }>
 ) {
   try {
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const wallet = yield* call(getWallet)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
-    const lockerProgram = yield* call(getLockerProgram, networkType, rpc, wallet as IWallet)
-    const [lockerAuth] = lockerProgram.getUserLocksAddress(wallet.publicKey)
+    // const wallet = yield* call(getWallet)
+    const session = getSession()
+    if (!session) throw Error('No session provided')
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
+    const lockerProgram = yield* call(getLockerProgram, networkType, rpc, {} as IWallet)
+    const [lockerAuth] = lockerProgram.getUserLocksAddress(session.walletPublicKey)
     const poolsList = yield* select(poolsArraySortedByFees)
 
     const position = yield* call(
       [marketProgram, marketProgram.getPosition],
-      action.payload.isLocked ? lockerAuth : wallet.publicKey,
+      action.payload.isLocked ? lockerAuth : session.walletPublicKey,
       action.payload.index
     )
 

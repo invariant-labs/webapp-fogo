@@ -4,12 +4,12 @@ import { Box, useMediaQuery } from '@mui/material'
 import { theme } from '@static/theme'
 import useStyles from './style'
 
-function renderRow(props: ListChildComponentProps) {
-  const { data, index, style } = props
-  return React.cloneElement(data[index] as React.ReactElement, {
-    style: {
-      ...style
-    }
+type RowEl = React.ReactElement<{ style?: React.CSSProperties }>
+
+function renderRow({ data, index, style }: ListChildComponentProps<RowEl[]>) {
+  const row = data[index]
+  return React.cloneElement(row, {
+    style: { ...(row.props.style ?? {}), ...style }
   })
 }
 
@@ -21,19 +21,13 @@ const ListboxComponent = React.forwardRef<HTMLDivElement, ListboxComponentProps>
   function ListboxComponent(props, ref) {
     const { children, ...other } = props
     const { classes } = useStyles()
-    const itemData = React.Children.toArray(children)
+    const itemData = React.Children.toArray(children) as RowEl[]
     const itemCount = itemData.length
     const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
     return (
-      <Box
-        ref={ref}
-        {...other}
-        style={{
-          maxHeight: 'none',
-          padding: '16px 16px 10px 16px'
-        }}>
-        <FixedSizeList
+      <Box ref={ref} {...other} style={{ maxHeight: 'none', padding: '16px 16px 10px 16px' }}>
+        <FixedSizeList<RowEl[]>
           className={classes.fixedList}
           height={
             isSmall ? (itemCount < 8 ? itemCount * 60 : 480) : itemCount < 6 ? itemCount * 51 : 290

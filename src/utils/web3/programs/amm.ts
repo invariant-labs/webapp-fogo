@@ -29,6 +29,23 @@ export const getMarketProgram = async (
   return _market
 }
 
+export const getMarketProgramWithoutProvider = async (
+  networkType: NetworkType,
+  rpcAddress: string
+): Promise<Market> => {
+  if (_market) {
+    return _market
+  }
+  const net = networkTypetoProgramNetwork(networkType)
+
+  _market = await Market.buildWithoutProvider(
+    net,
+    getSolanaConnection(rpcAddress),
+    new PublicKey(getMarketAddress(net))
+  )
+  return _market
+}
+
 export const getMarketProgramSync = (
   networkType: NetworkType,
   rpcAddress: string,

@@ -5,11 +5,11 @@ import { emptyIcon } from '@static/icons'
 import { Button } from '@common/Button/Button'
 import ChangeWalletButton from '@components/Header/HeaderButton/ChangeWalletButton'
 import { theme } from '@static/theme'
+import { getSession } from '@store/hooks/session'
 
 export interface IEmptyPlaceholder {
   desc: string
   onAction?: () => void
-  onAction2?: () => void
   className?: string
   style?: React.CSSProperties
   withButton?: boolean
@@ -28,7 +28,6 @@ export interface IEmptyPlaceholder {
 export const EmptyPlaceholder: React.FC<IEmptyPlaceholder> = ({
   desc,
   onAction,
-  onAction2,
   withButton = true,
   buttonName,
   mainTitle = `It's empty here...`,
@@ -43,7 +42,7 @@ export const EmptyPlaceholder: React.FC<IEmptyPlaceholder> = ({
   withImg = true
 }) => {
   const { classes, cx } = useStyles({ newVersion, themeDark, roundedCorners, height })
-
+  const session = getSession()
   const isSm = useMediaQuery(theme.breakpoints.down('sm'))
 
   return (
@@ -64,12 +63,12 @@ export const EmptyPlaceholder: React.FC<IEmptyPlaceholder> = ({
                 {buttonName ? buttonName : 'Add position'}
               </Button>
             )}
-            {onAction2 && connectButton && (
+            {connectButton && (
               <ChangeWalletButton
                 name={isSm ? 'Connect' : 'Connect wallet'}
-                onConnect={onAction2}
-                connected={false}
-                onDisconnect={() => {}}
+                width={'100%'}
+                walletConnected={!!session}
+                isSmDown={false}
               />
             )}
           </Grid>
