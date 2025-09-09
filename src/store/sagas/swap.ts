@@ -5,7 +5,7 @@ import { swap } from '@store/selectors/swap'
 import { poolsArraySortedByFees, tickMaps, tokens } from '@store/selectors/pools'
 import { accounts } from '@store/selectors/solanaWallet'
 import { createAccount } from './wallet'
-import { IWallet, Pair, routingEssentials } from '@invariant-labs/sdk-fogo'
+import { computeUnitsInstruction, IWallet, Pair, routingEssentials } from '@invariant-labs/sdk-fogo'
 import { getConnection, handleRpcError } from './connection'
 import {
   PublicKey,
@@ -455,6 +455,7 @@ export function* handleSwap(): Generator {
       fee: swapPool.fee,
       tickSpacing: swapPool.tickSpacing
     })
+    const setCuIx = computeUnitsInstruction(1_400_000, session.sessionPublicKey)
 
     const swapIx = yield* call(
       [marketProgram, marketProgram.swapIx],
@@ -478,8 +479,7 @@ export function* handleSwap(): Generator {
       { tickCrosses: MAX_CROSSES_IN_SINGLE_TX }
     )
 
-    const txResult = yield* call([session, session.sendTransaction], [swapIx])
-
+    const txResult = yield* call([session, session.sendTransaction], [setCuIx, swapIx])
     const { signature: txSig, type: resultType } = txResult
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
