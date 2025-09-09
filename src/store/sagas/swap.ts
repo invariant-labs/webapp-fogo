@@ -75,7 +75,6 @@ export function* handleTwoHopSwap(): Generator {
       return
     }
 
-    // const wallet = yield* call(getWallet)
     const tokensAccounts = yield* select(accounts)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)

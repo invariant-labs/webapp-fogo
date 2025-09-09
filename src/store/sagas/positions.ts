@@ -1,7 +1,7 @@
 import { call, put, takeEvery, take, select, all, spawn, takeLatest } from 'typed-redux-saga'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { actions as poolsActions, ListPoolsResponse, ListType } from '@store/reducers/pools'
-import { createAccount, getWallet } from './wallet'
+import { createAccount } from './wallet'
 import { getConnection, handleRpcError } from './connection'
 import {
   actions,
@@ -97,7 +97,6 @@ export function* handleSwapAndInitPosition(
     )
 
     const connection = yield* call(getConnection)
-    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const userPositionList = yield* select(positionsList)
@@ -420,7 +419,6 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     )
 
     const connection = yield* call(getConnection)
-    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
 
@@ -720,7 +718,6 @@ export function* handleGetCurrentPlotTicks(action: PayloadAction<GetCurrentTicks
   try {
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    // const wallet = yield* call(getWallet)
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
     const rawTicks = yield* call(
@@ -982,7 +979,6 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
     const connection = yield* call(getConnection)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    // const wallet = yield* call(getWallet)
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
     const lockerProgram = yield* call(getLockerProgram, networkType, rpc, {} as IWallet)
 
@@ -1459,7 +1455,6 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
     const connection = yield* call(getConnection)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    // const wallet = yield* call(getWallet)
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
     const tokensAccounts = yield* select(accounts)
 
@@ -1647,7 +1642,6 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
       })
     )
     const connection = yield* call(getConnection)
-    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
@@ -1872,7 +1866,6 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
       })
     )
     const connection = yield* call(getConnection)
-    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
@@ -2083,7 +2076,6 @@ export function* handleSwapAndAddLiquidity(
     )
 
     const connection = yield* call(getConnection)
-    // const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const allPools = yield* select(poolsArraySortedByFees)
@@ -2359,7 +2351,6 @@ export function* handleGetSinglePosition(
   try {
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    // const wallet = yield* call(getWallet)
     const session = getSession()
     if (!session) throw Error('No session provided')
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
@@ -2414,10 +2405,9 @@ export function* handleGetPreviewPosition(action: PayloadAction<string>) {
       throw new Error('Invalid position id')
     }
     const [id, poolAddress] = parts
-    const wallet = yield* call(getWallet)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
     const position = yield* call(getPositionByIdAndPoolAddress, marketProgram, id, poolAddress)
 
