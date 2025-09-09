@@ -1,19 +1,11 @@
 import { PayloadAction } from '@reduxjs/toolkit'
 import { actions, CreateTokenPayload } from '@store/reducers/creator'
 import { all, call, put, spawn, takeLatest } from 'typed-redux-saga'
-import { getWallet } from './wallet'
 import { DEFAULT_PUBLICKEY, SIGNING_SNACKBAR_CONFIG } from '@store/consts/static'
 import { WebUploader } from '@irys/web-upload'
 import { fromWeb3JsPublicKey, toWeb3JsPublicKey } from '@metaplex-foundation/umi-web3js-adapters'
-
 import WebSolana from '@irys/web-upload-solana'
-import {
-  Keypair,
-  PublicKey,
-  sendAndConfirmRawTransaction,
-  SystemProgram,
-  Transaction
-} from '@solana/web3.js'
+import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
 import { getFileFromInput } from '@utils/web3/createToken'
 import {
   createMetadataAccountV3,
@@ -27,6 +19,7 @@ import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { closeSnackbar } from 'notistack'
 import { getCurrentSolanaConnection } from '@utils/web3/connection'
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
+import { getSession } from '@store/hooks/session'
 
 export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
   const { data } = action.payload
@@ -47,11 +40,13 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
   const loaderCreateToken = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
   try {
-    const wallet = yield* call(getWallet)
+    const session = getSession()
+    if (!session) throw Error('No session provided')
+
     const connection = getCurrentSolanaConnection()
     const umi = createUmi(connection?.rpcEndpoint ?? '')
 
-    if (wallet.publicKey.toBase58() === DEFAULT_PUBLICKEY.toBase58() || !connection) {
+    if (session.walletPublicKey.toBase58() === DEFAULT_PUBLICKEY.toBase58() || !connection) {
       yield put(
         snackbarsActions.add({
           message: 'Failed to create a token',
@@ -71,12 +66,12 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
     )
 
     const irysUploader = yield* call(
-      async () => await WebUploader(WebSolana).withProvider(wallet).withRpc(connection.rpcEndpoint)
+      async () => await WebUploader(WebSolana).withRpc(connection.rpcEndpoint)
     )
 
     const mintKeypair = Keypair.generate()
-    const mintAuthority = wallet.publicKey
-    const updateAuthority = wallet.publicKey
+    const mintAuthority = session.walletPublicKey
+    const updateAuthority = session.walletPublicKey
     const mint = mintKeypair.publicKey
     const decimals = Number(decimalsAsString)
     const supply = Number(supplyAsString) * Math.pow(10, decimals)
@@ -155,7 +150,7 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
     const lamports = yield* call(spl18.getMinimumBalanceForRentExemptAccount, connection)
 
     const createAccountInstruction = SystemProgram.createAccount({
-      fromPubkey: wallet.publicKey,
+      fromPubkey: session.walletPublicKey,
       newAccountPubkey: mint,
       space: spl18.MintLayout.span,
       lamports,
@@ -173,16 +168,16 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
     const tokenATA = yield* call(
       spl18.getAssociatedTokenAddress,
       mintKeypair.publicKey,
-      wallet.publicKey,
+      session.walletPublicKey,
       undefined,
       spl18.TOKEN_PROGRAM_ID,
       spl18.ASSOCIATED_TOKEN_PROGRAM_ID
     )
 
     const associatedTokenAccountInstruction = spl18.createAssociatedTokenAccountInstruction(
-      wallet.publicKey,
+      session.walletPublicKey,
       tokenATA,
-      wallet.publicKey,
+      session.walletPublicKey,
       mintKeypair.publicKey,
       spl18.TOKEN_PROGRAM_ID,
       spl18.ASSOCIATED_TOKEN_PROGRAM_ID
@@ -191,7 +186,7 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
     const mintToInstruction = spl18.createMintToInstruction(
       mintKeypair.publicKey,
       tokenATA,
-      wallet.publicKey,
+      session.walletPublicKey,
       BigInt(supply),
       [],
       spl18.TOKEN_PROGRAM_ID
@@ -205,7 +200,9 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
         uri: metaDataUri,
         sellerFeeBasisPoints: 0,
         collection: null,
-        creators: [{ address: fromWeb3JsPublicKey(wallet.publicKey), verified: true, share: 100 }],
+        creators: [
+          { address: fromWeb3JsPublicKey(session.walletPublicKey), verified: true, share: 100 }
+        ],
         uses: null
       },
       isMutable: true,
@@ -213,7 +210,7 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
     }
 
     const signer = {
-      publicKey: fromWeb3JsPublicKey(wallet.publicKey),
+      publicKey: fromWeb3JsPublicKey(session.walletPublicKey),
       signTransaction: async (transaction: any) => {
         return transaction
       },
@@ -229,7 +226,7 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
       mint: fromWeb3JsPublicKey(mint),
       payer: signer,
       mintAuthority: signer,
-      updateAuthority: fromWeb3JsPublicKey(wallet.publicKey)
+      updateAuthority: fromWeb3JsPublicKey(session.walletPublicKey)
     }
     const fullArgs = { ...accounts, ...args }
 
@@ -250,43 +247,35 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
       createMetadataAccountInstruction
     )
 
-    const { blockhash, lastValidBlockHeight } = yield* call([
-      connection,
-      connection.getLatestBlockhash
-    ])
+    // const { blockhash, lastValidBlockHeight } = yield* call([
+    //   connection,
+    //   connection.getLatestBlockhash
+    // ])
 
-    transaction.feePayer = wallet.publicKey
-    transaction.recentBlockhash = blockhash
-    transaction.lastValidBlockHeight = lastValidBlockHeight
+    // transaction.feePayer = session.walletPublicKey
+    // transaction.recentBlockhash = blockhash
+    // transaction.lastValidBlockHeight = lastValidBlockHeight
 
     transaction.partialSign(mintKeypair)
-
-    const signedTx = (yield* call([wallet, wallet.signTransaction], transaction)) as Transaction
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const signatureTx = yield* call(
-      sendAndConfirmRawTransaction,
-      connection,
-      signedTx.serialize(),
-      {
-        skipPreflight: false
-      }
+    const { signature: txId } = yield* call(
+      [session, session.sendTransaction],
+      transaction.instructions
     )
 
-    console.log(signatureTx)
-
-    const confirmedTx = yield* call([connection, connection.confirmTransaction], {
-      blockhash: blockhash,
-      lastValidBlockHeight: lastValidBlockHeight,
-      signature: signatureTx
-    })
+    // const confirmedTx = yield* call([connection, connection.confirmTransaction], {
+    //   blockhash: blockhash,
+    //   lastValidBlockHeight: lastValidBlockHeight,
+    //   signature: signatureTx
+    // })
 
     closeSnackbar(loaderCreateToken)
     yield put(snackbarsActions.remove(loaderCreateToken))
 
-    if (confirmedTx.value.err === null) {
+    if (!!txId.length) {
       console.log('Token has been created')
       yield* put(actions.setCreateSuccess(true))
 
@@ -295,7 +284,7 @@ export function* handleCreateToken(action: PayloadAction<CreateTokenPayload>) {
           message: 'Token created successfully',
           variant: 'success',
           persist: false,
-          txid: signatureTx
+          txid: txId
         })
       )
       return

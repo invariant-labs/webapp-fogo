@@ -1901,7 +1901,7 @@ export async function getTokenPrice<T extends string | undefined = undefined>(
   if (!cachedPriceData || lastQueryTimestamp + PRICE_QUERY_COOLDOWN <= Date.now()) {
     try {
       const { data } = await axios.get<IPriceData>(
-        `${PRICE_API_URL}/${isMainnet ? 'eclipse-mainnet' : 'eclipse-testnet'}`
+        `${PRICE_API_URL}/${isMainnet ? 'fogo-mainnet' : 'fogo-testnet'}`
       )
       priceData = data.data
       localStorage.setItem(DATA_KEY, JSON.stringify(priceData))
@@ -2251,6 +2251,16 @@ export const ROUTES = {
   getPositionRoute: (id: string): string => `${ROUTES.POSITION}/${id}`
 }
 
+export const metaData = new Map([
+  [ROUTES.EXCHANGE, 'Invariant | Exchange'],
+  [ROUTES.LIQUIDITY, 'Invariant | Liquidity'],
+  [ROUTES.PORTFOLIO, 'Invariant | Portfolio'],
+  [ROUTES.NEW_POSITION, 'Invariant | New Position'],
+  [ROUTES.POSITION, 'Invariant | Position Details'],
+  [ROUTES.STATISTICS, 'Invariant | Statistics'],
+  [ROUTES.CREATOR, 'Invariant | Creator']
+])
+
 export const truncateString = (str: string, maxLength: number): string => {
   if (str.length <= maxLength + 1) {
     return str
@@ -2292,14 +2302,6 @@ export const extractRuntimeErrorCode = (error: Omit<Error, 'name'>): number => {
     .split(ErrorCodeExtractionKeys.RightBracket)[0]
     .trim()
   return Number(errorCode)
-}
-
-// may better to use regex
-export const ensureApprovalDenied = (error: Error): boolean => {
-  return (
-    error.message.includes(ErrorCodeExtractionKeys.ApprovalDenied) ||
-    error.message.includes(ErrorCodeExtractionKeys.UndefinedOnSplit)
-  )
 }
 
 export const mapErrorCodeToMessage = (errorNumber: number): string => {
@@ -2480,9 +2482,9 @@ export enum TokenType {
 export const getAmountFromInitPositionInstruction = (
   meta: ParsedTransactionMeta,
   type: TokenType
-): number => {
+): { amount: number; token: string } => {
   if (!meta.innerInstructions) {
-    return 0
+    return { amount: 0, token: '' }
   }
 
   const innerInstruction =
@@ -2501,7 +2503,10 @@ export const getAmountFromInitPositionInstruction = (
       (instruction as ParsedInstruction)?.parsed?.type === 'transferChecked'
   )[type === TokenType.TokenX ? 0 : 1] as ParsedInstruction | undefined
 
-  return instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount
+  return {
+    amount: instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount || 0,
+    token: instruction?.parsed.info.mint || ''
+  }
 }
 
 export const getSwapAmountFromSwapAndAddLiquidity = (

@@ -166,9 +166,13 @@ export const PoolInit: React.FC<IPoolInit> = ({
     }
   }
 
-  const [midPriceInput, setMidPriceInput] = useState(
-    validateMidPriceInput(suggestedPrice.toString() || '')
-  )
+  const [midPriceInput, setMidPriceInput] = useState(() => {
+    if (suggestedPrice && suggestedPrice > 0) {
+      return validateMidPriceInput(suggestedPrice.toString())
+    }
+
+    return validateMidPriceInput('1')
+  })
 
   const handleUpdateConcentrationFromURL = (concentrationValue: number) => {
     const mappedIndex = getConcentrationIndex(concentrationArray, concentrationValue)
@@ -198,11 +202,16 @@ export const PoolInit: React.FC<IPoolInit> = ({
   }, [currentFeeIndex, tokenASymbol, tokenBSymbol])
 
   useEffect(() => {
-    if (!wasRefreshed) {
-      const midPriceInConcentrationMode = validConcentrationMidPrice(midPriceInput)
+    if (!wasRefreshed && midPriceInput && midPriceInput !== '0') {
+      const numericPrice = parseFloat(midPriceInput)
+
+      const midPriceInConcentrationMode =
+        positionOpeningMethod === 'concentration'
+          ? validConcentrationMidPrice(midPriceInput)
+          : numericPrice
 
       const sqrtPrice = calculateSqrtPriceFromBalance(
-        positionOpeningMethod === 'range' ? +midPriceInput : midPriceInConcentrationMode,
+        midPriceInConcentrationMode,
         tickSpacing,
         isXtoY,
         xDecimal,
@@ -212,12 +221,10 @@ export const PoolInit: React.FC<IPoolInit> = ({
       const priceTickIndex = priceToTickInRange(sqrtPrice, minTick, maxTick, tickSpacing)
 
       onChangeMidPrice(priceTickIndex, sqrtPrice)
-    } else {
-      setTimeout(() => {
-        setWasRefreshed(false)
-      }, 1)
+    } else if (wasRefreshed) {
+      setWasRefreshed(false)
     }
-  }, [midPriceInput])
+  }, [midPriceInput, positionOpeningMethod, wasRefreshed])
 
   const setLeftInputValues = (val: string) => {
     setLeftInput(val)
@@ -295,7 +302,9 @@ export const PoolInit: React.FC<IPoolInit> = ({
 
   useEffect(() => {
     if (currentPairReversed !== null) {
-      const validatedMidPrice = validateMidPriceInput((1 / +midPriceInput).toString())
+      const currentPrice = parseFloat(midPriceInput)
+      const reversedPrice = 1 / currentPrice
+      const validatedMidPrice = validateMidPriceInput(reversedPrice.toString())
 
       setMidPriceInput(validatedMidPrice)
       changeRangeHandler(rightRange, leftRange)
