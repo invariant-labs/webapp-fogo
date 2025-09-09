@@ -199,7 +199,7 @@ export const PoolInit: React.FC<IPoolInit> = ({
 
   useEffect(() => {
     if (!wasRefreshed && midPriceInput && midPriceInput !== '0') {
-      const numericPrice = parseFloat(midPriceInput) || 1
+      const numericPrice = parseFloat(midPriceInput)
 
       const midPriceInConcentrationMode =
         positionOpeningMethod === 'concentration'
@@ -298,7 +298,7 @@ export const PoolInit: React.FC<IPoolInit> = ({
 
   useEffect(() => {
     if (currentPairReversed !== null) {
-      const currentPrice = parseFloat(midPriceInput) || 1
+      const currentPrice = parseFloat(midPriceInput)
       const reversedPrice = 1 / currentPrice
       const validatedMidPrice = validateMidPriceInput(reversedPrice.toString())
 
