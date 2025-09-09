@@ -4,7 +4,7 @@ import { actions as swapActions } from '@store/reducers/swap'
 import { swap } from '@store/selectors/swap'
 import { poolsArraySortedByFees, tickMaps, tokens } from '@store/selectors/pools'
 import { accounts } from '@store/selectors/solanaWallet'
-import { createAccount, getWallet } from './wallet'
+import { createAccount } from './wallet'
 import { IWallet, Pair, routingEssentials } from '@invariant-labs/sdk-fogo'
 import { getConnection, handleRpcError } from './connection'
 import {
@@ -14,7 +14,6 @@ import {
   // VersionedTransaction
 } from '@solana/web3.js'
 import {
-  APPROVAL_DENIED_MESSAGE,
   COMMON_ERROR_MESSAGE,
   ErrorCodeExtractionKeys,
   MAX_CROSSES_IN_SINGLE_TX,
@@ -27,7 +26,6 @@ import { actions as connectionActions } from '@store/reducers/solanaConnection'
 import { closeSnackbar } from 'notistack'
 import {
   createLoaderKey,
-  ensureApprovalDenied,
   ensureError,
   extractErrorCode,
   extractRuntimeErrorCode,
@@ -341,8 +339,7 @@ export function* handleTwoHopSwap(): Generator {
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 
@@ -410,11 +407,10 @@ export function* handleSwap(): Generator {
       return
     }
 
-    const wallet = yield* call(getWallet)
     const tokensAccounts = yield* select(accounts)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
-    const marketProgram = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+    const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
     const connection = yield* call(getConnection)
 
     const swapPool = allPools.find(
@@ -460,8 +456,6 @@ export function* handleSwap(): Generator {
       tickSpacing: swapPool.tickSpacing
     })
 
-    let txid
-
     const swapIx = yield* call(
       [marketProgram, marketProgram.swapIx],
       session,
@@ -484,16 +478,16 @@ export function* handleSwap(): Generator {
       { tickCrosses: MAX_CROSSES_IN_SINGLE_TX }
     )
 
-    txid = yield* call([session, session.sendTransaction], [swapIx])
+    const txResult = yield* call([session, session.sendTransaction], [swapIx])
+
+    const { signature: txSig, type: resultType } = txResult
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txSig = txid.signature
-    yield put(swapActions.setSwapSuccess(!!txSig))
-    if (!txid.signature.length) {
+    if (!txSig.length) {
       yield put(
         snackbarsActions.add({
           message: 'Tokens swapping failed. Please try again',
@@ -509,7 +503,11 @@ export function* handleSwap(): Generator {
 
       if (txDetails) {
         if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
+          if (txDetails.meta.logMessages && resultType === 1) {
+            const resultError = txResult.error as any
+
+            const customError = resultError?.InstructionError[1]?.Custom
+
             const errorLog = txDetails.meta.logMessages.find(log =>
               log.includes(ErrorCodeExtractionKeys.ErrorNumber)
             )
@@ -517,7 +515,8 @@ export function* handleSwap(): Generator {
               ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
               .split(ErrorCodeExtractionKeys.Dot)[0]
               .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
+
+            const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
             yield put(swapActions.setSwapSuccess(false))
 
             closeSnackbar(loaderSwappingTokens)
@@ -536,12 +535,13 @@ export function* handleSwap(): Generator {
           }
         }
 
+        yield put(swapActions.setSwapSuccess(true))
         yield put(
           snackbarsActions.add({
             message: 'Tokens swapped successfully',
             variant: 'success',
             persist: false,
-            txid
+            txid: txSig
           })
         )
 
@@ -590,7 +590,7 @@ export function* handleSwap(): Generator {
             message: 'Tokens swapped successfully',
             variant: 'success',
             persist: false,
-            txid: txSig.signature
+            txid: txSig
           })
         )
       }
@@ -605,6 +605,7 @@ export function* handleSwap(): Generator {
     let msg: string = ''
     if (error instanceof SendTransactionError) {
       const err = error.transactionError
+
       try {
         const errorCode = extractRuntimeErrorCode(err)
         msg = mapErrorCodeToMessage(errorCode)
@@ -617,8 +618,7 @@ export function* handleSwap(): Generator {
         const errorCode = extractErrorCode(error)
         msg = mapErrorCodeToMessage(errorCode)
       } catch (e: unknown) {
-        const error = ensureError(e)
-        msg = ensureApprovalDenied(error) ? APPROVAL_DENIED_MESSAGE : COMMON_ERROR_MESSAGE
+        msg = COMMON_ERROR_MESSAGE
       }
     }
 
@@ -661,8 +661,7 @@ export function* handleGetTwoHopSwapData(
 
   const networkType = yield* select(network)
   const rpc = yield* select(rpcAddress)
-  const wallet = yield* call(getWallet)
-  const market = yield* call(getMarketProgram, networkType, rpc, wallet as IWallet)
+  const market = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
   const { whitelistTickmaps, poolSet, routeCandidates } = routingEssentials(
     tokenFrom,

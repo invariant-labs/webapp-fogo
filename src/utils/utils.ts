@@ -2304,14 +2304,6 @@ export const extractRuntimeErrorCode = (error: Omit<Error, 'name'>): number => {
   return Number(errorCode)
 }
 
-// may better to use regex
-export const ensureApprovalDenied = (error: Error): boolean => {
-  return (
-    error.message.includes(ErrorCodeExtractionKeys.ApprovalDenied) ||
-    error.message.includes(ErrorCodeExtractionKeys.UndefinedOnSplit)
-  )
-}
-
 export const mapErrorCodeToMessage = (errorNumber: number): string => {
   return ERROR_CODE_TO_MESSAGE[errorNumber] || COMMON_ERROR_MESSAGE
 }
@@ -2490,9 +2482,9 @@ export enum TokenType {
 export const getAmountFromInitPositionInstruction = (
   meta: ParsedTransactionMeta,
   type: TokenType
-): number => {
+): { amount: number; token: string } => {
   if (!meta.innerInstructions) {
-    return 0
+    return { amount: 0, token: '' }
   }
 
   const innerInstruction =
@@ -2511,7 +2503,10 @@ export const getAmountFromInitPositionInstruction = (
       (instruction as ParsedInstruction)?.parsed?.type === 'transferChecked'
   )[type === TokenType.TokenX ? 0 : 1] as ParsedInstruction | undefined
 
-  return instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount
+  return {
+    amount: instruction?.parsed.info.amount || instruction?.parsed.info.tokenAmount.amount || 0,
+    token: instruction?.parsed.info.mint || ''
+  }
 }
 
 export const getSwapAmountFromSwapAndAddLiquidity = (
