@@ -2304,14 +2304,6 @@ export const extractRuntimeErrorCode = (error: Omit<Error, 'name'>): number => {
   return Number(errorCode)
 }
 
-// may better to use regex
-export const ensureApprovalDenied = (error: Error): boolean => {
-  return (
-    error.message.includes(ErrorCodeExtractionKeys.ApprovalDenied) ||
-    error.message.includes(ErrorCodeExtractionKeys.UndefinedOnSplit)
-  )
-}
-
 export const mapErrorCodeToMessage = (errorNumber: number): string => {
   return ERROR_CODE_TO_MESSAGE[errorNumber] || COMMON_ERROR_MESSAGE
 }
