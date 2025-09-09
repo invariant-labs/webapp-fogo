@@ -1,4 +1,4 @@
-### Fogo webapp
+### Fogo Sessions webapp
 
 #### Installation
 
