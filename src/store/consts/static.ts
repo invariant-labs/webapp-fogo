@@ -259,23 +259,23 @@ export const TOKEN_FETCH_DELAY = 60 * 1000 * 60 * 24
 
 // export const WFOGO_MIN_FAUCET_FEE_TEST = new BN(45000)
 
-export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN = new BN(25000) // TODO: adjust when on
+export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_MAIN = new BN(0) // TODO: adjust when on
 export const WFOGO_MIN_DEPOSIT_SWAP_FROM_AMOUNT_TEST = new BN(0)
 
-export const WFOGO_POSITION_INIT_LAMPORTS_MAIN = new BN(700000) // TODO: adjust when on
-export const WFOGO_POSITION_INIT_LAMPORTS_TEST = new BN(5000)
+export const WFOGO_POSITION_INIT_LAMPORTS_MAIN = new BN(0) // TODO: adjust when on
+export const WFOGO_POSITION_INIT_LAMPORTS_TEST = new BN(0)
 
-export const WFOGO_POOL_INIT_LAMPORTS_MAIN = new BN(1750000) // TODO: adjust when on
-export const WFOGO_POOL_INIT_LAMPORTS_TEST = new BN(25000)
+export const WFOGO_POOL_INIT_LAMPORTS_MAIN = new BN(0) // TODO: adjust when on
+export const WFOGO_POOL_INIT_LAMPORTS_TEST = new BN(0)
 
-export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN = new BN(100000) // TODO: adjust when on
-export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_TEST = new BN(100000) // TODO: adjust when on
+export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN = new BN(0) // TODO: adjust when on
+export const WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_TEST = new BN(0) // TODO: adjust when on
 
-export const WFOGO_CREATE_TOKEN_LAMPORTS_MAIN = new BN(2000000) // TODO: adjust when on
-export const WFOGO_CREATE_TOKEN_LAMPORTS_TEST = new BN(10100000) // TODO: adjust when on
+export const WFOGO_CREATE_TOKEN_LAMPORTS_MAIN = new BN(0) // TODO: adjust when on
+export const WFOGO_CREATE_TOKEN_LAMPORTS_TEST = new BN(0) // TODO: adjust when on
 
-export const WFOGO_CLOSE_POSITION_LAMPORTS_MAIN = new BN(30000) // TODO: adjust when on
-export const WFOGO_CLOSE_POSITION_LAMPORTS_TEST = new BN(30000)
+export const WFOGO_CLOSE_POSITION_LAMPORTS_MAIN = new BN(0) // TODO: adjust when on
+export const WFOGO_CLOSE_POSITION_LAMPORTS_TEST = new BN(0)
 
 export const MINIMUM_PRICE_IMPACT = toDecimal(1, 4)
 
@@ -557,9 +557,9 @@ export const defaultThresholds: FormatNumberThreshold[] = [
 ]
 export const disabledPools = [
   {
-    tokenX: new PublicKey('GnBAskb2SQjrLgpTjtgatz4hEugUsYV7XrWU1idV3oqW'),
-    tokenY: new PublicKey('GnBAskb2SQjrLgpTjtgatz4hEugUsYV7XrWU1idV3oqW'),
-    feeTiers: ['0.01']
+    tokenX: USDC_ADDRESS[NetworkType.Testnet],
+    tokenY: ETH_ADDRESS[NetworkType.Testnet],
+    feeTiers: ['0.1', '1']
   }
 ]
 
