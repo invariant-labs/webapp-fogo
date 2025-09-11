@@ -557,9 +557,9 @@ export const defaultThresholds: FormatNumberThreshold[] = [
 ]
 export const disabledPools = [
   {
-    tokenX: new PublicKey('GnBAskb2SQjrLgpTjtgatz4hEugUsYV7XrWU1idV3oqW'),
-    tokenY: new PublicKey('GnBAskb2SQjrLgpTjtgatz4hEugUsYV7XrWU1idV3oqW'),
-    feeTiers: ['0.01']
+    tokenX: USDC_ADDRESS[NetworkType.Testnet],
+    tokenY: ETH_ADDRESS[NetworkType.Testnet],
+    feeTiers: ['0.1', '1']
   }
 ]
 
