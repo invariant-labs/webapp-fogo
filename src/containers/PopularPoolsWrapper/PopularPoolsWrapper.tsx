@@ -39,7 +39,9 @@ export const PopularPoolsWrapper: React.FC<IPopularPoolsWrapper> = ({
 }) => {
   const currentNetwork = useSelector(network)
   const isLoadingStats = useSelector(isLoading)
-  const poolsList = useSelector(poolsStatsWithTokensDetails)
+  const poolsList = useSelector(poolsStatsWithTokensDetails).sort(
+    (a, b) => b.volume24 * b.fee - a.volume24 * a.fee
+  )
 
   const list: PopularPoolData[] = useMemo(() => {
     const data: PopularPoolData[] = []
