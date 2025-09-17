@@ -20,7 +20,7 @@
     "@emotion/styled": "^11.11.5",
     "@fogo/sessions-idls": "^0.0.4",
     "@fogo/sessions-sdk": "^0.0.12",
-    "@fogo/sessions-sdk-react": "^0.0.19",
+    "@fogo/sessions-sdk-react": "^0.0.20",
     "@invariant-labs/locker-fogo-sdk": "^0.0.5",
     "@invariant-labs/sdk-fogo": "^0.0.35",
     "@irys/web-upload": "*",
