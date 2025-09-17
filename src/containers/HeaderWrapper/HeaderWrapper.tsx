@@ -29,21 +29,6 @@ export const HeaderWrapper: React.FC = () => {
     dispatch(walletActions.showThankYouModal(false))
   }
   useEffect(() => {
-    const debugHeadings = () => {
-      const headings = document.querySelectorAll('._heading_1ifo2_557')
-
-      headings.forEach((heading, index) => {
-        console.log(`Heading ${index}:`, {
-          text: heading.textContent,
-          innerHTML: heading.innerHTML,
-          element: heading
-        })
-      })
-    }
-
-    setTimeout(debugHeadings, 1000)
-  }, [])
-  useEffect(() => {
     if (currentNetwork === NetworkType.Devnet) {
       dispatch(actions.setNetwork(NetworkType.Testnet))
       dispatch(actions.setRPCAddress(RPC.TEST))
