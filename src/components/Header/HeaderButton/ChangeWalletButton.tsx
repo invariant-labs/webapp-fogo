@@ -45,8 +45,10 @@ const ChangeWalletButton: React.FC<IProps> = ({
   const sessionWrapperRef = useRef<HTMLDivElement | null>(null)
   const [hideModal, setHideModal] = useState(walletConnected)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isUserInitiated, setIsUserInitiated] = useState(false)
 
   const handleClick = () => {
+    setIsUserInitiated(true)
     const btn = sessionWrapperRef.current?.querySelector('button')
     btn?.click()
     setHideModal(true)
@@ -61,6 +63,27 @@ const ChangeWalletButton: React.FC<IProps> = ({
   }, [walletConnected])
 
   useEffect(() => {
+    if (!walletConnected || isUserInitiated) return
+
+    const hideOverlay = () => {
+      ;(document.querySelector('._sessionPanelPopover_1ifo2_256') as HTMLElement).style.display =
+        'none'
+      document.getElementById('root')?.removeAttribute('inert')
+
+      const closeButtons = document.querySelectorAll(
+        'button[aria-label*="close"], button[aria-label*="Close"], button[aria-label*="zamknij"], button[aria-label*="Zamknij"], button[aria-label*="Zignoruj"]'
+      )
+      closeButtons.forEach(btn => {
+        ;(btn as HTMLElement).click()
+      })
+    }
+
+    const timeout = setTimeout(hideOverlay, 100)
+
+    return () => clearTimeout(timeout)
+  }, [walletConnected, isUserInitiated])
+
+  useEffect(() => {
     if (!isModalOpen) return
 
     const checkModalClosed = () => {
@@ -70,6 +93,7 @@ const ChangeWalletButton: React.FC<IProps> = ({
       if (!sessionModal && !dialogModal) {
         unblurContent()
         setIsModalOpen(false)
+        setIsUserInitiated(false)
       }
     }
 
