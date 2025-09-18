@@ -165,30 +165,26 @@ input[type='number'] {
 }
 
 ._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256 ._sessionPanel_1ifo2_256 {
-  height: 130px !important;
-  max-width: 165.5px !important;
-  margin-right: 10px !important;
+  height: 95px !important;
+  max-width: 170px !important;
+  padding: 8px;
 }
 
 ._sessionPanelPopover_1ifo2_256 ._heading_1ifo2_557 span:nth-child(2) {
   display: none !important;
 }
 ._sessionPanelPopover_1ifo2_256 ._heading_1ifo2_557 span:nth-child(1) {
-  width: 100%;
-  color: #bac7d1;
-  font-size: 16px;
-  line-height: 20px;
-  font-weight: 400;
-  padding-bottom: 5px;
-  border-bottom: 1px solid #3a466b;
+  display: none !important;
 }
 ._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
   ._sessionPanel_1ifo2_256
   ._heading_1ifo2_557 {
-  margin-top: 8px !important;
   display: flex !important;
   flex-direction: column;
   align-items: center !important;
+  height: 34px;
+  margin: 0;
+  margin-bottom: 4px;
 }
 ._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
   ._copyWalletAddressButton_1ifo2_433
@@ -208,10 +204,21 @@ input[type='number'] {
   color: #bac7d1;
 }
 ._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256 ._copyWalletAddressButton_1ifo2_433 {
+  display: flex;
+  justify-content: flex-end;
+  flex-direction: row-reverse;
   cursor: pointer;
   border: none;
   width: 100% !important;
+  padding: 6px 7px;
+  height: 34px !important;
+  transition: 0.3s all;
 }
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._copyWalletAddressButton_1ifo2_433:hover {
+  background: #3a466b !important;
+}
+
 ._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
   ._sessionPanel_1ifo2_256
   ._footer_1ifo2_1535
@@ -222,19 +229,26 @@ input[type='number'] {
 }
 ._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
   ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535 {
+  display: flex;
+  flex-direction: row-reverse;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
   ._footer_1ifo2_1535
   ._logoutButton_1ifo2_1550::after {
   font-size: 16px !important;
   text-decoration: none !important;
   text-transform: capitalize;
   font-size: 16px;
-  display: block;
-  margin-right: 28px;
+  margin-right: 20px;
+  display: flex;
   line-height: 20px;
   font-weight: 400;
   font-family: Mukta;
   color: #bac7d1;
   content: 'Disconnect';
+  width: 126px;
 }
 
 ._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
@@ -273,5 +287,21 @@ input[type='number'] {
   transform: scale(0.9);
   transform-origin: center;
   margin-bottom: -2px;
-  margin-right: -5px;
+  width: 15px;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535 {
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 6px 7px;
+  height: 34px !important;
+  margin: 4px 0;
+  transition: 0.3s all;
+  border-radius: 12px;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535:hover {
+  background: #3a466b;
 }
