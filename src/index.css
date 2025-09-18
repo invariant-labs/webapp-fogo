@@ -305,3 +305,36 @@ input[type='number'] {
   ._footer_1ifo2_1535:hover {
   background: #3a466b;
 }
+._sessionPanelPopover_1ifo2_256 {
+  position: fixed !important;
+}
+._modalOverlay_1799v_2._modalOverlay_1799v_2
+  ._modal_1799v_2
+  ._dialog_1799v_205
+  ._message_1799v_216 {
+  font-size: 0 !important;
+}
+
+._modalOverlay_1799v_2._modalOverlay_1799v_2
+  ._modal_1799v_2
+  ._dialog_1799v_205
+  ._message_1799v_216::after {
+  content: 'Manage your wallet session duration';
+  font-family: 'Mukta';
+  font-size: 16px;
+}
+._modalOverlay_1799v_2._modalOverlay_1799v_2
+  ._modal_1799v_2
+  ._dialog_1799v_205
+  ._heading_1799v_210 {
+  font-size: 0;
+}
+
+._modalOverlay_1799v_2._modalOverlay_1799v_2
+  ._modal_1799v_2
+  ._dialog_1799v_205
+  ._heading_1799v_210::after {
+  content: 'Session settings';
+  font-family: 'Mukta';
+  font-size: 1.125rem;
+}

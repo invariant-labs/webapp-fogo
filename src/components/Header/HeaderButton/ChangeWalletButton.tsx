@@ -5,7 +5,7 @@ import { Button } from '@common/Button/Button'
 import { Box, Typography } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import useStyles from './style'
-import { blurContent, toBlur, unblurContent } from '@utils/uiUtils'
+import { blurContent, unblurContent } from '@utils/uiUtils'
 
 export interface IProps {
   name: string
