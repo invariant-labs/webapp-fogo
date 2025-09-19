@@ -5,6 +5,7 @@ import { Button } from '@common/Button/Button'
 import { Box, Typography } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import useStyles from './style'
+import { blurContent, unblurContent } from '@utils/uiUtils'
 
 export interface IProps {
   name: string
@@ -32,9 +33,7 @@ const ChangeWalletButton: React.FC<IProps> = ({
   defaultVariant = 'pink',
   height = 40,
   isDisabled,
-  // isSwap,
-  // noUnblur,
-  // startIcon,
+  noUnblur,
   textClassName,
   width,
   hideArrow,
@@ -45,11 +44,14 @@ const ChangeWalletButton: React.FC<IProps> = ({
 
   const sessionWrapperRef = useRef<HTMLDivElement | null>(null)
   const [hideModal, setHideModal] = useState(walletConnected)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const handleClick = () => {
     const btn = sessionWrapperRef.current?.querySelector('button')
     btn?.click()
     setHideModal(true)
+    blurContent()
+    setIsModalOpen(true)
   }
 
   useEffect(() => {
@@ -57,6 +59,45 @@ const ChangeWalletButton: React.FC<IProps> = ({
       setHideModal(false)
     }
   }, [walletConnected])
+
+  useEffect(() => {
+    if (!isModalOpen) return
+
+    const checkModalClosed = () => {
+      const sessionModal = document.querySelector('._sessionPanelPopover_1ifo2_256')
+      const dialogModal = document.querySelector('[role="dialog"]')
+
+      if (!sessionModal && !dialogModal) {
+        unblurContent()
+        setIsModalOpen(false)
+      }
+    }
+
+    const observer = new MutationObserver(() => {
+      checkModalClosed()
+    })
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    })
+
+    const interval = setInterval(checkModalClosed, 100)
+
+    return () => {
+      observer.disconnect()
+      clearInterval(interval)
+      if (!document.querySelector('._sessionPanelPopover_1ifo2_256')) {
+        unblurContent()
+      }
+    }
+  }, [isModalOpen, noUnblur])
+
+  useEffect(() => {
+    return () => {
+      unblurContent()
+    }
+  }, [])
 
   return (
     <div>

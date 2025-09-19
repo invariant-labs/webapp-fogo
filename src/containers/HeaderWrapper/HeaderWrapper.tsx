@@ -28,7 +28,6 @@ export const HeaderWrapper: React.FC = () => {
   const hideThankYouModal = () => {
     dispatch(walletActions.showThankYouModal(false))
   }
-
   useEffect(() => {
     if (currentNetwork === NetworkType.Devnet) {
       dispatch(actions.setNetwork(NetworkType.Testnet))

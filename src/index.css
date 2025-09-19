@@ -118,3 +118,223 @@ input[type='number'] {
   -moz-appearance: textfield;
   appearance: none;
 }
+
+[role='dialog'] {
+  background: #202946 !important;
+  border-radius: 24px !important;
+  font-family: 'Mukta' !important;
+  border: 1px solid #202946 !important;
+  color: white !important;
+}
+
+[role='dialog'] button {
+  border-radius: 12px !important;
+  color: #ffffff !important;
+  font-family: 'Mukta' !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+  letter-spacing: -0.03em !important;
+}
+._tokenName_1ifo2_1285 {
+  color: white;
+}
+._topButtons_1ifo2_1210 {
+  display: none !important;
+}
+._tab_1ifo2_571 {
+  display: none !important;
+}
+._tokenList_1ifo2_1257 {
+  display: none !important;
+}
+._tabPanel_1ifo2_610 {
+  display: none !important;
+}
+._tabs_1ifo2_571 {
+  display: none !important;
+}
+._footer_1ifo2_1535 {
+  max-height: 50 !important;
+}
+._fogoWordmark_1ifo2_244 {
+  display: none !important;
+}
+
+._overlayArrow_1ifo2_428 {
+  display: none !important;
+}
+
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256 ._sessionPanel_1ifo2_256 {
+  height: 95px !important;
+  max-width: 170px !important;
+  padding: 8px;
+}
+
+._sessionPanelPopover_1ifo2_256 ._heading_1ifo2_557 span:nth-child(2) {
+  display: none !important;
+}
+._sessionPanelPopover_1ifo2_256 ._heading_1ifo2_557 span:nth-child(1) {
+  display: none !important;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._heading_1ifo2_557 {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center !important;
+  height: 34px;
+  margin: 0;
+  margin-bottom: 4px;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._copyWalletAddressButton_1ifo2_433
+  code {
+  font-size: 0 !important;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._copyWalletAddressButton_1ifo2_433
+  code::after {
+  content: 'Copy Address';
+  text-transform: capitalize;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 400;
+  font-family: Mukta;
+  display: block;
+  color: #bac7d1;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256 ._copyWalletAddressButton_1ifo2_433 {
+  display: flex;
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+  cursor: pointer;
+  border: none;
+  width: 100% !important;
+  padding: 6px 7px;
+  height: 34px !important;
+  transition: 0.3s all;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._copyWalletAddressButton_1ifo2_433:hover {
+  background: #3a466b !important;
+}
+
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535
+  ._logoutButton_1ifo2_1550 {
+  font-size: 0px !important;
+  text-decoration: none !important;
+  padding: 0;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535 {
+  display: flex;
+  flex-direction: row-reverse;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535
+  ._logoutButton_1ifo2_1550::after {
+  font-size: 16px !important;
+  text-decoration: none !important;
+  text-transform: capitalize;
+  font-size: 16px;
+  margin-right: 20px;
+  display: flex;
+  line-height: 20px;
+  font-weight: 400;
+  font-family: Mukta;
+  color: #bac7d1;
+  content: 'Disconnect';
+  width: 126px;
+}
+
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535 {
+  padding: 4px 8px;
+  height: 28px !important;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256 ._copyWalletAddressButton_1ifo2_433 {
+  background: #202946 !important;
+}
+._modalOverlay_1799v_2._modalOverlay_1799v_2 ._modal_1799v_2 {
+  padding: 20px;
+  background: #202946 !important;
+  border-radius: 24px;
+  border: none;
+  max-width: 560px !important;
+  width: 100% !important;
+  min-width: auto !important;
+}
+._sessionLimits_1m8j0_2 ._footer_1m8j0_148 ._submitButton_1m8j0_162[data-disabled],
+._sessionLimits_1m8j0_2 ._footer_1m8j0_148 ._submitButton_1m8j0_162[data-pending] {
+  background: #475569 !important;
+  border: 2px solid #334155;
+}
+._sessionLimits_1m8j0_2 ._applyLimits_1m8j0_7 {
+  display: none;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535::after {
+  content: url('https://invariant.app/assets/disconnect-lmPnFIKr.svg');
+  transform: scale(0.9);
+  transform-origin: center;
+  margin-bottom: -2px;
+  width: 15px;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535 {
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 6px 7px;
+  height: 34px !important;
+  margin: 4px 0;
+  transition: 0.3s all;
+  border-radius: 12px;
+}
+._sessionPanelPopover_1ifo2_256._sessionPanelPopover_1ifo2_256
+  ._sessionPanel_1ifo2_256
+  ._footer_1ifo2_1535:hover {
+  background: #3a466b;
+}
+._sessionPanelPopover_1ifo2_256 {
+  position: fixed !important;
+}
+._modalOverlay_1799v_2._modalOverlay_1799v_2
+  ._modal_1799v_2
+  ._dialog_1799v_205
+  ._message_1799v_216 {
+  font-size: 0 !important;
+}
+
+._modalOverlay_1799v_2._modalOverlay_1799v_2
+  ._modal_1799v_2
+  ._dialog_1799v_205
+  ._message_1799v_216::after {
+  content: 'Manage your wallet session duration';
+  font-family: 'Mukta';
+  font-size: 16px;
+}
+._modalOverlay_1799v_2._modalOverlay_1799v_2
+  ._modal_1799v_2
+  ._dialog_1799v_205
+  ._heading_1799v_210 {
+  font-size: 0;
+}
+
+._modalOverlay_1799v_2._modalOverlay_1799v_2
+  ._modal_1799v_2
+  ._dialog_1799v_205
+  ._heading_1799v_210::after {
+  content: 'Session settings';
+  font-family: 'Mukta';
+  font-size: 1.125rem;
+}

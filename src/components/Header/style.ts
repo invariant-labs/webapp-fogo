@@ -13,7 +13,7 @@ const useStyles = makeStyles()((theme: Theme) => {
       height: 70,
       display: 'flex',
       justifyContent: 'space-between',
-      paddingInline: 24,
+      paddingInline: 12,
 
       [theme.breakpoints.down('sm')]: {
         paddingInline: 8
