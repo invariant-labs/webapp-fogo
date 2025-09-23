@@ -306,7 +306,6 @@ export const getLabelDate = (
 type RateType = 'APY' | 'APR'
 
 export const convertAPYValue = (apy: number, type: RateType) => {
-  console.log(apy)
   return apy > 9999
     ? '>9999%'
     : apy === 0
