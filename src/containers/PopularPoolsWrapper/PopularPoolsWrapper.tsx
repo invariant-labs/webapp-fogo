@@ -61,6 +61,7 @@ export const PopularPoolsWrapper: React.FC<IPopularPoolsWrapper> = ({
             (item.tokenX.toString() === pool.tokenY && item.tokenY.toString() === pool.tokenX)) &&
           item.fee.toString() === pool.fee
       )
+
       if (poolData) {
         data.push({
           poolAddress: poolData.poolAddress,
@@ -73,7 +74,7 @@ export const PopularPoolsWrapper: React.FC<IPopularPoolsWrapper> = ({
           fee: poolData.fee,
           addressFrom: poolData.tokenX.toString(),
           addressTo: poolData.tokenY.toString(),
-          apy: poolData.apy,
+          apy: poolData.apy || 0,
           apyData: {
             fees: poolData.apy,
             accumulatedFarmsSingleTick: 0,
@@ -107,18 +108,17 @@ export const PopularPoolsWrapper: React.FC<IPopularPoolsWrapper> = ({
 
     return data
   }, [poolsList])
-  const showAPY = useMemo(() => {
-    return list.some(pool => pool.apy !== 0)
-  }, [list])
-  if (list.length === 0) {
-    return
-  }
+
+  // const showAPY = useMemo(() => {
+  //   return list.some(pool => pool.apy !== 0)
+  // }, [list])
+
   return (
     <PopularPools
       pools={list}
       isLoading={isLoadingStats}
       network={currentNetwork}
-      showAPY={showAPY}
+      showAPY={true}
       lastUsedInterval={lastUsedInterval}
       updateInterval={updateInterval}
     />

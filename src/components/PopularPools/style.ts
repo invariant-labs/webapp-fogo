@@ -15,7 +15,7 @@ export const useStyles = makeStyles()(theme => ({
     flexWrap: 'nowrap',
     borderRadius: 24,
     background: colors.invariant.component,
-    transition: 'height 0.3s ease',
+
     [theme.breakpoints.down('sm')]: {
       padding: '0 10px 24px 10px'
     }

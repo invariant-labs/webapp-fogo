@@ -437,6 +437,29 @@ export const getPopularPools = (
   switch (network) {
     case NetworkType.Mainnet:
       return []
+    case NetworkType.Testnet:
+      return [
+        {
+          tokenX: BTC_TEST.address.toString(),
+          tokenY: USDC_TEST.address.toString(),
+          fee: '0.1'
+        },
+        {
+          tokenX: BTC_TEST.address.toString(),
+          tokenY: USDC_TEST.address.toString(),
+          fee: '0.3'
+        },
+        {
+          tokenX: ETH_TEST.address.toString(),
+          tokenY: USDC_TEST.address.toString(),
+          fee: '0.05'
+        },
+        {
+          tokenX: ETH_TEST.address.toString(),
+          tokenY: USDC_TEST.address.toString(),
+          fee: '0.01'
+        }
+      ]
     default:
       return []
   }
