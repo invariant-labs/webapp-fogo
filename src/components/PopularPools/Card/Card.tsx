@@ -83,17 +83,12 @@ const Card: React.FC<ICard> = ({
   }
 
   //HOTFIX
-  const { convertedApy } = calculateAPYAndAPR(apy ?? 0, poolAddress?.toString(), volume, fee, TVL)
+  const { convertedApy } = calculateAPYAndAPR(apy || 0, poolAddress?.toString(), volume, fee, TVL)
 
   return (
     <Grid className={classes.root}>
       {isLoading || !poolAddress?.toString() ? (
-        <Skeleton
-          height={isLoading ? 344 : showAPY ? 344 : 300}
-          variant='rounded'
-          animation='wave'
-          className={classes.skeleton}
-        />
+        <Skeleton variant='rounded' animation='wave' className={classes.skeleton} />
       ) : (
         <Grid>
           <GradientBorder

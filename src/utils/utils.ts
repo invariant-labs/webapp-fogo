@@ -2061,7 +2061,7 @@ export const calculateAPYAndAPR = (
     const parsedApr = ((volume * fee) / tvl) * 365
 
     const parsedApy = (Math.pow((volume * fee * 0.01) / tvl + 1, 365) - 1) * 100
-
+    console.log(parsedApy)
     return { convertedApy: Math.abs(parsedApy), convertedApr: Math.abs(parsedApr) }
   } else {
     return { convertedApy: Math.abs(apy), convertedApr: Math.abs(apyToApr(apy)) }
