@@ -129,7 +129,8 @@ export interface ISelectChain {
 export enum Chain {
   Solana = 'Solana',
   Eclipse = 'Eclipse',
-  Fogo = 'Fogo'
+  Fogo = 'Fogo',
+  Sonic = 'Sonic'
 }
 
 export interface SnapshotValueData {

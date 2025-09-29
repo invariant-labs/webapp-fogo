@@ -367,16 +367,21 @@ export const DEFAULT_AUTOSWAP_MAX_SLIPPAGE_TOLERANCE_SWAP = '0.50'
 export const DEFAULT_AUTOSWAP_MAX_SLIPPAGE_TOLERANCE_ADD_LIQUIDITY = '0.50'
 
 export const CHAINS = [
-  {
-    name: Chain.Fogo,
-    address: 'https://fogo.invariant.app/exchange',
-    iconGlow: 'fogoGlow'
-  },
   { name: Chain.Solana, address: 'https://invariant.app/swap', iconGlow: 'solanaGlow' },
   {
     name: Chain.Eclipse,
     address: 'https://eclipse.invariant.app/exchange',
     iconGlow: 'eclipseGlow'
+  },
+  {
+    name: Chain.Fogo,
+    address: 'https://fogo.invariant.app/exchange',
+    iconGlow: 'fogoGlow'
+  },
+  {
+    name: Chain.Sonic,
+    address: 'https://sonic.invariant.app',
+    iconGlow: 'sonicGlow'
   }
 ]
 
