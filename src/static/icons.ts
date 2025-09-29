@@ -235,9 +235,10 @@ export {
 }
 
 export const chainIcons = {
-  fogoGlow: fogoGlow,
   eclipseGlow: eclipseGlowIcon,
-  solanaGlow: solanaGlowIcon
+  solanaGlow: solanaGlowIcon,
+  sonicGlow: sonicGlowIcon,
+  fogoGlow: fogoGlow
 }
 
 export const netowrkIcons = {
