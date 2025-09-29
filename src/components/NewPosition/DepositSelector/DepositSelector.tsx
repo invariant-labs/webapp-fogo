@@ -253,6 +253,7 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
       if (isAutoswapOn) {
         return WFOGO_SWAP_AND_POSITION_INIT_LAMPORTS_MAIN
       }
+
       return isCurrentPoolExisting
         ? WFOGO_POSITION_INIT_LAMPORTS_MAIN
         : WFOGO_POOL_INIT_LAMPORTS_MAIN
