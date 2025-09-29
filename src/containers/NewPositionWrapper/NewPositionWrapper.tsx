@@ -791,6 +791,7 @@ export const NewPositionWrapper: React.FC<IProps> = ({
           })
         )
       )
+
       return 0
     }
 
