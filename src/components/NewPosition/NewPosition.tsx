@@ -160,6 +160,7 @@ export interface INewPosition {
   suggestedPrice: number
   handleBack: () => void
   oraclePrice: number | null
+  fee: BN
 }
 
 export const NewPosition: React.FC<INewPosition> = ({
@@ -232,7 +233,8 @@ export const NewPosition: React.FC<INewPosition> = ({
   initialMaxSlippageToleranceCreatePosition,
   suggestedPrice,
   handleBack,
-  oraclePrice
+  oraclePrice,
+  fee
 }) => {
   const { classes } = useStyles()
   const navigate = useNavigate()
@@ -305,10 +307,11 @@ export const NewPosition: React.FC<INewPosition> = ({
         tokenBIndex !== null &&
         autoSwapPools.some(
           item =>
-            (item.pair.tokenX.equals(tokens[tokenAIndex].assetAddress) &&
+            ((item.pair.tokenX.equals(tokens[tokenAIndex].assetAddress) &&
               item.pair.tokenY.equals(tokens[tokenBIndex].assetAddress)) ||
-            (item.pair.tokenX.equals(tokens[tokenBIndex].assetAddress) &&
-              item.pair.tokenY.equals(tokens[tokenAIndex].assetAddress))
+              (item.pair.tokenX.equals(tokens[tokenBIndex].assetAddress) &&
+                item.pair.tokenY.equals(tokens[tokenAIndex].assetAddress))) &&
+            ALL_FEE_TIERS_DATA[item.swapPool.feeIndex].tier.fee.eq(fee)
         ) &&
         isCurrentPoolExisting
     )

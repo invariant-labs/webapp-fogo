@@ -1067,6 +1067,7 @@ export const NewPositionWrapper: React.FC<IProps> = ({
       suggestedPrice={suggestedPrice}
       handleBack={handleBack}
       oraclePrice={oraclePrice}
+      fee={fee}
     />
   )
 }

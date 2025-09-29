@@ -55,7 +55,7 @@ export default defineConfig({
     // sourcemap: false,
     minify: 'esbuild',
     assetsInlineLimit: 0,
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 4000,
 
     rollupOptions: {
       external: ['fs/promises', 'path'],
@@ -102,7 +102,7 @@ export default defineConfig({
   },
 
   optimizeDeps: {
-    include: ['react', 'react-dom', 'ox'],
+    // include: ['react', 'react-dom', 'ox'],
     esbuildOptions: {
       target: 'es2020'
     }
