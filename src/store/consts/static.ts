@@ -377,12 +377,12 @@ export const CHAINS = [
     name: Chain.Fogo,
     address: 'https://fogo.invariant.app/exchange',
     iconGlow: 'fogoGlow'
-  },
-  {
-    name: Chain.Sonic,
-    address: 'https://sonic.invariant.app',
-    iconGlow: 'sonicGlow'
   }
+  //   {
+  //     name: Chain.Sonic,
+  //     address: 'https://sonic.invariant.app',
+  //     iconGlow: 'sonicGlow'
+  //   }
 ]
 
 export const enum SortTypePoolList {
