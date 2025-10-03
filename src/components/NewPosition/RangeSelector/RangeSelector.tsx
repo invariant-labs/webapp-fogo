@@ -18,7 +18,7 @@ import ConcentrationSlider from '../ConcentrationSlider/ConcentrationSlider'
 import useStyles from './style'
 import { PositionOpeningMethod } from '@store/consts/types'
 import { getMaxTick, getMinTick } from '@invariant-labs/sdk-fogo/lib/utils'
-import PriceWarning from './PriceWarning/PriceWarning'
+// import PriceWarning from './PriceWarning/PriceWarning'
 
 export interface IRangeSelector {
   updatePath: (concIndex: number) => void
@@ -103,15 +103,15 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
   unblockUpdatePriceRange,
   // onlyUserPositions,
   // setOnlyUserPositions,
-  usdcPrice,
-  suggestedPrice,
-  oraclePrice,
-  currentFeeIndex,
-  bestFeeIndex,
-  showPriceWarning,
-  oraclePriceWarning,
-  diffPercentage,
-  oracleDiffPercentage
+  usdcPrice
+  //   suggestedPrice,
+  //   oraclePrice,
+  //   currentFeeIndex,
+  //   bestFeeIndex,
+  //   showPriceWarning,
+  //   oraclePriceWarning,
+  //   diffPercentage,
+  //   oracleDiffPercentage
 }) => {
   const { classes } = useStyles()
 
@@ -528,7 +528,7 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
                 {usdcPrice.token} ${formatNumberWithoutSuffix(usdcPrice.price)}
               </Typography>
             )}
-            {(showPriceWarning || oraclePriceWarning) && !blocked && !isLoadingTicksOrTickmap && (
+            {/* {(showPriceWarning || oraclePriceWarning) && !blocked && !isLoadingTicksOrTickmap && (
               <PriceWarning
                 bestFeeIndex={bestFeeIndex}
                 currentFeeIndex={currentFeeIndex}
@@ -541,7 +541,7 @@ export const RangeSelector: React.FC<IRangeSelector> = ({
                 oracleDiffPercentage={oracleDiffPercentage}
                 oraclePriceWarning={oraclePriceWarning}
               />
-            )}
+            )} */}
           </Grid>
           <Grid className={classes.currentPriceContainer}>
             <Typography className={classes.currentPrice} mb={0}>
