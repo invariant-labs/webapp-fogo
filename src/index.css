@@ -526,6 +526,7 @@ input[type='number'] {
   background: linear-gradient(180deg, #ef84f5 0%, #9c3ebd 100%);
   display: flex;
   justify-content: center;
+  height: 40px !important;
 }
 ._button_1uxmf_2[data-variant='secondary']:hover {
   background: linear-gradient(180deg, #ef84f5 0%, #9c3ebd 100%);
@@ -583,6 +584,8 @@ input[type='number'] {
   justify-content: center !important;
   font-size: 16px;
   color: black;
+  line-height: 20px;
+  font-weight: 700;
 }
 ._button_1uxmf_2[data-pending]::after {
   animation: none !important;
