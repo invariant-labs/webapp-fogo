@@ -425,8 +425,8 @@ input[type='number'] {
   }
 }
 ._sessionPanel_1am2w_293 {
-  height: fit-content !important;
   padding: 8px;
+  justify-content: space-between;
   display: flex !important;
   flex-direction: column;
 }
@@ -532,7 +532,7 @@ input[type='number'] {
   filter: brightness(1.1);
 }
 ._button_1uxmf_2[data-focus-visible] {
-  outline-color: #ef84f5 !important;
+  outline-color: transparent !important;
 }
 ._sessionLimits_1wejj_2 ._sessionExpiry_1wejj_57 ._button_1wejj_68[data-focus-visible] {
   outline-color: #3a466b !important;
