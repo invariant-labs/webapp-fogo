@@ -240,7 +240,7 @@ export function* handleAirdrop(): Generator {
       )
 
       // transfer sol
-      yield* call(transferAirdropFOGO)
+      // yield* call(transferAirdropFOGO)
       yield* call(
         getCollateralTokenAirdrop,
         airdropTokens[networkType],
