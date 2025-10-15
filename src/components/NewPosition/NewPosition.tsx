@@ -861,6 +861,7 @@ export const NewPosition: React.FC<INewPosition> = ({
     if (shouldReversePlot) {
       return false
     }
+    return false
     return (diffPercentage > 10 && !oraclePrice) || (diffPercentage > 10 && oraclePriceWarning)
   }, [diffPercentage, oraclePriceWarning, oraclePrice, shouldReversePlot])
 

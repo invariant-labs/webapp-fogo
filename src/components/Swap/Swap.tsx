@@ -832,7 +832,8 @@ export const Swap: React.FC<ISwap> = ({
     if (tokenFromValue === 0 || tokenToValue === 0) return 0
     if (tokenToValue > tokenFromValue) return 0
 
-    return Math.abs((tokenFromValue - tokenToValue) / tokenFromValue) * 100
+    return 0
+    // return Math.abs((tokenFromValue - tokenToValue) / tokenFromValue) * 100
   }, [tokenFromPriceData, tokenToPriceData, amountFrom, amountTo])
 
   const showBlur = useMemo(() => {
@@ -880,7 +881,7 @@ export const Swap: React.FC<ISwap> = ({
   const unknownFrom = tokens[tokenFromIndex ?? '']?.isUnknown
   const unknownTo = tokens[tokenToIndex ?? '']?.isUnknown
   const isUnkown = unknownFrom || unknownTo
-  const showOracle = oraclePriceDiffPercentage >= 10 && errorVisible
+  const showOracle = false // oraclePriceDiffPercentage >= 10 && errorVisible
   const showImpact = priceImpact > 5 && oraclePriceDiffPercentage < 10 && errorVisible
 
   const warningsCount = [showOracle, showImpact, isUnkown].filter(Boolean).length
