@@ -191,15 +191,13 @@ export function* handleSwapAndInitPosition(
           tickmap: action.payload.swapPoolTickmap,
           pool: action.payload.swapPool
         }
-      },
-      [],
-      [],
-      []
+      }
     )
 
     const xToY = action.payload.xToY
 
     const { signature: txid } = yield* call([session, session.sendTransaction], tx)
+
     // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     // // const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as VersionedTransaction
@@ -2152,10 +2150,7 @@ export function* handleSwapAndAddLiquidity(
           tickmap: action.payload.swapPoolTickmap,
           pool: action.payload.swapPool
         }
-      },
-      [],
-      [],
-      []
+      }
     )
 
     // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
