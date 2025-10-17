@@ -16,6 +16,7 @@ type Props = {
   padding?: string | number
   gap?: string | number
   children: React.ReactNode
+  ignoreDisabledStyles?: boolean
 } & ButtonProps
 
 export const Button = ({
@@ -29,6 +30,7 @@ export const Button = ({
   padding,
   gap,
   children,
+  ignoreDisabledStyles = false,
   ...props
 }: Props) => {
   const { classes, cx } = useStyles({
@@ -39,7 +41,8 @@ export const Button = ({
     padding,
     margin,
     gap,
-    fontData
+    fontData,
+    ignoreDisabledStyles
   })
 
   return (

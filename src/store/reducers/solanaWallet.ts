@@ -118,6 +118,7 @@ const solanaWalletSlice = createSlice({
       state.overviewSwitch = action.payload
       return state
     },
+
     disconnect() {},
     reconnect() {}
   }

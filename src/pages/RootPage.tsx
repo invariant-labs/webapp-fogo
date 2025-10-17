@@ -1,4 +1,4 @@
-import { useEffect, useCallback, memo } from 'react'
+import { useEffect, useCallback, memo, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import EventsHandlers from '@containers/EventsHandlers'
@@ -11,6 +11,7 @@ import useStyles from './style'
 import { actions } from '@store/reducers/positions'
 import { metaData, ROUTES } from '@utils/utils'
 import { SessionStateType, useSession } from '@fogo/sessions-sdk-react'
+import { SessionExpiredBanner } from '@common/SessionExpiredBanner/SessionExpiredBanner'
 
 const RootPage: React.FC = memo(() => {
   const dispatch = useDispatch()
@@ -18,7 +19,8 @@ const RootPage: React.FC = memo(() => {
   const navigate = useNavigate()
   const { classes } = useStyles()
   const location = useLocation()
-
+  console.log(session)
+  const [sessionExpired, setSessionExpired] = useState(false)
   useEffect(() => {
     const title =
       metaData.get([...metaData.keys()].find(key => location.pathname.startsWith(key))!) ||
@@ -46,11 +48,36 @@ const RootPage: React.FC = memo(() => {
     }
   }, [session.type, dispatch])
 
+  useEffect(() => {
+    if (session.type === SessionStateType.Established && session.expiration) {
+      const timeLeft = new Date(session.expiration).getTime() - Date.now()
+
+      setSessionExpired(false)
+
+      if (timeLeft > 0) {
+        const timeout = setTimeout(() => {
+          setSessionExpired(true)
+        }, timeLeft)
+
+        return () => clearTimeout(timeout)
+      } else {
+        setSessionExpired(true)
+      }
+    }
+  }, [session, dispatch])
   return (
     <>
       <EventsHandlers />
       <div id={toBlur}>
         <Grid className={classes.root}>
+          <SessionExpiredBanner
+            width='100%'
+            open={
+              sessionExpired &&
+              (session.type === SessionStateType.Established ||
+                session.type === SessionStateType.UpdatingSession)
+            }
+          />
           <HeaderWrapper />
           <Grid className={classes.body}>
             <Outlet />
