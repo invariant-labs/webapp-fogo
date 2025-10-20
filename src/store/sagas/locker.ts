@@ -18,7 +18,7 @@ import {
   mapErrorCodeToMessage
 } from '@utils/utils'
 import { closeSnackbar } from 'notistack'
-import { getSession } from '@store/hooks/session'
+import { getSession, TransactionResultType } from '@store/hooks/session'
 
 export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) {
   const { index, network } = action.payload
@@ -73,7 +73,8 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
     // transaction.recentBlockhash = blockhash
     // transaction.lastValidBlockHeight = lastValidBlockHeight
 
-    const { signature: txId } = yield* call([session, session.sendTransaction], ixs)
+    const txResult = yield* call([session, session.sendTransaction], ixs)
+    const txId = txResult.signature
 
     // closeSnackbar(loaderSigningTx)
     // yield put(snackbarsActions.remove(loaderSigningTx))
@@ -90,7 +91,7 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
     closeSnackbar(loaderLockPosition)
     yield put(snackbarsActions.remove(loaderLockPosition))
 
-    if (txId.length) {
+    if (txResult.type === TransactionResultType.Failed) {
       yield* put(actions.setLockSuccess(true))
       yield* put(positionsActions.getPositionsList())
 

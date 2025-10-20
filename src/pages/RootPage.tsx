@@ -19,7 +19,7 @@ const RootPage: React.FC = memo(() => {
   const navigate = useNavigate()
   const { classes } = useStyles()
   const location = useLocation()
-  console.log(session)
+
   const [sessionExpired, setSessionExpired] = useState(false)
   useEffect(() => {
     const title =
