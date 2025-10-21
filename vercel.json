@@ -5,6 +5,11 @@
       "destination": "mailto:contact@invariant.app"
     }
   ],
+  "build": {
+    "env": {
+      "NODE_OPTIONS": "--max-old-space-size=8192"
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
