@@ -90,8 +90,8 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
 
     closeSnackbar(loaderLockPosition)
     yield put(snackbarsActions.remove(loaderLockPosition))
-
-    if (txResult.type === TransactionResultType.Failed) {
+    console.log('Lock position tx id:', txResult)
+    if (txResult.type !== TransactionResultType.Failed) {
       yield* put(actions.setLockSuccess(true))
       yield* put(positionsActions.getPositionsList())
 
