@@ -68,7 +68,7 @@ export const EmptyPlaceholder: React.FC<IEmptyPlaceholder> = ({
                 name={isSm ? 'Connect' : 'Connect wallet'}
                 width={'100%'}
                 walletConnected={!!session}
-                isSmDown={false}
+                isSmDown={isSm}
               />
             )}
           </Grid>

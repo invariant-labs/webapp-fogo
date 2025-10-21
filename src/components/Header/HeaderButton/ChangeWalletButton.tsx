@@ -1,11 +1,12 @@
-import { SessionButton } from '@fogo/sessions-sdk-react'
+import { SessionButton, SessionStateType, useSession } from '@fogo/sessions-sdk-react'
 import { JSX, useEffect, useRef, useState } from 'react'
 import DotIcon from '@mui/icons-material/FiberManualRecordRounded'
 import { Button } from '@common/Button/Button'
-import { Box, Typography } from '@mui/material'
+import { Box, CircularProgress, Grid, Typography } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import useStyles from './style'
 import { blurContent, unblurContent } from '@utils/uiUtils'
+import { colors } from '@static/theme'
 
 export interface IProps {
   name: string
@@ -45,6 +46,7 @@ const ChangeWalletButton: React.FC<IProps> = ({
   const sessionWrapperRef = useRef<HTMLDivElement | null>(null)
   const [hideModal, setHideModal] = useState(walletConnected)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const session = useSession()
 
   const handleClick = () => {
     const btn = sessionWrapperRef.current?.querySelector('button')
@@ -102,8 +104,13 @@ const ChangeWalletButton: React.FC<IProps> = ({
   return (
     <div>
       <Button
+        ignoreDisabledStyles={true}
         scheme={walletConnected ? 'normal' : defaultVariant === 'pink' ? 'pink' : 'green'}
-        disabled={isDisabled}
+        disabled={
+          isDisabled ||
+          session.type === SessionStateType.WalletConnecting ||
+          session.type === SessionStateType.CheckingStoredSession
+        }
         classes={{
           startIcon: classes.startIcon,
           endIcon: classes.innerEndIcon
@@ -120,15 +127,37 @@ const ChangeWalletButton: React.FC<IProps> = ({
           )}
           {name ? (
             <Typography className={cx(classes.headerButtonTextEllipsis, textClassName)}>
-              {name}
+              {session.type === SessionStateType.WalletConnecting ||
+              session.type === SessionStateType.CheckingStoredSession ? (
+                <Grid sx={{ width: isSmDown ? 57.67 : 104.45 }}>
+                  <CircularProgress
+                    sx={{ color: colors.invariant.newDark, marginTop: 0.5 }}
+                    size={20}
+                    thickness={5}
+                  />
+                </Grid>
+              ) : (
+                name
+              )}
             </Typography>
           ) : (
             <Typography className={cx(classes.headerButtonTextEllipsis)}>
-              {walletConnected && address
-                ? `${address.toString().slice(0, 4)}...${!isSmDown ? address.toString().slice(-4) : ''}`
-                : isSmDown
-                  ? 'Connect'
-                  : 'Connect wallet'}
+              {walletConnected && address ? (
+                `${address.toString().slice(0, 4)}...${!isSmDown ? address.toString().slice(-4) : ''}`
+              ) : session.type === SessionStateType.WalletConnecting ||
+                session.type === SessionStateType.CheckingStoredSession ? (
+                <Grid sx={{ width: isSmDown ? 57.67 : 104.45 }}>
+                  <CircularProgress
+                    sx={{ color: colors.invariant.newDark, marginTop: 0.5 }}
+                    size={20}
+                    thickness={5}
+                  />
+                </Grid>
+              ) : isSmDown ? (
+                'Connect'
+              ) : (
+                'Connect wallet'
+              )}
             </Typography>
           )}
           {walletConnected && !hideArrow && <ExpandMoreIcon className={classes.endIcon} />}

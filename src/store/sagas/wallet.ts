@@ -49,7 +49,7 @@ import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token'
 import airdropAdmin from '@store/consts/airdropAdmin'
 import { createLoaderKey, ensureError, getTokenMetadata, getTokenProgramId } from '@utils/utils'
 import { PayloadAction } from '@reduxjs/toolkit'
-import { getSession } from '@store/hooks/session'
+import { getSession, TransactionResultType } from '@store/hooks/session'
 import { accounts as solanaAccounts } from '@store/selectors/solanaWallet'
 
 export function* getBalance(_pubKey: PublicKey): SagaGenerator<BN> {
@@ -305,9 +305,10 @@ export function* getCollateralTokenAirdrop(
   const tx = new VersionedTransaction(messageV0)
 
   tx.sign([airdropAdmin as Signer])
-  const { signature: txid } = yield* call([session, session.adapter.sendTransaction], undefined, tx)
+  const txResult = yield* call([session, session.adapter.sendTransaction], undefined, tx)
+  const txid = txResult.signature
 
-  if (!txid.length) {
+  if (txResult.type === TransactionResultType.Failed) {
     yield put(
       snackbarsActions.add({
         message: 'Failed to airdrop testnet tokens. Please try again',

@@ -75,6 +75,7 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { unknownTokenIcon } from '@static/icons'
 import { calculateClaimAmount } from '@invariant-labs/sdk-fogo/lib/utils'
 import { getSession } from '@store/hooks/session'
+import { TransactionResultType } from '@fogo/sessions-sdk'
 
 export function* handleSwapAndInitPosition(
   action: PayloadAction<SwapAndCreatePosition>
@@ -196,7 +197,8 @@ export function* handleSwapAndInitPosition(
 
     const xToY = action.payload.xToY
 
-    const { signature: txid } = yield* call([session, session.sendTransaction], tx)
+    const txResult = yield* call([session, session.sendTransaction], tx)
+    const { signature: txid } = txResult
 
     // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
@@ -209,18 +211,49 @@ export function* handleSwapAndInitPosition(
 
     // yield* call([connection, connection.confirmTransaction], txid)
 
-    yield put(actions.setInitPositionSuccess(!!txid.length))
+    const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+      maxSupportedTransactionVersion: 0
+    })
 
-    if (!txid.length) {
+    if (txResult.type === TransactionResultType.Failed) {
       yield put(
         snackbarsActions.add({
           message: 'Position adding failed. Please try again.',
           variant: 'error',
           persist: false,
-          txid
+          txid: txDetails ? txid : undefined
         })
       )
+      if (txDetails && txDetails.meta?.err) {
+        if (txDetails.meta.logMessages) {
+          const errorLog = txDetails.meta.logMessages.find(log =>
+            log.includes(ErrorCodeExtractionKeys.ErrorNumber)
+          )
+          const errorCode = errorLog
+            ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
+            .split(ErrorCodeExtractionKeys.Dot)[0]
+            .trim()
+          const message = mapErrorCodeToMessage(Number(errorCode))
+
+          yield put(
+            snackbarsActions.add({
+              message,
+              variant: 'error',
+              persist: false
+            })
+          )
+        }
+      }
+      yield put(actions.setInitPositionSuccess(false))
+
+      closeSnackbar(loaderCreatePosition)
+      yield put(snackbarsActions.remove(loaderCreatePosition))
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+      return
     } else {
+      yield put(actions.setInitPositionSuccess(true))
+
       yield put(
         snackbarsActions.add({
           message: 'Position added successfully.',
@@ -230,38 +263,7 @@ export function* handleSwapAndInitPosition(
         })
       )
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
-        maxSupportedTransactionVersion: 0
-      })
       if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(actions.setInitPositionSuccess(false))
-
-            closeSnackbar(loaderCreatePosition)
-            yield put(snackbarsActions.remove(loaderCreatePosition))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
-
         const meta = txDetails.meta
         const tokenX = xToY
           ? allTokens[swapPair.tokenX.toString()]
@@ -547,67 +549,65 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
 
     const { signature: txid, type: resultType } = txResult
 
+    const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+      maxSupportedTransactionVersion: 0
+    })
     // const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
     //   skipPreflight: false
     // })
 
-    if (!txid.length) {
+    if (txResult.type === TransactionResultType.Failed) {
       yield put(
         snackbarsActions.add({
           message: 'Position adding failed. Please try again',
           variant: 'error',
           persist: false,
-          txid
+          txid: txDetails ? txid : undefined
         })
       )
-    } else {
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
-        maxSupportedTransactionVersion: 0
-      })
+      if (txDetails && txDetails.meta?.err) {
+        if (txDetails.meta.logMessages && resultType === 1) {
+          const resultError = txResult.error as any
 
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages && resultType === 1) {
-            const resultError = txResult.error as any
+          const customError = resultError?.InstructionError[1]?.Custom
 
-            const customError = resultError?.InstructionError[1]?.Custom
+          const errorLog = txDetails.meta.logMessages.find(log =>
+            log.includes(ErrorCodeExtractionKeys.ErrorNumber)
+          )
 
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
+          const errorCode = errorLog
+            ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
+            .split(ErrorCodeExtractionKeys.Dot)[0]
+            .trim()
+          const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
 
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
-            yield put(actions.setInitPositionSuccess(false))
-
-            closeSnackbar(loaderCreatePosition)
-            yield put(snackbarsActions.remove(loaderCreatePosition))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        } else {
-          yield put(actions.setInitPositionSuccess(true))
           yield put(
             snackbarsActions.add({
-              message: 'Position added successfully',
-              variant: 'success',
-              persist: false,
-              txid
+              message,
+              variant: 'error',
+              persist: false
             })
           )
         }
+      }
+      yield put(actions.setInitPositionSuccess(false))
+
+      closeSnackbar(loaderCreatePosition)
+      yield put(snackbarsActions.remove(loaderCreatePosition))
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+      return
+    } else {
+      if (txDetails) {
+        yield put(actions.setInitPositionSuccess(true))
+        yield put(
+          snackbarsActions.add({
+            message: 'Position added successfully',
+            variant: 'success',
+            persist: false,
+            txid
+          })
+        )
 
         const meta = txDetails.meta
         if (meta?.innerInstructions && meta.innerInstructions) {
@@ -1042,14 +1042,17 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
     const txResult = yield* call([session, session.sendTransaction], tx.instructions)
 
     const { signature: txid } = txResult
+    const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+      maxSupportedTransactionVersion: 0
+    })
 
-    if (!txid.length) {
+    if (txResult.type === TransactionResultType.Failed) {
       yield put(
         snackbarsActions.add({
           message: 'Failed to claim fee. Please try again',
           variant: 'error',
           persist: false,
-          txid
+          txid: txDetails ? txid : undefined
         })
       )
     } else {
@@ -1063,10 +1066,6 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
           txid
         })
       )
-
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
-        maxSupportedTransactionVersion: 0
-      })
 
       if (txDetails) {
         const meta = txDetails.meta
@@ -1272,83 +1271,83 @@ export function* handleClaimAllFees() {
         connection.getLatestBlockhash
       ])
 
-      const { signature: txid } = yield* call([session, session.sendTransaction], tx.instructions)
+      const txResult = yield* call([session, session.sendTransaction], tx.instructions)
+      const { signature: txid } = txResult
 
       yield* call([connection, connection.confirmTransaction], {
         signature: txid,
         blockhash,
         lastValidBlockHeight
       })
-
       const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
         maxSupportedTransactionVersion: 0
       })
 
-      if (txDetails) {
-        const meta = txDetails.meta
-        if (meta?.innerInstructions && meta.innerInstructions) {
-          for (const metaInstructions of meta.innerInstructions) {
-            try {
-              const splTransfers = metaInstructions.instructions.filter(
-                ix =>
-                  (ix as ParsedInstruction).parsed.info.tokenAmount !== undefined ||
-                  (ix as ParsedInstruction).parsed.info.amount !== undefined
-              ) as ParsedInstruction[]
-
-              let tokenXAmount = '0'
-              let tokenYAmount = '0'
-              let tokenXIcon = unknownTokenIcon
-              let tokenYIcon = unknownTokenIcon
-              let tokenYSymbol = 'Unknown'
-              let tokenXSymbol = 'Unknown'
-
-              splTransfers.map((transfer, index) => {
-                const token =
-                  allTokens[
-                    transfer.parsed.info?.mint || accountToMint[transfer.parsed.info?.destination]
-                  ]
-                const amount =
-                  transfer.parsed.info?.tokenAmount?.amount || transfer.parsed.info.amount
-                if (index === 0) {
-                  tokenYAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
-                  tokenYIcon = token.logoURI
-                } else if (index === 1) {
-                  tokenXAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
-                  tokenXIcon = token.logoURI
-                  tokenYSymbol = token.symbol ?? token.address.toString()
-                }
-              })
-
-              yield put(
-                snackbarsActions.add({
-                  tokensDetails: {
-                    ikonType: 'claim',
-                    tokenXAmount: tokenXAmount,
-                    tokenYAmount: tokenYAmount,
-                    tokenXIcon: tokenXIcon,
-                    tokenYIcon: tokenYIcon,
-                    tokenXSymbol: tokenXSymbol,
-                    tokenYSymbol: tokenYSymbol
-                  },
-                  persist: false
-                })
-              )
-            } catch {
-              // Should never be triggered
-            }
-          }
-        }
-      }
-
-      if (!txid.length) {
+      if (txResult.type === TransactionResultType.Failed) {
         yield put(
           snackbarsActions.add({
             message: 'Failed to claim some fees. Please try again.',
             variant: 'error',
             persist: false,
-            txid
+            txid: txDetails ? txid : undefined
           })
         )
+      } else {
+        if (txDetails) {
+          const meta = txDetails.meta
+          if (meta?.innerInstructions && meta.innerInstructions) {
+            for (const metaInstructions of meta.innerInstructions) {
+              try {
+                const splTransfers = metaInstructions.instructions.filter(
+                  ix =>
+                    (ix as ParsedInstruction).parsed.info.tokenAmount !== undefined ||
+                    (ix as ParsedInstruction).parsed.info.amount !== undefined
+                ) as ParsedInstruction[]
+
+                let tokenXAmount = '0'
+                let tokenYAmount = '0'
+                let tokenXIcon = unknownTokenIcon
+                let tokenYIcon = unknownTokenIcon
+                let tokenYSymbol = 'Unknown'
+                let tokenXSymbol = 'Unknown'
+
+                splTransfers.map((transfer, index) => {
+                  const token =
+                    allTokens[
+                      transfer.parsed.info?.mint || accountToMint[transfer.parsed.info?.destination]
+                    ]
+                  const amount =
+                    transfer.parsed.info?.tokenAmount?.amount || transfer.parsed.info.amount
+                  if (index === 0) {
+                    tokenYAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
+                    tokenYIcon = token.logoURI
+                  } else if (index === 1) {
+                    tokenXAmount = formatNumberWithoutSuffix(printBN(amount, token.decimals))
+                    tokenXIcon = token.logoURI
+                    tokenYSymbol = token.symbol ?? token.address.toString()
+                  }
+                })
+
+                yield put(
+                  snackbarsActions.add({
+                    tokensDetails: {
+                      ikonType: 'claim',
+                      tokenXAmount: tokenXAmount,
+                      tokenYAmount: tokenYAmount,
+                      tokenXIcon: tokenXIcon,
+                      tokenYIcon: tokenYIcon,
+                      tokenXSymbol: tokenXSymbol,
+                      tokenYSymbol: tokenYSymbol
+                    },
+                    persist: false
+                  })
+                )
+              } catch {
+                // Should never be triggered
+              }
+            }
+          }
+        }
       }
     }
 
@@ -1502,19 +1501,23 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const { signature: txid } = yield* call([session, session.sendTransaction], [ix])
+    const txResult = yield* call([session, session.sendTransaction], [ix])
+    const { signature: txid } = txResult
 
     // const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
     //   skipPreflight: false
     // })
+    const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+      maxSupportedTransactionVersion: 0
+    })
 
-    if (!txid.length) {
+    if (txResult.type === TransactionResultType.Failed) {
       yield put(
         snackbarsActions.add({
           message: 'Failed to close position. Please try again',
           variant: 'error',
           persist: false,
-          txid
+          txid: txDetails ? txid : undefined
         })
       )
     } else {
@@ -1526,10 +1529,6 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
           txid
         })
       )
-
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
-        maxSupportedTransactionVersion: 0
-      })
 
       if (txDetails) {
         const meta = txDetails.meta
@@ -1558,9 +1557,8 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
           } catch {}
         }
       }
+      yield* put(actions.getPositionsList())
     }
-
-    yield* put(actions.getPositionsList())
 
     action.payload.onSuccess()
     yield put(actions.setShouldDisable(false))
@@ -1688,55 +1686,55 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
     const txResult = yield* call([session, session.sendTransaction], [changeLiquidityIx])
 
     const { signature: txId, type: resultType } = txResult
-
-    if (!txId.length) {
+    const txDetails = yield* call([connection, connection.getParsedTransaction], txId, {
+      maxSupportedTransactionVersion: 0
+    })
+    if (txResult.type === TransactionResultType.Failed) {
       yield put(actions.setChangeLiquiditySuccess(false))
       closeSnackbar(loaderAddLiquidity)
       yield put(snackbarsActions.remove(loaderAddLiquidity))
-      return yield put(
+
+      yield put(
         snackbarsActions.add({
           message: 'Adding liquidity failed. Please try again',
           variant: 'error',
           persist: false,
-          txid: txId
+          txid: txDetails ? txId : undefined
         })
       )
-    } else {
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txId, {
-        maxSupportedTransactionVersion: 0
-      })
 
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages && resultType === 1) {
-            const resultError = txResult.error as any
+      if (txDetails && txDetails.meta?.err) {
+        if (txDetails.meta.logMessages && resultType === 1) {
+          const resultError = txResult.error as any
 
-            const customError = resultError?.InstructionError[1]?.Custom
+          const customError = resultError?.InstructionError[1]?.Custom
 
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
-            yield put(actions.setChangeLiquiditySuccess(false))
-            closeSnackbar(loaderAddLiquidity)
-            yield put(snackbarsActions.remove(loaderAddLiquidity))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
+          const errorLog = txDetails.meta.logMessages.find(log =>
+            log.includes(ErrorCodeExtractionKeys.ErrorNumber)
+          )
+          const errorCode = errorLog
+            ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
+            .split(ErrorCodeExtractionKeys.Dot)[0]
+            .trim()
+          const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
+
+          yield put(
+            snackbarsActions.add({
+              message,
+              variant: 'error',
+              persist: false
+            })
+          )
         }
-
+      }
+      yield put(actions.setChangeLiquiditySuccess(false))
+      closeSnackbar(loaderAddLiquidity)
+      yield put(snackbarsActions.remove(loaderAddLiquidity))
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+      return
+    } else {
+      if (txDetails) {
         yield put(actions.setChangeLiquiditySuccess(true))
         yield put(
           snackbarsActions.add({
@@ -1912,54 +1910,53 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
     const txResult = yield* call([session, session.sendTransaction], [changeLiquidityIx])
 
     const { signature: txId, type: resultType } = txResult
-
-    if (!txId.length) {
+    const txDetails = yield* call([connection, connection.getParsedTransaction], txId, {
+      maxSupportedTransactionVersion: 0
+    })
+    if (txResult.type === TransactionResultType.Failed) {
       yield put(actions.setChangeLiquiditySuccess(false))
       closeSnackbar(loaderRemoveLiquidity)
       yield put(snackbarsActions.remove(loaderRemoveLiquidity))
-      return yield put(
+      yield put(
         snackbarsActions.add({
           message: 'Removing liquidity failed. Please try again',
           variant: 'error',
           persist: false,
-          txid: txId
+          txid: txDetails ? txId : undefined
         })
       )
-    } else {
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txId, {
-        maxSupportedTransactionVersion: 0
-      })
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages && resultType === 1) {
-            const resultError = txResult.error as any
+      if (txDetails && txDetails.meta?.err) {
+        if (txDetails.meta.logMessages && resultType === 1) {
+          const resultError = txResult.error as any
 
-            const customError = resultError?.InstructionError[1]?.Custom
+          const customError = resultError?.InstructionError[1]?.Custom
 
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
-            yield put(actions.setChangeLiquiditySuccess(false))
-            closeSnackbar(loaderRemoveLiquidity)
-            yield put(snackbarsActions.remove(loaderRemoveLiquidity))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
+          const errorLog = txDetails.meta.logMessages.find(log =>
+            log.includes(ErrorCodeExtractionKeys.ErrorNumber)
+          )
+          const errorCode = errorLog
+            ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
+            .split(ErrorCodeExtractionKeys.Dot)[0]
+            .trim()
+          const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
+
+          yield put(
+            snackbarsActions.add({
+              message,
+              variant: 'error',
+              persist: false
+            })
+          )
         }
-
+      }
+      yield put(actions.setChangeLiquiditySuccess(false))
+      closeSnackbar(loaderRemoveLiquidity)
+      yield put(snackbarsActions.remove(loaderRemoveLiquidity))
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+      return
+    } else {
+      if (txDetails) {
         yield put(actions.setChangeLiquiditySuccess(true))
         yield put(
           snackbarsActions.add({
@@ -2164,19 +2161,49 @@ export function* handleSwapAndAddLiquidity(
 
     // yield* call([connection, connection.confirmTransaction], txid)
 
-    const { signature: txid } = yield* call([session, session.sendTransaction], tx)
+    const txResult = yield* call([session, session.sendTransaction], tx)
+    const { signature: txid } = txResult
 
-    yield put(actions.setChangeLiquiditySuccess(!!txid.length))
+    const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+      maxSupportedTransactionVersion: 0
+    })
 
-    if (!txid.length) {
+    if (txResult.type === TransactionResultType.Failed) {
       yield put(
         snackbarsActions.add({
           message: 'Liquidity adding failed. Please try again.',
           variant: 'error',
           persist: false,
-          txid
+          txid: txDetails ? txid : undefined
         })
       )
+      if (txDetails && txDetails.meta?.err) {
+        if (txDetails.meta.logMessages) {
+          const errorLog = txDetails.meta.logMessages.find(log =>
+            log.includes(ErrorCodeExtractionKeys.ErrorNumber)
+          )
+          const errorCode = errorLog
+            ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
+            .split(ErrorCodeExtractionKeys.Dot)[0]
+            .trim()
+          const message = mapErrorCodeToMessage(Number(errorCode))
+
+          yield put(
+            snackbarsActions.add({
+              message,
+              variant: 'error',
+              persist: false
+            })
+          )
+        }
+      }
+      yield put(actions.setChangeLiquiditySuccess(false))
+
+      closeSnackbar(loaderAddPosition)
+      yield put(snackbarsActions.remove(loaderAddPosition))
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+      return
     } else {
       yield put(
         snackbarsActions.add({
@@ -2187,38 +2214,7 @@ export function* handleSwapAndAddLiquidity(
         })
       )
 
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
-        maxSupportedTransactionVersion: 0
-      })
       if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(actions.setChangeLiquiditySuccess(false))
-
-            closeSnackbar(loaderAddPosition)
-            yield put(snackbarsActions.remove(loaderAddPosition))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
-        }
-
         const meta = txDetails.meta
         if (meta?.innerInstructions && meta.innerInstructions) {
           try {

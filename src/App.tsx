@@ -21,6 +21,12 @@ function App() {
         <ThemeProvider theme={theme}>
           <SnackbarProvider maxSnack={99}>
             <FogoSessionProvider
+              onOpenExtendSessionExpiry={() => {
+                console.log('Extend session expiry requested')
+              }}
+              onOpenSessionLimitsReached={() => {
+                console.log('Session limits reached')
+              }}
               sponsor={new PublicKey('B7g4WMqgNrn39sgKef23GKtqpWD7JvNj3waLx3RmTco2')}
               endpoint='https://testnet.fogo.io/'
               domain={shouldOverrideDomain ? 'https://fogo.invariant.app' : undefined}
