@@ -17,10 +17,11 @@ import {
   COMMON_ERROR_MESSAGE,
   ErrorCodeExtractionKeys,
   MAX_CROSSES_IN_SINGLE_TX,
-  SIGNING_SNACKBAR_CONFIG,
   TIMEOUT_ERROR_MESSAGE,
   WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
+import { TransactionResultType } from '@fogo/sessions-sdk'
+
 import { network, rpcAddress } from '@store/selectors/solanaConnection'
 import { actions as connectionActions } from '@store/reducers/solanaConnection'
 import { closeSnackbar } from 'notistack'
@@ -186,7 +187,8 @@ export function* handleTwoHopSwap(): Generator {
       appendedIxs
     )
 
-    const { signature: txid } = yield* call([session, session.sendTransaction], swapTx)
+    const txResult = yield* call([session, session.sendTransaction], swapTx)
+    const { signature: txid } = txResult
 
     // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
@@ -200,52 +202,47 @@ export function* handleTwoHopSwap(): Generator {
     // })
 
     // yield* call([connection, connection.confirmTransaction], txid)
-
-    yield put(swapActions.setSwapSuccess(!!txid.length))
-
-    if (!txid.length) {
+    const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
+      maxSupportedTransactionVersion: 0
+    })
+    if (txResult.type === TransactionResultType.Failed) {
       yield put(
         snackbarsActions.add({
           message: 'Tokens swapping failed. Please try again',
           variant: 'error',
           persist: false,
-          txid
+          txid: txDetails ? txid : undefined
         })
       )
-    } else {
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
-        maxSupportedTransactionVersion: 0
-      })
+      if (txDetails && txDetails.meta?.err) {
+        if (txDetails.meta.logMessages) {
+          const errorLog = txDetails.meta.logMessages.find(log =>
+            log.includes(ErrorCodeExtractionKeys.ErrorNumber)
+          )
+          const errorCode = errorLog
+            ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
+            .split(ErrorCodeExtractionKeys.Dot)[0]
+            .trim()
+          const message = mapErrorCodeToMessage(Number(errorCode))
 
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages) {
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
-            const message = mapErrorCodeToMessage(Number(errorCode))
-            yield put(swapActions.setSwapSuccess(false))
-
-            closeSnackbar(loaderSwappingTokens)
-            yield put(snackbarsActions.remove(loaderSwappingTokens))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
+          yield put(
+            snackbarsActions.add({
+              message,
+              variant: 'error',
+              persist: false
+            })
+          )
         }
+      }
+      yield put(swapActions.setSwapSuccess(false))
 
+      closeSnackbar(loaderSwappingTokens)
+      yield put(snackbarsActions.remove(loaderSwappingTokens))
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+      return
+    } else {
+      if (txDetails) {
         yield put(
           snackbarsActions.add({
             message: 'Tokens swapped successfully',
@@ -481,59 +478,56 @@ export function* handleSwap(): Generator {
     const txResult = yield* call([session, session.sendTransaction], [setCuIx, swapIx])
     const { signature: txSig, type: resultType } = txResult
 
-    yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+    // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     closeSnackbar(loaderSigningTx)
+    const txDetails = yield* call([connection, connection.getParsedTransaction], txSig, {
+      maxSupportedTransactionVersion: 0
+    })
     yield put(snackbarsActions.remove(loaderSigningTx))
-
-    if (!txSig.length) {
+    if (txResult.type === TransactionResultType.Failed) {
       yield put(
         snackbarsActions.add({
           message: 'Tokens swapping failed. Please try again',
           variant: 'error',
           persist: false,
-          txid: txSig
+          txid: txDetails ? txSig : undefined
         })
       )
-    } else {
-      const txDetails = yield* call([connection, connection.getParsedTransaction], txSig, {
-        maxSupportedTransactionVersion: 0
-      })
+      if (txDetails && txDetails.meta?.err) {
+        if (txDetails.meta.logMessages && resultType === 1) {
+          const resultError = txResult.error as any
 
-      if (txDetails) {
-        if (txDetails.meta?.err) {
-          if (txDetails.meta.logMessages && resultType === 1) {
-            const resultError = txResult.error as any
+          const customError = resultError?.InstructionError[1]?.Custom
 
-            const customError = resultError?.InstructionError[1]?.Custom
+          const errorLog = txDetails.meta.logMessages.find(log =>
+            log.includes(ErrorCodeExtractionKeys.ErrorNumber)
+          )
+          const errorCode = errorLog
+            ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
+            .split(ErrorCodeExtractionKeys.Dot)[0]
+            .trim()
 
-            const errorLog = txDetails.meta.logMessages.find(log =>
-              log.includes(ErrorCodeExtractionKeys.ErrorNumber)
-            )
-            const errorCode = errorLog
-              ?.split(ErrorCodeExtractionKeys.ErrorNumber)[1]
-              .split(ErrorCodeExtractionKeys.Dot)[0]
-              .trim()
+          const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
 
-            const message = mapErrorCodeToMessage(Number(customError ?? errorCode))
-            yield put(swapActions.setSwapSuccess(false))
-
-            closeSnackbar(loaderSwappingTokens)
-            yield put(snackbarsActions.remove(loaderSwappingTokens))
-            closeSnackbar(loaderSigningTx)
-            yield put(snackbarsActions.remove(loaderSigningTx))
-
-            yield put(
-              snackbarsActions.add({
-                message,
-                variant: 'error',
-                persist: false
-              })
-            )
-            return
-          }
+          yield put(
+            snackbarsActions.add({
+              message,
+              variant: 'error',
+              persist: false
+            })
+          )
         }
+      }
+      yield put(swapActions.setSwapSuccess(false))
 
+      closeSnackbar(loaderSwappingTokens)
+      yield put(snackbarsActions.remove(loaderSwappingTokens))
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+      return
+    } else {
+      if (txDetails) {
         yield put(swapActions.setSwapSuccess(true))
         yield put(
           snackbarsActions.add({

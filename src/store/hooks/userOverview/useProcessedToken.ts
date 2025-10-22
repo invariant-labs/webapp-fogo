@@ -58,7 +58,7 @@ export const useProcessedTokens = (
     if (tokensList?.length) {
       processTokens()
     }
-  }, [tokensList, isBalanceLoading])
+  }, [tokensList, isBalanceLoading, prices])
 
   return { processedTokens, isProcesing }
 }

@@ -119,12 +119,16 @@ input[type='number'] {
   appearance: none;
 }
 
-[role='dialog'] {
+/* [role='dialog'] {
   background: #202946 !important;
   border-radius: 24px !important;
   font-family: 'Mukta' !important;
   border: 1px solid #202946 !important;
   color: white !important;
+}
+
+._modal_g4cao_2 {
+  background: #202946 !important;
 }
 
 [role='dialog'] button {
@@ -277,6 +281,14 @@ input[type='number'] {
   background: #475569 !important;
   border: 2px solid #334155;
 }
+
+._sessionExpiry_1wejj_57,
+._button_1wejj_68,
+._footer_1am2w_576,
+._footer_1wejj_174 {
+  background: #202946 !important;
+}
+
 ._sessionLimits_1m8j0_2 ._applyLimits_1m8j0_7 {
   display: none;
 }
@@ -338,3 +350,246 @@ input[type='number'] {
   font-family: 'Mukta';
   font-size: 1.125rem;
 }
+
+._toastRegion_sbt8j_2._toastRegion_sbt8j_2 ._toast_sbt8j_2 {
+  display: none !important;
+}
+._tokenList_e2xwz_2 {
+  display: none !important;
+}
+._walletPage_epz3w_2 ._topButtons_epz3w_9 {
+  display: none !important;
+}
+._sessionPanelPopover_1am2w_293._sessionPanelPopover_1am2w_293
+  ._sessionPanel_1am2w_293
+  ._tabs_1am2w_522
+  ._tabList_1am2w_527
+  ._tab_1am2w_522 {
+  display: none !important;
+}
+._sessionPanelPopover_1am2w_293._sessionPanelPopover_1am2w_293
+  ._sessionPanel_1am2w_293
+  ._tabs_1am2w_522
+  ._tabList_1am2w_527 {
+  display: none !important;
+}
+._walletPage_epz3w_2 {
+  display: none !important;
+}
+._sessionPanelPopover_1am2w_293._sessionPanelPopover_1am2w_293
+  ._sessionPanel_1am2w_293
+  ._tabs_1am2w_522
+  ._tabPanel_1am2w_573 {
+  display: none !important;
+}
+._sessionPanelPopover_1am2w_293._sessionPanelPopover_1am2w_293
+  ._sessionPanel_1am2w_293
+  ._tabs_1am2w_522 {
+  display: none !important;
+}
+@media (max-width: 640px) {
+  ._sessionPanelPopover_1am2w_293._sessionPanelPopover_1am2w_293 ._sessionPanel_1am2w_293 {
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+}
+._sessionPanelPopover_1am2w_293 button:nth-of-type(2),
+._sessionPanelPopover_1am2w_293 [type='button']:nth-of-type(2),
+._sessionPanelPopover_1am2w_293 [type='reset']:nth-of-type(2),
+._sessionPanelPopover_1am2w_293 [type='submit']:nth-of-type(2) {
+  display: none !important;
+}
+._copyButton_12o3f_2 {
+  cursor: pointer;
+}
+._title_1am2w_512 {
+  display: none !important;
+}
+._fogoWordmark_1am2w_587 {
+  display: none !important;
+}
+._header_1am2w_503 {
+  border-bottom: none !important;
+}
+._footer_1am2w_576 {
+  border-top: none !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+  height: 34px !important;
+}
+@media (min-width: 641px) {
+  ._sessionPanel_1am2w_293 {
+    height: 95px !important;
+    max-width: 170px !important;
+    padding: 8px;
+  }
+}
+._sessionPanel_1am2w_293 {
+  padding: 8px;
+  justify-content: space-between;
+  display: flex !important;
+  flex-direction: column;
+}
+._sessionPanelPopover_1am2w_293._sessionPanelPopover_1am2w_293
+  ._sessionPanel_1am2w_293
+  ._header_1am2w_503 {
+  display: flex !important;
+  box-sizing: border-box;
+  height: 34px !important;
+  padding: 6px 7px !important;
+  justify-content: flex-start !important;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+}
+._sessionPanelPopover_1am2w_293._sessionPanelPopover_1am2w_293
+  ._sessionPanel_1am2w_293
+  ._header_1am2w_503:hover {
+  background: #3a466b;
+}
+._sessionPanel_1am2w_293 > *:nth-child(3) {
+  display: none !important;
+}
+._button_1uxmf_2[data-size='md'] {
+  font-size: 0;
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0;
+  padding: 6px 7px;
+}
+._button_1uxmf_2[data-size='md']:hover {
+  background: #3a466b;
+}
+
+._button_1uxmf_2[data-variant='ghost']::before {
+  content: url('https://invariant.app/assets/disconnect-lmPnFIKr.svg');
+  transform: scale(0.9);
+  width: 15px;
+}
+
+._button_1uxmf_2[data-variant='ghost']::after {
+  content: 'Disconnect';
+  margin: 0px;
+  font-family: Mukta;
+  text-transform: capitalize;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 400;
+  padding-top: 2px;
+  color: rgb(186, 199, 209);
+}
+._copyButton_12o3f_2[data-variant='inline'] {
+  display: flex;
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+  background: transparent !important;
+  width: 100%;
+  height: 34px !important;
+  box-sizing: border-box;
+  padding: 0;
+  gap: 8px;
+}
+
+._copyButton_12o3f_2 ._contents_12o3f_13 {
+  font-size: 0;
+}
+
+._copyButton_12o3f_2 ._contents_12o3f_13::after {
+  content: 'Copy Address';
+  height: 34px !important;
+  margin: 0px;
+  font-family: Mukta;
+  text-transform: capitalize;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 400;
+  display: flex;
+  margin-bottom: -15px;
+  color: rgb(186, 199, 209);
+}
+._copyButton_12o3f_2 ._iconContainer_12o3f_25 ._copyIcon_12o3f_36,
+._copyButton_12o3f_2 ._iconContainer_12o3f_25 ._checkIcon_12o3f_37,
+._copyButton_12o3f_2 ._iconContainer_12o3f_25 ._copyHint_12o3f_38,
+._copyButton_12o3f_2 ._iconContainer_12o3f_25 ._checkHint_12o3f_39,
+._copyButton_12o3f_2 ._hintContainer_12o3f_29 ._copyIcon_12o3f_36,
+._copyButton_12o3f_2 ._hintContainer_12o3f_29 ._checkIcon_12o3f_37,
+._copyButton_12o3f_2 ._hintContainer_12o3f_29 ._copyHint_12o3f_38,
+._copyButton_12o3f_2 ._hintContainer_12o3f_29 ._checkHint_12o3f_39 {
+  scale: 1.5;
+  color: rgb(186, 199, 209);
+}
+._sessionLimits_1wejj_2 ._footer_1wejj_174 > *:nth-child(1) {
+  display: none !important;
+}
+._button_1uxmf_2[data-variant='secondary'] {
+  background: linear-gradient(180deg, #ef84f5 0%, #9c3ebd 100%);
+  display: flex;
+  justify-content: center;
+  height: 40px !important;
+}
+._button_1uxmf_2[data-variant='secondary']:hover {
+  background: linear-gradient(180deg, #ef84f5 0%, #9c3ebd 100%);
+  filter: brightness(1.1);
+}
+._button_1uxmf_2[data-focus-visible] {
+  outline-color: transparent !important;
+}
+._sessionLimits_1wejj_2 ._sessionExpiry_1wejj_57 ._button_1wejj_68[data-focus-visible] {
+  outline-color: #3a466b !important;
+}
+._sessionLimits_1wejj_2 ._applyLimits_1wejj_12 {
+  display: none !important;
+}
+._modalOverlay_g4cao_2._modalOverlay_g4cao_2 ._modal_g4cao_2 ._dialog_g4cao_213 {
+  margin-top: 10px;
+}
+._modalOverlay_g4cao_2._modalOverlay_g4cao_2
+  ._modal_g4cao_2
+  ._dialog_g4cao_213
+  ._heading_g4cao_218 {
+  font-size: 0 !important;
+}
+._modalOverlay_g4cao_2._modalOverlay_g4cao_2
+  ._modal_g4cao_2
+  ._dialog_g4cao_213
+  ._heading_g4cao_218::after {
+  content: 'Session settings';
+  font-family: 'Mukta';
+  font-size: 1.125rem;
+  margin-top: 16px;
+}
+._modalOverlay_g4cao_2._modalOverlay_g4cao_2
+  ._modal_g4cao_2
+  ._dialog_g4cao_213
+  ._message_g4cao_227 {
+  font-size: 0 !important;
+}
+._modalOverlay_g4cao_2._modalOverlay_g4cao_2
+  ._modal_g4cao_2
+  ._dialog_g4cao_213
+  ._message_g4cao_227::after {
+  content: 'Manage session duration';
+  font-size: 16px;
+  height: 20px !important;
+  display: flex;
+  font-family: 'Mukta';
+  margin-bottom: -25px !important;
+}
+._button_1uxmf_2[data-variant='secondary']::after {
+  content: 'Connect Wallet';
+  display: flex;
+  font-family: 'Mukta';
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px;
+  color: black;
+  line-height: 20px;
+  font-weight: 700;
+}
+._button_1uxmf_2[data-pending]::after {
+  animation: none !important;
+  width: 100%;
+  border: none !important;
+  margin-left: 0;
+} */

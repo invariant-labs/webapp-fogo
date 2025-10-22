@@ -160,7 +160,6 @@ export interface INewPosition {
   suggestedPrice: number
   handleBack: () => void
   oraclePrice: number | null
-  fee: BN
 }
 
 export const NewPosition: React.FC<INewPosition> = ({
@@ -233,8 +232,7 @@ export const NewPosition: React.FC<INewPosition> = ({
   initialMaxSlippageToleranceCreatePosition,
   suggestedPrice,
   handleBack,
-  oraclePrice,
-  fee
+  oraclePrice
 }) => {
   const { classes } = useStyles()
   const navigate = useNavigate()
@@ -307,11 +305,10 @@ export const NewPosition: React.FC<INewPosition> = ({
         tokenBIndex !== null &&
         autoSwapPools.some(
           item =>
-            ((item.pair.tokenX.equals(tokens[tokenAIndex].assetAddress) &&
+            (item.pair.tokenX.equals(tokens[tokenAIndex].assetAddress) &&
               item.pair.tokenY.equals(tokens[tokenBIndex].assetAddress)) ||
-              (item.pair.tokenX.equals(tokens[tokenBIndex].assetAddress) &&
-                item.pair.tokenY.equals(tokens[tokenAIndex].assetAddress))) &&
-            ALL_FEE_TIERS_DATA[item.swapPool.feeIndex].tier.fee.eq(fee)
+            (item.pair.tokenX.equals(tokens[tokenBIndex].assetAddress) &&
+              item.pair.tokenY.equals(tokens[tokenAIndex].assetAddress))
         ) &&
         isCurrentPoolExisting
     )
@@ -979,7 +976,7 @@ export const NewPosition: React.FC<INewPosition> = ({
                 <TooltipHover title='Open pool in explorer'>
                   <Grid width={'12px'} height={'24px'}>
                     <a
-                      href={`https://fogoscan.xyz/account/${poolAddress}${networkUrl}`}
+                      href={`https://explorer.fogo.io/account/${poolAddress}${networkUrl}`}
                       target='_blank'
                       rel='noopener noreferrer'
                       onClick={event => {

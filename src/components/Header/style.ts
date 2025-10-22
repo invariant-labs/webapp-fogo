@@ -67,9 +67,7 @@ const useStyles = makeStyles()((theme: Theme) => {
       gap: 12,
       flexWrap: 'nowrap',
       alignItems: 'center',
-      [theme.breakpoints.up(1450)]: {
-        flex: '1 1 0%'
-      },
+      flex: '1 1 0%',
 
       [theme.breakpoints.down('md')]: {
         marginLeft: 0,
@@ -132,7 +130,7 @@ const useStyles = makeStyles()((theme: Theme) => {
         display: 'none'
       },
 
-      [theme.breakpoints.up(1450)]: {
+      [theme.breakpoints.up('sm')]: {
         flex: '1 1 0%'
       }
     }
