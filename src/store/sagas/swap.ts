@@ -242,6 +242,7 @@ export function* handleTwoHopSwap(): Generator {
       yield put(snackbarsActions.remove(loaderSigningTx))
       return
     } else {
+      yield put(swapActions.setSwapSuccess(true))
       if (txDetails) {
         yield put(
           snackbarsActions.add({
@@ -527,8 +528,8 @@ export function* handleSwap(): Generator {
       yield put(snackbarsActions.remove(loaderSigningTx))
       return
     } else {
+      yield put(swapActions.setSwapSuccess(true))
       if (txDetails) {
-        yield put(swapActions.setSwapSuccess(true))
         yield put(
           snackbarsActions.add({
             message: 'Tokens swapped successfully',
