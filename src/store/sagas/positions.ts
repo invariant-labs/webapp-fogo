@@ -276,6 +276,7 @@ export function* handleSwapAndInitPosition(
           try {
             const targetInner = meta.innerInstructions[2] ?? meta.innerInstructions[0]
             targetInner.instructions.slice(1, 3)
+
             const tokenXDeposit = targetInner.instructions
               .slice(5)
               .find(
@@ -290,19 +291,33 @@ export function* handleSwapAndInitPosition(
                   (ix as ParsedInstruction).parsed?.info?.mint === tokenY.address.toString()
               )?.parsed?.info?.tokenAmount
 
-            const tokenXExchange = targetInner.instructions
+            const tokenXExchangeIx = targetInner.instructions
               .slice(1, 3)
               .find(
                 (ix): ix is ParsedInstruction =>
-                  (ix as ParsedInstruction).parsed.info?.mint === tokenX.address.toString()
-              )?.parsed.info.tokenAmount.amount
+                  (ix as ParsedInstruction).parsed.info?.mint === tokenX.address.toString() ||
+                  (ix as ParsedInstruction).parsed.info?.authority ===
+                    marketProgram.programAuthority.address.toBase58()
+              )
 
-            const tokenYExchange = targetInner.instructions
+            const tokenXExchange = tokenXExchangeIx
+              ? tokenXExchangeIx.parsed.info?.tokenAmount?.amount ||
+                tokenXExchangeIx.parsed.info?.amount
+              : '0'
+
+            const tokenYExchangeIx = targetInner.instructions
               .slice(1, 3)
               .find(
                 (ix): ix is ParsedInstruction =>
-                  (ix as ParsedInstruction).parsed.info?.mint === tokenY.address.toString()
-              )?.parsed.info.tokenAmount.amount
+                  (ix as ParsedInstruction).parsed.info?.mint === tokenY.address.toString() ||
+                  (ix as ParsedInstruction).parsed.info?.authority ===
+                    marketProgram.programAuthority.address.toBase58()
+              )
+
+            const tokenYExchange = tokenYExchangeIx
+              ? tokenYExchangeIx.parsed.info?.tokenAmount?.amount ||
+                tokenYExchangeIx.parsed.info?.amount
+              : '0'
 
             const amountX = tokenXDeposit?.amount
             const amountY = tokenYDeposit?.amount
