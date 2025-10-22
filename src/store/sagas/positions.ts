@@ -301,8 +301,8 @@ export function* handleSwapAndInitPosition(
               )
 
             const tokenXExchange = tokenXExchangeIx
-              ? tokenXExchangeIx.parsed.info.tokenAmount.amount ||
-                tokenXExchangeIx.parsed.info.amount
+              ? tokenXExchangeIx.parsed.info?.tokenAmount?.amount ||
+                tokenXExchangeIx.parsed.info?.amount
               : '0'
 
             const tokenYExchangeIx = targetInner.instructions
