@@ -2643,8 +2643,6 @@ export const getIntervalsPoolSnap = async (
 ): Promise<PoolSnap> => {
   const parsedInterval =
     interval === Intervals.Daily ? 'daily' : interval === Intervals.Weekly ? 'weekly' : 'monthly'
-  const link = `https://stats.invariant.app/fogo/pools/fogo-${network}?interval=${parsedInterval}&address=${poolAddress}`
-  console.log('Fetching pool snap from:', link)
   const { data } = await axios.get<PoolSnap>(
     `https://stats.invariant.app/fogo/pools/fogo-${network}?interval=${parsedInterval}&address=${poolAddress}`
   )

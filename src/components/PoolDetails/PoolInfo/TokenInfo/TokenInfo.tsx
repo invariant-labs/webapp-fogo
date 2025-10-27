@@ -109,7 +109,7 @@ export const TokenInfo: React.FC<IProps> = ({
               </TooltipHover>
               <TooltipHover title='Open pool in explorer'>
                 <a
-                  href={`https://eclipsescan.xyz/account/${address}${networkUrl}`}
+                  href={`https://explorer.fogo.io/address/${address}${networkUrl}`}
                   target='_blank'
                   rel='noopener noreferrer'
                   onClick={event => {

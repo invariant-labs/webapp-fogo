@@ -71,9 +71,7 @@ export const PoolDetailsWrapper: React.FC<IProps> = ({
 
   const [favouritePools, setFavouritePools] = useState<Set<string>>(
     new Set(
-      JSON.parse(
-        localStorage.getItem(`INVARIANT_FAVOURITE_POOLS_Eclipse_${currentNetwork}`) || '[]'
-      )
+      JSON.parse(localStorage.getItem(`INVARIANT_FAVOURITE_POOLS_Fogo_${currentNetwork}`) || '[]')
     )
   )
 
@@ -96,7 +94,7 @@ export const PoolDetailsWrapper: React.FC<IProps> = ({
 
   useEffect(() => {
     localStorage.setItem(
-      `INVARIANT_FAVOURITE_POOLS_Eclipse_${currentNetwork}`,
+      `INVARIANT_FAVOURITE_POOLS_Fogo_${currentNetwork}`,
       JSON.stringify([...favouritePools])
     )
   }, [favouritePools])

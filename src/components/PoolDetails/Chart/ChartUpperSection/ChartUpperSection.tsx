@@ -152,9 +152,10 @@ export const ChartUpperSection: React.FC<IProps> = ({
                       </Box>
                     </Box>
                   </TooltipHover>
+
                   <TooltipHover title='Open pool in explorer'>
                     <a
-                      href={`https://eclipsescan.xyz/account/${poolAddress}${networkUrl}`}
+                      href={`https://explorer.fogo.io/address/${poolAddress}${networkUrl}`}
                       target='_blank'
                       rel='noopener noreferrer'
                       onClick={event => {
