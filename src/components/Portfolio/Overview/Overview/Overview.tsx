@@ -42,7 +42,7 @@ export const Overview: React.FC<OverviewProps> = ({ prices }) => {
   const lockedPositionList = useSelector(lockedPositionsWithPoolsData)
   const positionList = [...normalPositionList, ...lockedPositionList]
 
-  const isLg = useMediaQuery(theme.breakpoints.down('lg'))
+  const isLg = useMediaQuery(theme.breakpoints.down('md'))
   const { isAllClaimFeesLoading } = useSelector(list)
   const isLoadingList = useSelector(isLoadingPositionsList)
   const { classes } = useStyles()
@@ -160,7 +160,7 @@ export const Overview: React.FC<OverviewProps> = ({ prices }) => {
         />
       ) : (
         <Box className={classes.legendSection}>
-          <Box sx={{ width: '850px' }}>
+          <Box display='flex' flexShrink={1} justifyContent='flex-end' sx={{ width: '850px' }}>
             {!isDataReady ? (
               <LegendSkeleton />
             ) : (

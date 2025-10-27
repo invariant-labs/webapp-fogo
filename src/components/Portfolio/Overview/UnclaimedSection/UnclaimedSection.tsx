@@ -22,36 +22,35 @@ export const UnclaimedSection: React.FC<UnclaimedSectionProps> = ({
   loading = false
 }) => {
   const total = unclaimedTotal.totalLocked + unclaimedTotal.totalUnlocked
-  const { classes } = useStyles({ isLoading: loading || unclaimedTotal.totalUnlocked === 0 })
-  const isLg = useMediaQuery(theme.breakpoints.down('lg'))
+  const { classes } = useStyles()
+  const isMd = useMediaQuery(theme.breakpoints.down('sm'))
 
   return (
     <Box className={classes.unclaimedSection}>
       <Box className={classes.titleRow}>
         <Box className={classes.container}>
-          <Typography className={classes.unclaimedTitle}>Unclaimed fees (total)</Typography>
-          {!isLg && (
-            <Box ml={4}>
-              <Button
-                scheme='green'
-                height={32}
-                width={105}
-                padding='0 20px'
-                onClick={handleClaimAll}
-                disabled={loading || unclaimedTotal.totalUnlocked === 0}>
-                {loading ? (
-                  <>
-                    <img
-                      src={loadingAnimation}
-                      style={{ height: 25, width: 25, zIndex: 10 }}
-                      alt='loading'
-                    />
-                  </>
-                ) : (
-                  'Claim All'
-                )}
-              </Button>
-            </Box>
+          <Typography className={classes.unclaimedTitle}>Unclaimed fees </Typography>
+          {!isMd && (
+            <Button
+              sx={{ textWrap: 'nowrap' }}
+              scheme='green'
+              height={32}
+              width={105}
+              padding='0 20px'
+              onClick={handleClaimAll}
+              disabled={loading || unclaimedTotal.totalUnlocked === 0}>
+              {loading ? (
+                <>
+                  <img
+                    src={loadingAnimation}
+                    style={{ height: 25, width: 25, zIndex: 10 }}
+                    alt='loading'
+                  />
+                </>
+              ) : (
+                'Claim All'
+              )}
+            </Button>
           )}
         </Box>
 
@@ -63,7 +62,7 @@ export const UnclaimedSection: React.FC<UnclaimedSectionProps> = ({
           </Typography>
         )}
       </Box>
-      {isLg && (
+      {isMd && (
         <Button
           scheme='green'
           height={32}

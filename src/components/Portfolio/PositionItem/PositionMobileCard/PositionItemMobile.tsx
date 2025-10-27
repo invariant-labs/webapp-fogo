@@ -26,6 +26,7 @@ interface IPositionItemMobile extends IPositionItem {
   createNewPosition: () => void
   shouldDisable: boolean
   openPosition: () => void
+  openPoolDetails: () => void
 }
 
 export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
@@ -53,7 +54,8 @@ export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
   handleClaimFee,
   shouldDisable,
   createNewPosition,
-  openPosition
+  openPosition,
+  openPoolDetails
 }) => {
   const { classes, cx } = useMobileStyles()
 
@@ -312,6 +314,7 @@ export const PositionItemMobile: React.FC<IPositionItemMobile> = ({
         inProgress={inProgress}
       />
       <PositionViewActionPopover
+        openPoolDetails={openPoolDetails}
         shouldDisable={shouldDisable}
         anchorEl={anchorEl}
         handleClose={handleClose}
