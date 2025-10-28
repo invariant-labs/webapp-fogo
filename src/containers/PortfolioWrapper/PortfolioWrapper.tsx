@@ -1,4 +1,5 @@
 import {
+  ALLOW_SESSIONS,
   DEFAULT_STRATEGY,
   Intervals,
   NetworkType,
@@ -18,7 +19,7 @@ import {
 } from '@invariant-labs/sdk-fogo/lib/utils'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { actions, LiquidityPools } from '@store/reducers/positions'
-import { actions as walletActions } from '@store/reducers/solanaWallet'
+import { Status, actions as walletActions } from '@store/reducers/solanaWallet'
 import {
   changeLiquidity,
   isLoadingPositionsList,
@@ -39,7 +40,8 @@ import {
   swapTokens,
   balance,
   overviewSwitch,
-  poolTokens
+  poolTokens,
+  status
 } from '@store/selectors/solanaWallet'
 import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
@@ -102,7 +104,12 @@ const PortfolioWrapper = () => {
 
   const [maxToken] = [...processedTokens].sort((a, b) => b.value - a.value)
 
-  const isConnected = isSessionActive()
+  const isConnected = ALLOW_SESSIONS
+    ? isSessionActive()
+    : useSelector(status) === Status.Initialized
+
+  console.log(isConnected, walletAddress.toBase58())
+
   const navigate = useNavigate()
   const dispatch = useDispatch()
 
@@ -815,6 +822,10 @@ const PortfolioWrapper = () => {
       isAddLiquidity={isAddLiquidity}
       setIsAddLiquidity={setIsAddLiquidity}
       openPosition={openPosition}
+      isConnected={isConnected}
+      onConnectWallet={() => {
+        dispatch(walletActions.connect(false))
+      }}
     />
   ) : (
     <Grid className={classes.emptyContainer}>
@@ -827,6 +838,13 @@ const PortfolioWrapper = () => {
         desc='No liquidity positions to show'
         withButton={false}
         connectButton={true}
+        walletConnected={isConnected}
+        onConnectWallet={() => {
+          dispatch(walletActions.connect(false))
+        }}
+        onDisconnectWallet={() => {
+          dispatch(walletActions.disconnect())
+        }}
       />
     </Grid>
   )

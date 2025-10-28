@@ -1,7 +1,7 @@
 import { call, put, takeEvery, take, select, all, spawn, takeLatest } from 'typed-redux-saga'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { actions as poolsActions, ListPoolsResponse, ListType } from '@store/reducers/pools'
-import { createAccount } from './wallet'
+import { createAccount, getWallet } from './wallet'
 import { getConnection, handleRpcError } from './connection'
 import {
   actions,
@@ -25,13 +25,16 @@ import {
   PublicKey,
   ParsedInstruction,
   SendTransactionError,
-  ComputeBudgetProgram,
+  //   ComputeBudgetProgram,
   TransactionMessage,
-  VersionedTransaction
+  VersionedTransaction,
+  sendAndConfirmRawTransaction
 } from '@solana/web3.js'
 import {
+  ALLOW_SESSIONS,
   COMMON_ERROR_MESSAGE,
   ErrorCodeExtractionKeys,
+  PAYMASTER_ADDRESS,
   SIGNING_SNACKBAR_CONFIG,
   TIMEOUT_ERROR_MESSAGE
 } from '@store/consts/static'
@@ -80,8 +83,6 @@ import { TransactionResultType } from '@fogo/sessions-sdk'
 export function* handleSwapAndInitPosition(
   action: PayloadAction<SwapAndCreatePosition>
 ): Generator {
-  const session = getSession()
-  if (!session) throw Error('No session provided')
   const loaderCreatePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
@@ -104,7 +105,11 @@ export function* handleSwapAndInitPosition(
     const allPools = yield* select(poolsArraySortedByFees)
     const ticks = yield* select(plotTicks)
     const session = getSession()
-    if (!session) throw Error('No session provided')
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
 
     const swapPair = new Pair(action.payload.tokenX, action.payload.tokenY, {
@@ -154,9 +159,16 @@ export function* handleSwapAndInitPosition(
         ? true
         : undefined
 
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
     const tx = yield* call(
       [marketProgram, marketProgram.versionedSwapAndCreatePositionTx],
-      session,
+      signers,
       {
         amountX: action.payload.xAmount,
         amountY: action.payload.yAmount,
@@ -165,7 +177,7 @@ export function* handleSwapAndInitPosition(
         userTokenY,
         lowerTick: action.payload.lowerTick,
         upperTick: action.payload.upperTick,
-        owner: session.walletPublicKey,
+        owner: signers.walletPublicKey,
         slippage: action.payload.swapSlippage,
         amount: action.payload.swapAmount,
         xToY: action.payload.xToY,
@@ -197,7 +209,25 @@ export function* handleSwapAndInitPosition(
 
     const xToY = action.payload.xToY
 
-    const txResult = yield* call([session, session.sendTransaction], tx)
+    let txResult
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], tx)
+    } else {
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+
+      const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+        skipPreflight: false
+      })
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
     const { signature: txid } = txResult
 
     // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
@@ -420,10 +450,19 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     const allTokens = yield* select(tokens)
 
     const session = getSession()
+    const wallet = yield* call(getWallet)
 
-    if (!session) {
+    if (!session && ALLOW_SESSIONS) {
       throw Error('No session provided')
     }
+
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
     yield put(
       snackbarsActions.add({
         message: 'Creating position...',
@@ -473,7 +512,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     if (action.payload.initPool) {
       const txs = yield* call(
         [marketProgram, marketProgram.createPoolWithSqrtPriceAndPositionTx],
-        session,
+        signers,
         {
           pair,
           userTokenX,
@@ -481,7 +520,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
           lowerTick: action.payload.lowerTick,
           upperTick: action.payload.upperTick,
           liquidityDelta: action.payload.liquidityDelta,
-          owner: session.walletPublicKey,
+          owner: signers.walletPublicKey,
           slippage: action.payload.slippage,
           knownPrice: action.payload.knownPrice
         },
@@ -498,7 +537,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     } else {
       tx = yield* call(
         [marketProgram, marketProgram.createPositionTx],
-        session,
+        signers,
         {
           pair,
           userTokenX,
@@ -506,7 +545,7 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
           lowerTick: action.payload.lowerTick,
           upperTick: action.payload.upperTick,
           liquidityDelta: action.payload.liquidityDelta,
-          owner: session.walletPublicKey,
+          owner: signers.walletPublicKey,
           slippage: action.payload.slippage,
           knownPrice: action.payload.knownPrice
         },
@@ -532,35 +571,92 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
     }
 
     if (createPoolTx) {
-      const { blockhash, lastValidBlockHeight } = yield* call([
-        connection,
-        connection.getLatestBlockhash
-      ])
-      const messageV0 = new TransactionMessage({
-        payerKey: session.payer,
-        recentBlockhash: blockhash,
-        instructions: createPoolTx.instructions
-      }).compileToV0Message([])
-      const txV = new VersionedTransaction(messageV0)
-      txV.sign(poolSigners)
-      const { signature: txidV } = yield* call(
-        [session, session.adapter.sendTransaction],
-        undefined,
-        txV
-      )
-      yield* call([connection, connection.confirmTransaction], {
-        blockhash,
-        lastValidBlockHeight,
-        signature: txidV
-      })
+      if (ALLOW_SESSIONS) {
+        const { blockhash, lastValidBlockHeight } = yield* call([
+          connection,
+          connection.getLatestBlockhash
+        ])
+        const messageV0 = new TransactionMessage({
+          payerKey: signers.payer,
+          recentBlockhash: blockhash,
+          instructions: createPoolTx.instructions
+        }).compileToV0Message([])
+        const txV = new VersionedTransaction(messageV0)
+        txV.sign(poolSigners)
+
+        const { signature: txidV } = yield* call(
+          [session, session!.adapter.sendTransaction],
+          undefined,
+          txV
+        )
+        yield* call([connection, connection.confirmTransaction], {
+          blockhash,
+          lastValidBlockHeight,
+          signature: txidV
+        })
+      } else {
+        const { blockhash, lastValidBlockHeight } = yield* call([
+          connection,
+          connection.getLatestBlockhash
+        ])
+        createPoolTx.recentBlockhash = blockhash
+        createPoolTx.lastValidBlockHeight = lastValidBlockHeight
+
+        yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+        if (poolSigners.length) {
+          createPoolTx.partialSign(...poolSigners)
+        }
+        const signedTx = (yield* call(
+          [wallet, wallet.signTransaction],
+          createPoolTx
+        )) as Transaction
+
+        closeSnackbar(loaderSigningTx)
+
+        yield put(snackbarsActions.remove(loaderSigningTx))
+
+        yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+          skipPreflight: false
+        })
+      }
     }
 
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
+    console.log(tx.instructions)
+    for (const acc of tx.instructions[0].keys) {
+      console.log(acc.pubkey.toBase58(), acc.isWritable, acc.isSigner)
+    }
 
-    const txResult = yield* call([session, session.sendTransaction], tx.instructions)
+    let txResult
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], tx.instructions)
+    } else {
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+      const { blockhash, lastValidBlockHeight } = yield* call([
+        connection,
+        connection.getLatestBlockhash
+      ])
+      tx.recentBlockhash = blockhash
+      tx.lastValidBlockHeight = lastValidBlockHeight
+      tx.feePayer = wallet.publicKey
+      const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+        skipPreflight: false
+      })
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
+
+    // const txResult = yield* call([session, session.sendTransaction], tx.instructions)
 
     const { signature: txid, type: resultType } = txResult
 
@@ -787,40 +883,32 @@ export function* handleGetPositionsList() {
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const session = getSession()
-    if (!session) throw Error('No session provided')
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
     const lockerProgram = yield* call(getLockerProgram, networkType, rpc, {} as IWallet)
+    const walletPubkey = ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey
 
-    if (!session.walletPublicKey) {
+    if (!walletPubkey) {
       yield* put(actions.setLockedPositionsList([]))
       yield* put(actions.setPositionsList([[], { head: 0, bump: 0 }, false]))
       return
     }
 
-    const { head, bump } = yield* call(
-      [marketProgram, marketProgram.getPositionList],
-      session.walletPublicKey
-    )
+    const { head, bump } = yield* call([marketProgram, marketProgram.getPositionList], walletPubkey)
 
     const { list, addresses } = yield* all({
-      list: call(
-        [marketProgram, marketProgram.getPositionsFromRange],
-        session.walletPublicKey,
-        0,
-        head - 1
-      ),
-      addresses: call(
-        getPositionsAddressesFromRange,
-        marketProgram,
-        session.walletPublicKey,
-        0,
-        head - 1
-      )
+      list: call([marketProgram, marketProgram.getPositionsFromRange], walletPubkey, 0, head - 1),
+      addresses: call(getPositionsAddressesFromRange, marketProgram, walletPubkey, 0, head - 1)
     })
 
     const pools = new Set(list.map(pos => pos.pool.toString()))
 
-    const [lockerAuth] = lockerProgram.getUserLocksAddress(session.walletPublicKey)
+    const [lockerAuth] = lockerProgram.getUserLocksAddress(walletPubkey)
 
     let lockedPositions: (Position & { address: PublicKey })[] = []
 
@@ -971,9 +1059,15 @@ export function* handleGetPositionsList() {
 export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked: boolean }>) {
   const loaderClaimFee = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
-  const session = getSession()
-  if (!session) throw Error('No session provided')
+
   try {
+    const session = getSession()
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+
     const allTokens = yield* select(tokens)
     const data = action.payload.isLocked ? lockedPositionsWithPoolsData : positionsWithPoolsData
     const allPositionsData = yield* select(data)
@@ -993,7 +1087,7 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
-    const lockerProgram = yield* call(getLockerProgram, networkType, rpc, {} as IWallet)
+    // const lockerProgram = yield* call(getLockerProgram, networkType, rpc, {} as IWallet)
 
     const tokensAccounts = yield* select(accounts)
 
@@ -1018,30 +1112,37 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
       fee: poolForIndex.fee,
       tickSpacing: poolForIndex.tickSpacing
     })
-    if (action.payload.isLocked) {
-      tx.add(
-        ComputeBudgetProgram.setComputeUnitLimit({
-          units: 230000
-        })
-      )
-      const ix = yield* call([lockerProgram, lockerProgram.claimFeeIx], session, {
-        authorityListIndex: action.payload.index,
-        market: marketProgram as any,
-        pair,
-        userTokenX,
-        userTokenY
-      })
 
-      tx.add(...ix)
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
+    if (action.payload.isLocked) {
+      //   tx.add(
+      //     ComputeBudgetProgram.setComputeUnitLimit({
+      //       units: 230000
+      //     })
+      //   )
+      //   const ix = yield* call([lockerProgram, lockerProgram.claimFeeIx], signers, {
+      //     authorityListIndex: action.payload.index,
+      //     market: marketProgram as any,
+      //     pair,
+      //     userTokenX,
+      //     userTokenY
+      //   })
+      //   tx.add(...ix)
     } else {
       const ix = yield* call(
         [marketProgram, marketProgram.claimFeeIx],
-        session,
+        signers,
         {
           pair,
           userTokenX,
           userTokenY,
-          owner: session.walletPublicKey,
+          owner: signers.walletPublicKey,
           index: action.payload.index
         },
         {
@@ -1053,8 +1154,31 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
       )
       tx.add(ix)
     }
+    let txResult
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], tx.instructions)
+    } else {
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+      const { blockhash, lastValidBlockHeight } = yield* call([
+        connection,
+        connection.getLatestBlockhash
+      ])
+      tx.recentBlockhash = blockhash
+      tx.lastValidBlockHeight = lastValidBlockHeight
+      tx.feePayer = wallet.publicKey
+      const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
-    const txResult = yield* call([session, session.sendTransaction], tx.instructions)
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+        skipPreflight: false
+      })
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
 
     const { signature: txid } = txResult
     const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
@@ -1175,9 +1299,14 @@ export function* handleClaimFee(action: PayloadAction<{ index: number; isLocked:
 export function* handleClaimAllFees() {
   const loaderClaimAllFees = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
-  const session = getSession()
-  if (!session) throw Error('No session provided')
+
   try {
+    const session = getSession()
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
     const connection = yield* call(getConnection)
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
@@ -1215,6 +1344,14 @@ export function* handleClaimAllFees() {
         key: loaderClaimAllFees
       })
     )
+
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
     for (const position of filteredPositions) {
       const pool = positionsData[position.positionIndex].poolData
       if (!tokensAccounts[pool.tokenX.toString()]) {
@@ -1249,7 +1386,7 @@ export function* handleClaimAllFees() {
             (yield* call(getTokenProgramId, connection, tokenX))
           const ataX = getAssociatedTokenAddressSync(
             tokenX,
-            session.walletPublicKey,
+            signers.walletPublicKey,
             false,
             programId
           )
@@ -1266,7 +1403,7 @@ export function* handleClaimAllFees() {
             (yield* call(getTokenProgramId, connection, tokenY))
           const ataY = getAssociatedTokenAddressSync(
             tokenY,
-            session.walletPublicKey,
+            signers.walletPublicKey,
             false,
             programId
           )
@@ -1275,7 +1412,7 @@ export function* handleClaimAllFees() {
       }
     }
 
-    const txs = yield* call([marketProgram, marketProgram.claimAllFeesTxs], session, {
+    const txs = yield* call([marketProgram, marketProgram.claimAllFeesTxs], signers, {
       positions: formattedPositions
     } as ClaimAllFee)
     yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
@@ -1285,8 +1422,31 @@ export function* handleClaimAllFees() {
         connection,
         connection.getLatestBlockhash
       ])
+      let txResult
+      if (ALLOW_SESSIONS) {
+        txResult = yield* call([session, session!.sendTransaction], tx.instructions)
+      } else {
+        yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+        const { blockhash, lastValidBlockHeight } = yield* call([
+          connection,
+          connection.getLatestBlockhash
+        ])
+        tx.recentBlockhash = blockhash
+        tx.lastValidBlockHeight = lastValidBlockHeight
+        tx.feePayer = wallet.publicKey
+        const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
-      const txResult = yield* call([session, session.sendTransaction], tx.instructions)
+        closeSnackbar(loaderSigningTx)
+        yield put(snackbarsActions.remove(loaderSigningTx))
+
+        const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+          skipPreflight: false
+        })
+        txResult = {
+          signature: txid,
+          type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+        }
+      }
       const { signature: txid } = txResult
 
       yield* call([connection, connection.confirmTransaction], {
@@ -1441,13 +1601,24 @@ export function* handleClaimAllFees() {
 }
 
 export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
-  const session = getSession()
-  if (!session) throw Error('No session provided')
-
   const loaderClosePosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
   try {
+    const session = getSession()
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
     const allTokens = yield* select(tokens)
     const allPositionsData = yield* select(positionsWithPoolsData)
     const poolForIndex = allPositionsData[action.payload.positionIndex].poolData
@@ -1493,10 +1664,10 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
 
     const ix = yield* call(
       [marketProgram, marketProgram.removePositionIx],
-      session,
+      signers,
       {
         pair,
-        owner: session.walletPublicKey,
+        owner: signers.walletPublicKey,
         index: action.payload.positionIndex,
         userTokenX,
         userTokenY
@@ -1516,7 +1687,33 @@ export function* handleClosePosition(action: PayloadAction<ClosePositionData>) {
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
 
-    const txResult = yield* call([session, session.sendTransaction], [ix])
+    let txResult
+
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], [ix])
+    } else {
+      const tx = new Transaction().add(ix)
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+      const { blockhash, lastValidBlockHeight } = yield* call([
+        connection,
+        connection.getLatestBlockhash
+      ])
+      tx.recentBlockhash = blockhash
+      tx.lastValidBlockHeight = lastValidBlockHeight
+      tx.feePayer = wallet.publicKey
+      const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+        skipPreflight: false
+      })
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
     const { signature: txid } = txResult
 
     // const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
@@ -1641,9 +1838,22 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
   const position = positionsData[data.positionIndex]
   const loaderAddLiquidity = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
-  const session = getSession()
-  if (!session) throw Error('No session provided')
+
   try {
+    const session = getSession()
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
     yield put(
       snackbarsActions.add({
         message: 'Adding liquidity...',
@@ -1682,7 +1892,7 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
 
     const changeLiquidityIx = yield* call(
       [marketProgram, marketProgram.changeLiquidityIx],
-      session,
+      signers,
       {
         pair,
         knownPrice: position.poolData.sqrtPrice,
@@ -1692,13 +1902,38 @@ export function* handleAddLiquidity(action: PayloadAction<ChangeLiquidityData>):
         upperTickIndex: position.upperTick.index,
         liquidityDelta: data.liquidity,
         addLiquidity: true,
-        owner: session.walletPublicKey,
+        owner: signers.walletPublicKey,
         accountX: userTokenX,
         accountY: userTokenY
       }
     )
 
-    const txResult = yield* call([session, session.sendTransaction], [changeLiquidityIx])
+    let txResult
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], [changeLiquidityIx])
+    } else {
+      const tx = new Transaction().add(changeLiquidityIx)
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+      const { blockhash, lastValidBlockHeight } = yield* call([
+        connection,
+        connection.getLatestBlockhash
+      ])
+      tx.recentBlockhash = blockhash
+      tx.lastValidBlockHeight = lastValidBlockHeight
+      tx.feePayer = wallet.publicKey
+      const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+        skipPreflight: false
+      })
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
 
     const { signature: txId, type: resultType } = txResult
     const txDetails = yield* call([connection, connection.getParsedTransaction], txId, {
@@ -1853,8 +2088,7 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
   const data = action.payload
   const positionsData = yield* select(positionsWithPoolsData)
   const position = positionsData[data.positionIndex]
-  const session = getSession()
-  if (!session) throw Error('No session provided')
+
   if (data.isClosePosition) {
     return yield* call(handleClosePosition, {
       payload: {
@@ -1868,6 +2102,20 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
   const loaderRemoveLiquidity = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
   try {
+    const session = getSession()
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
     yield put(
       snackbarsActions.add({
         message: 'Removing liquidity...',
@@ -1906,7 +2154,7 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
 
     const changeLiquidityIx = yield* call(
       [marketProgram, marketProgram.changeLiquidityIx],
-      session,
+      signers,
       {
         pair,
         knownPrice: position.poolData.sqrtPrice,
@@ -1916,13 +2164,38 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
         upperTickIndex: position.upperTick.index,
         liquidityDelta: data.liquidity,
         addLiquidity: false,
-        owner: session.walletPublicKey,
+        owner: signers.walletPublicKey,
         accountX: userTokenX,
         accountY: userTokenY
       }
     )
 
-    const txResult = yield* call([session, session.sendTransaction], [changeLiquidityIx])
+    let txResult
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], [changeLiquidityIx])
+    } else {
+      const tx = new Transaction().add(changeLiquidityIx)
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+      const { blockhash, lastValidBlockHeight } = yield* call([
+        connection,
+        connection.getLatestBlockhash
+      ])
+      tx.recentBlockhash = blockhash
+      tx.lastValidBlockHeight = lastValidBlockHeight
+      tx.feePayer = wallet.publicKey
+      const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+        skipPreflight: false
+      })
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
 
     const { signature: txId, type: resultType } = txResult
     const txDetails = yield* call([connection, connection.getParsedTransaction], txId, {
@@ -2068,12 +2341,24 @@ export function* handleRemoveLiquidity(action: PayloadAction<ChangeLiquidityData
 export function* handleSwapAndAddLiquidity(
   action: PayloadAction<SwapAndAddLiquidityData>
 ): Generator {
-  const session = getSession()
-  if (!session) throw Error('No session provided')
   const loaderAddPosition = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
 
   try {
+    const session = getSession()
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
     const allTokens = yield* select(tokens)
 
     yield put(
@@ -2128,14 +2413,14 @@ export function* handleSwapAndAddLiquidity(
 
     const tx = yield* call(
       [marketProgram, marketProgram.versionedSwapAndIncreaseLiquidityTx],
-      session,
+      signers,
       {
         amountX: action.payload.xAmount,
         amountY: action.payload.yAmount,
         swapPair,
         userTokenX,
         userTokenY,
-        owner: session.walletPublicKey,
+        owner: signers.walletPublicKey,
         slippage: action.payload.swapSlippage,
         amount: action.payload.swapAmount,
         xToY: action.payload.xToY,
@@ -2175,8 +2460,25 @@ export function* handleSwapAndAddLiquidity(
     // const txid = yield* call([connection, connection.sendTransaction], signedTx)
 
     // yield* call([connection, connection.confirmTransaction], txid)
+    let txResult
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], tx)
+    } else {
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    const txResult = yield* call([session, session.sendTransaction], tx)
+      const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+        skipPreflight: false
+      })
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
     const { signature: txid } = txResult
 
     const txDetails = yield* call([connection, connection.getParsedTransaction], txid, {
@@ -2358,15 +2660,21 @@ export function* handleGetSinglePosition(
     const networkType = yield* select(network)
     const rpc = yield* select(rpcAddress)
     const session = getSession()
-    if (!session) throw Error('No session provided')
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+    const walletPubkey = ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey
+
     const marketProgram = yield* call(getMarketProgram, networkType, rpc, {} as IWallet)
     const lockerProgram = yield* call(getLockerProgram, networkType, rpc, {} as IWallet)
-    const [lockerAuth] = lockerProgram.getUserLocksAddress(session.walletPublicKey)
+    const [lockerAuth] = lockerProgram.getUserLocksAddress(walletPubkey)
     const poolsList = yield* select(poolsArraySortedByFees)
 
     const position = yield* call(
       [marketProgram, marketProgram.getPosition],
-      action.payload.isLocked ? lockerAuth : session.walletPublicKey,
+      action.payload.isLocked ? lockerAuth : walletPubkey,
       action.payload.index
     )
 

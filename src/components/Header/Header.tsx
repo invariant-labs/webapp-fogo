@@ -46,8 +46,14 @@ export const Header: React.FC<IHeader> = ({
   typeOfNetwork,
   rpc,
   onFaucet,
-  onChainSelect
+  onChainSelect,
+  onConnectWallet,
+  onCopyAddress,
+  onDisconnectWallet,
+  walletConnected,
+  address
 }) => {
+  console.log('Header render, walletConnected:', walletConnected, address)
   const { classes } = useStyles()
   const navigate = useNavigate()
   const dispatch = useDispatch()
@@ -205,8 +211,26 @@ export const Header: React.FC<IHeader> = ({
           <ChangeWalletButton
             address={hookSession?.walletPublicKey?.toString()}
             isSmDown={isSmDown}
-            walletConnected={session.type === 7}
-            name=''
+            walletConnected={walletConnected}
+            onConnect={onConnectWallet}
+            onDisconnect={onDisconnectWallet}
+            // startIcon={
+            //   walletConnected ? <DotIcon className={classes.connectedWalletIcon} /> : undefined
+            // }
+            onCopyAddress={onCopyAddress}
+            name={
+              walletConnected
+                ? `${address.toString().slice(0, 4)}...${
+                    !isSmDown
+                      ? address
+                          .toString()
+                          .slice(address.toString().length - 4, address.toString().length)
+                      : ''
+                  }`
+                : isSmDown
+                  ? 'Connect'
+                  : 'Connect wallet'
+            }
             enableModal
           />
         </Grid>

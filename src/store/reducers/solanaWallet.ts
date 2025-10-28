@@ -4,6 +4,12 @@ import { PublicKey } from '@solana/web3.js'
 import { PayloadType } from '@store/consts/types'
 import { DEFAULT_PUBLICKEY, OverviewSwitcher } from '@store/consts/static'
 
+export enum Status {
+  Uninitialized = 'uninitialized',
+  Init = 'init',
+  Error = 'error',
+  Initialized = 'initalized'
+}
 export interface ITokenAccount {
   programId: PublicKey
   balance: BN
@@ -26,6 +32,7 @@ export interface ITransaction {
   error?: string
 }
 export interface ISolanaWallet {
+  status: Status
   address: PublicKey
   balance: BN
   accounts: { [key in string]: ITokenAccount }
@@ -37,6 +44,7 @@ export interface ISolanaWallet {
 }
 
 export const defaultState: ISolanaWallet = {
+  status: Status.Uninitialized,
   address: DEFAULT_PUBLICKEY,
   balance: new BN(0),
   accounts: {},
@@ -60,6 +68,10 @@ const solanaWalletSlice = createSlice({
     },
     setAddress(state, action: PayloadAction<PublicKey>) {
       state.address = action.payload
+      return state
+    },
+    setStatus(state, action: PayloadAction<Status>) {
+      state.status = action.payload
       return state
     },
     setBalance(state, action: PayloadAction<BN>) {

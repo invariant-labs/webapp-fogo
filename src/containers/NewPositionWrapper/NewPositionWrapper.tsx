@@ -1,6 +1,7 @@
 import { ProgressState } from '@common/AnimatedButton/AnimatedButton'
 import NewPosition from '@components/NewPosition/NewPosition'
 import {
+  ALLOW_SESSIONS,
   ALL_FEE_TIERS_DATA,
   DEFAULT_AUTOSWAP_MAX_PRICE_IMPACT,
   DEFAULT_AUTOSWAP_MAX_SLIPPAGE_TOLERANCE_CREATE_POSITION,
@@ -29,7 +30,7 @@ import { actions as poolsActions } from '@store/reducers/pools'
 import { actions, actions as positionsActions } from '@store/reducers/positions'
 import { actions as connectionActions } from '@store/reducers/solanaConnection'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
-import { actions as walletActions } from '@store/reducers/solanaWallet'
+import { Status, actions as walletActions } from '@store/reducers/solanaWallet'
 import { network, timeoutError } from '@store/selectors/solanaConnection'
 import poolsSelectors, {
   autoSwapTicksAndTickMap,
@@ -39,7 +40,7 @@ import poolsSelectors, {
   poolsArraySortedByFees
 } from '@store/selectors/pools'
 import { initPosition, plotTicks, shouldNotUpdateRange } from '@store/selectors/positions'
-import { balanceLoading, balance, poolTokens } from '@store/selectors/solanaWallet'
+import { balanceLoading, balance, poolTokens, status } from '@store/selectors/solanaWallet'
 import { VariantType } from 'notistack'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
@@ -54,6 +55,7 @@ import { calculatePriceSqrt } from '@invariant-labs/sdk-fogo/src'
 import { actions as statsActions } from '@store/reducers/stats'
 import { isLoading, poolsStatsWithTokensDetails } from '@store/selectors/stats'
 import { address } from '@store/selectors/navigation'
+import { isSessionActive } from '@store/hooks/session'
 
 export interface IProps {
   initialTokenFrom: string
@@ -122,6 +124,10 @@ export const NewPositionWrapper: React.FC<IProps> = ({
   const initialIsConcentrationOpening =
     localStorage.getItem('OPENING_METHOD') === 'concentration' ||
     localStorage.getItem('OPENING_METHOD') === null
+
+  const isConnected = ALLOW_SESSIONS
+    ? isSessionActive()
+    : useSelector(status) === Status.Initialized
 
   const [initialOpeningPositionMethod, setInitialOpeningPositionMethod] =
     useState<PositionOpeningMethod>(
@@ -1068,6 +1074,13 @@ export const NewPositionWrapper: React.FC<IProps> = ({
       suggestedPrice={suggestedPrice}
       handleBack={handleBack}
       oraclePrice={oraclePrice}
+      isConnected={isConnected}
+      onConnectWallet={() => {
+        dispatch(walletActions.connect(false))
+      }}
+      onDisconnectWallet={() => {
+        dispatch(walletActions.disconnect())
+      }}
     />
   )
 }

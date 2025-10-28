@@ -14,6 +14,8 @@ export interface ITokenCreator {
   inProgress: boolean
   fogoBalance: BN
   currentNetwork: NetworkType
+  isConnected: boolean
+  onConnectWallet: () => void
 }
 
 export const TokenCreator: React.FC<ITokenCreator> = ({
@@ -22,7 +24,9 @@ export const TokenCreator: React.FC<ITokenCreator> = ({
   success,
   inProgress,
   fogoBalance,
-  currentNetwork
+  currentNetwork,
+  isConnected,
+  onConnectWallet
 }) => {
   const { classes } = useStyles()
 
@@ -59,6 +63,10 @@ export const TokenCreator: React.FC<ITokenCreator> = ({
                 inProgress={inProgress}
                 fogoBalance={fogoBalance}
                 currentNetwork={currentNetwork}
+                isConnected={isConnected}
+                onConnectWallet={() => {
+                  onConnectWallet()
+                }}
               />
               <TokenMetadataInputs formMethods={formMethods} />
             </Box>

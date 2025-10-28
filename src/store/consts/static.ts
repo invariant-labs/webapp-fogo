@@ -2,10 +2,29 @@ import { FEE_TIERS, toDecimal } from '@invariant-labs/sdk-fogo/lib/utils'
 import { BN } from '@coral-xyz/anchor'
 import { PublicKey } from '@solana/web3.js'
 import { ISnackbar } from '@store/reducers/snackbars'
-import { Chain, FormatNumberThreshold, PrefixConfig, Token, TokenPriceData } from './types'
+import {
+  Chain,
+  FormatNumberThreshold,
+  PrefixConfig,
+  Token,
+  TokenPriceData,
+  WalletType
+} from './types'
 import { cat1Icon, cat2Icon, dog1Icon, dog2Icon } from '@static/icons'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import fogoTokenIcon from '@static/fogoTokenIcon.jpg'
+
+export const ALLOW_SESSIONS = false
+export const PAYMASTER_ADDRESS = new PublicKey('B7g4WMqgNrn39sgKef23GKtqpWD7JvNj3waLx3RmTco2')
+export const FOGO_TESTNET_GENESIS_HASH = '9GGSFo95raqzZxWqKM5tGYvJp5iv4Dm565S4r8h5PEu9'
+
+export const walletNames = {
+  [WalletType.NIGHTLY_WALLET]: 'Nightly',
+  [WalletType.BACKPACK]: 'Backpack',
+  [WalletType.SALMON]: 'Salmon',
+  [WalletType.OKX]: 'OKX',
+  [WalletType.NIGHTLY]: 'Wallet Selector'
+}
 
 export enum NetworkType {
   Local = 'Local',
