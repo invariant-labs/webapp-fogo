@@ -14,7 +14,7 @@ import { cat1Icon, cat2Icon, dog1Icon, dog2Icon } from '@static/icons'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import fogoTokenIcon from '@static/fogoTokenIcon.jpg'
 
-export const ALLOW_SESSIONS = false
+export const ALLOW_SESSIONS = true
 export const PAYMASTER_ADDRESS = new PublicKey('B7g4WMqgNrn39sgKef23GKtqpWD7JvNj3waLx3RmTco2')
 export const FOGO_TESTNET_GENESIS_HASH = '9GGSFo95raqzZxWqKM5tGYvJp5iv4Dm565S4r8h5PEu9'
 
