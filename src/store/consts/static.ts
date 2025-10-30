@@ -181,7 +181,7 @@ export const PRICE_DECIMAL = 24
 
 export enum RPC {
   TEST = 'https://testnet.fogo.io',
-  MAIN = ''
+  MAIN = 'https://mainnet.fogo.io'
 }
 
 const DEFAULT_PUBLICKEY = new PublicKey(0)

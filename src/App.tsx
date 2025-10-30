@@ -5,12 +5,13 @@ import { theme } from '@static/theme'
 import { ThemeProvider } from '@mui/material/styles'
 import Notifier from '@containers/Notifier/Notifier'
 import { AppRouter } from '@pages/AppRouter'
-import { FogoSessionProvider } from '@fogo/sessions-sdk-react'
-import { PublicKey } from '@solana/web3.js'
+import { FogoSessionProvider, Network } from '@fogo/sessions-sdk-react'
 import { NATIVE_MINT } from '@solana/spl-token'
-import { ETH_TEST, SOL_TEST, USDC_TEST } from '@store/consts/static'
+import { ETH_TEST, NetworkType, SOL_TEST, USDC_TEST } from '@store/consts/static'
 
 function App() {
+  const lsNetwork = localStorage.getItem('INVARIANT_NETWORK_FOGO')
+
   const isPreviewHost =
     typeof window !== 'undefined' && /\.vercel\.app$/.test(window.location.hostname)
 
@@ -27,8 +28,11 @@ function App() {
               onOpenSessionLimitsReached={() => {
                 console.log('Session limits reached')
               }}
-              sponsor={new PublicKey('B7g4WMqgNrn39sgKef23GKtqpWD7JvNj3waLx3RmTco2')}
-              endpoint='https://testnet.fogo.io/'
+              network={
+                (lsNetwork as keyof typeof NetworkType) === NetworkType.Mainnet
+                  ? Network.Mainnet
+                  : Network.Testnet
+              }
               domain={shouldOverrideDomain ? 'https://fogo.invariant.app' : undefined}
               tokens={[NATIVE_MINT, USDC_TEST.address, SOL_TEST.address, ETH_TEST.address]}
               enableUnlimited>
