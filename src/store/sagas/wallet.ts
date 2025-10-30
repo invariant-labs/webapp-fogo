@@ -14,6 +14,7 @@ import {
   airdropTokens,
   ALLOW_SESSIONS,
   NetworkType,
+  PAYMASTER_ADDRESS,
   WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
 import { Token as StoreToken } from '@store/consts/types'
@@ -434,25 +435,53 @@ export function* transferAirdropFOGO(): Generator {
 
 export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey> {
   const session = getSession()
-  if (!session) throw Error('No session provided')
+  const wallet = yield* call(getWallet)
+
+  if (!session && ALLOW_SESSIONS) {
+    throw Error('No session provided')
+  }
+
+  const signers = {
+    sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+    payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+    walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+    paymaster: PAYMASTER_ADDRESS
+  }
 
   const associatedAccount = yield* call(
     getAssociatedTokenAddress,
     tokenAddress,
-    session.walletPublicKey,
+    signers.walletPublicKey,
     false,
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
   )
   const ix = createAssociatedTokenAccountIdempotentInstruction(
-    session.payer,
+    signers.payer,
     associatedAccount,
-    session.walletPublicKey,
+    signers.walletPublicKey,
     tokenAddress,
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
   )
-  yield* call([session, session.sendTransaction], [ix])
+  if (ALLOW_SESSIONS) {
+    yield* call([session, session!.sendTransaction], [ix])
+  } else {
+    const tx = new Transaction().add(ix)
+    const connection = yield* call(getConnection)
+    const { blockhash, lastValidBlockHeight } = yield* call([
+      connection,
+      connection.getLatestBlockhash
+    ])
+    tx.recentBlockhash = blockhash
+    tx.lastValidBlockHeight = lastValidBlockHeight
+    tx.feePayer = wallet.publicKey
+    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+    yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+      skipPreflight: false
+    })
+  }
   const token = yield* call(getTokenDetails, tokenAddress.toString())
   yield* put(
     actions.addTokenAccount({
@@ -483,7 +512,19 @@ export function* createAccount(tokenAddress: PublicKey): SagaGenerator<PublicKey
 
 export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerator<PublicKey[]> {
   const session = getSession()
-  if (!session) throw Error('No session provided')
+  const wallet = yield* call(getWallet)
+
+  if (!session && ALLOW_SESSIONS) {
+    throw Error('No session provided')
+  }
+
+  const signers = {
+    sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+    payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+    walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+    paymaster: PAYMASTER_ADDRESS
+  }
+
   const connection = yield* call(getConnection)
   const ixs: TransactionInstruction[] = []
   const associatedAccs: PublicKey[] = []
@@ -493,23 +534,41 @@ export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerato
     const associatedAccount = yield* call(
       getAssociatedTokenAddress,
       address,
-      session.walletPublicKey,
+      signers.walletPublicKey,
       false,
       programId,
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
     associatedAccs.push(associatedAccount)
     const ix = createAssociatedTokenAccountIdempotentInstruction(
-      session.payer,
+      signers.payer,
       associatedAccount,
-      session.walletPublicKey,
+      signers.walletPublicKey,
       address,
       programId,
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
     ixs.push(ix)
   }
-  yield* call([session, session.sendTransaction], ixs)
+
+  if (ALLOW_SESSIONS) {
+    yield* call([session, session!.sendTransaction], ixs)
+  } else {
+    const tx = new Transaction().add(...ixs)
+    const connection = yield* call(getConnection)
+    const { blockhash, lastValidBlockHeight } = yield* call([
+      connection,
+      connection.getLatestBlockhash
+    ])
+    tx.recentBlockhash = blockhash
+    tx.lastValidBlockHeight = lastValidBlockHeight
+    tx.feePayer = wallet.publicKey
+    const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+    yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+      skipPreflight: false
+    })
+  }
 
   const allTokens = yield* select(tokens)
   const unknownTokens: Record<string, StoreToken> = {}
