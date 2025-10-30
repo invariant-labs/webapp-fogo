@@ -976,7 +976,7 @@ export const NewPosition: React.FC<INewPosition> = ({
                 <TooltipHover title='Open pool in explorer'>
                   <Grid width={'12px'} height={'24px'}>
                     <a
-                      href={`https://explorer.fogo.io/account/${poolAddress}${networkUrl}`}
+                      href={`https://fogoscan.com/account/${poolAddress}${networkUrl}`}
                       target='_blank'
                       rel='noopener noreferrer'
                       onClick={event => {

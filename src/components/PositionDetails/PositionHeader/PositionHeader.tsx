@@ -148,7 +148,7 @@ export const PositionHeader = ({
       />
       <TooltipHover title='Open pool in explorer'>
         <a
-          href={`https://explorer.fogo.io/address/${poolAddress.toString()}${networkUrl}`}
+          href={`https://fogoscan.com/address/${poolAddress.toString()}${networkUrl}`}
           target='_blank'
           rel='noopener noreferrer'>
           <img className={classes.explorerLink} src={newTabIcon} alt='Explorer link' />
