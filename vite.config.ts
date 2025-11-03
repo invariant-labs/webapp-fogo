@@ -95,7 +95,7 @@ export default defineConfig({
             'remeda'
           ],
 
-          utils: ['axios', 'html2canvas']
+          utils: ['axios']
         }
       }
     }
