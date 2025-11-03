@@ -52,12 +52,17 @@ export default defineConfig({
 
   build: {
     target: 'es2020',
-    // sourcemap: false,
+    sourcemap: false,
     minify: 'esbuild',
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 4000,
+    cssCodeSplit: true,
 
     rollupOptions: {
+      treeshake: {
+        preset: 'smallest',
+        moduleSideEffects: false
+      },
       external: ['fs/promises', 'path'],
 
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
@@ -95,7 +100,7 @@ export default defineConfig({
             'remeda'
           ],
 
-          utils: ['axios', 'html2canvas']
+          utils: ['axios']
         }
       }
     }
