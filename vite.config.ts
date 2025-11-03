@@ -59,10 +59,6 @@ export default defineConfig({
     cssCodeSplit: true,
 
     rollupOptions: {
-      treeshake: {
-        preset: 'smallest',
-        moduleSideEffects: false
-      },
       external: ['fs/promises', 'path'],
 
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
