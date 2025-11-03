@@ -165,7 +165,7 @@ const TokenListItem: React.FC<IProps> = ({
                   className={classes.actionButton}
                   onClick={() =>
                     window.open(
-                      `https://explorer.fogo.io/address/${address}${networkUrl}`,
+                      `https://fogoscan.com/address/${address}${networkUrl}`,
                       '_blank',
                       'noopener,noreferrer'
                     )

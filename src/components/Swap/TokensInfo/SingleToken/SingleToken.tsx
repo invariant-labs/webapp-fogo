@@ -84,7 +84,7 @@ const SingleToken: React.FC<IProps> = ({ token, network, tokenPrice, copyTokenAd
             {token && (
               <TooltipHover title='Token details'>
                 <a
-                  href={`https://explorer.fogo.io/address/${token.assetAddress.toString()}${networkUrl}`}
+                  href={`https://fogoscan.com/address/${token.assetAddress.toString()}${networkUrl}`}
                   target='_blank'
                   rel='noopener noreferrer'
                   onClick={event => {

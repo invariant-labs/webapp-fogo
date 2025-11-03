@@ -260,7 +260,7 @@ const PoolListItem: React.FC<IProps> = ({
         className={classes.actionButton}
         onClick={() => {
           window.open(
-            `https://explorer.fogo.io/address/${poolAddress}${networkUrl}`,
+            `https://fogoscan.com/address/${poolAddress}${networkUrl}`,
             '_blank',
             'noopener,noreferrer'
           )
@@ -448,7 +448,7 @@ const PoolListItem: React.FC<IProps> = ({
                   className={classes.actionButton}
                   onClick={() =>
                     window.open(
-                      `https://explorer.fogo.io/address/${poolAddress}${networkUrl}`,
+                      `https://fogoscan.com/address/${poolAddress}${networkUrl}`,
                       '_blank',
                       'noopener,noreferrer'
                     )

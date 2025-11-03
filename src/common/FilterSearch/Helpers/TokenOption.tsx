@@ -38,7 +38,7 @@ export const TokenOption: React.FC<{
             <Box className={classes.tokenAddress}>
               <a
                 className={classes.addressLink}
-                href={`https://explorer.fogo.io/address/${option.address.toString()}${networkUrl}`}
+                href={`https://fogoscan.com/address/${option.address.toString()}${networkUrl}`}
                 target='_blank'
                 rel='noopener noreferrer'
                 onClick={event => event.stopPropagation()}>
