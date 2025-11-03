@@ -4,19 +4,25 @@ import { actions as swapActions } from '@store/reducers/swap'
 import { swap } from '@store/selectors/swap'
 import { poolsArraySortedByFees, tickMaps, tokens } from '@store/selectors/pools'
 import { accounts } from '@store/selectors/solanaWallet'
-import { createAccount } from './wallet'
+import { createAccount, getWallet } from './wallet'
 import { computeUnitsInstruction, IWallet, Pair, routingEssentials } from '@invariant-labs/sdk-fogo'
 import { getConnection, handleRpcError } from './connection'
 import {
   PublicKey,
+  sendAndConfirmRawTransaction,
   SendTransactionError,
-  TransactionExpiredTimeoutError
+  Transaction,
+  TransactionExpiredTimeoutError,
+  VersionedTransaction
   // VersionedTransaction
 } from '@solana/web3.js'
 import {
+  ALLOW_SESSIONS,
   COMMON_ERROR_MESSAGE,
   ErrorCodeExtractionKeys,
   MAX_CROSSES_IN_SINGLE_TX,
+  PAYMASTER_ADDRESS,
+  SIGNING_SNACKBAR_CONFIG,
   TIMEOUT_ERROR_MESSAGE,
   WRAPPED_FOGO_ADDRESS
 } from '@store/consts/static'
@@ -54,9 +60,22 @@ export function* handleTwoHopSwap(): Generator {
   const loaderSwappingTokens = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
   const tickmaps = yield* select(tickMaps)
-  const session = getSession()
-  if (!session) throw Error('No session provided')
+
   try {
+    const session = getSession()
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
     const allTokens = yield* select(tokens)
     const allPools = yield* select(poolsArraySortedByFees)
     const {
@@ -147,7 +166,7 @@ export function* handleTwoHopSwap(): Generator {
         pair: secondPair,
         xToY: secondXtoY
       },
-      owner: session.walletPublicKey,
+      owner: signers.walletPublicKey,
       accountIn: fromAddress,
       accountOut: toAddress,
       amountIn,
@@ -176,7 +195,7 @@ export function* handleTwoHopSwap(): Generator {
 
     const swapTx = yield* call(
       [marketProgram, marketProgram.versionedTwoHopSwapTx],
-      session,
+      signers,
       params,
       cache,
       // { tickCrosses: TICK_CROSSES_PER_IX },
@@ -186,8 +205,31 @@ export function* handleTwoHopSwap(): Generator {
       prependendIxs,
       appendedIxs
     )
+    let txResult
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], swapTx)
+    } else {
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
 
-    const txResult = yield* call([session, session.sendTransaction], swapTx)
+      const signedTx = (yield* call(
+        [wallet, wallet.signTransaction],
+        swapTx
+      )) as VersionedTransaction
+
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call([connection, connection.sendRawTransaction], signedTx.serialize(), {
+        skipPreflight: false
+      })
+
+      yield* call([connection, connection.confirmTransaction], txid)
+
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
     const { signature: txid } = txResult
 
     // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
@@ -373,14 +415,25 @@ export function* handleTwoHopSwap(): Generator {
 }
 
 export function* handleSwap(): Generator {
-  const session = getSession()
-  if (!session) throw Error('No session provided')
-
   const loaderSwappingTokens = createLoaderKey()
   const loaderSigningTx = createLoaderKey()
   const tickmaps = yield* select(tickMaps)
 
   try {
+    const session = getSession()
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
+
     const allTokens = yield* select(tokens)
     const allPools = yield* select(poolsArraySortedByFees)
     const {
@@ -452,11 +505,11 @@ export function* handleSwap(): Generator {
       fee: swapPool.fee,
       tickSpacing: swapPool.tickSpacing
     })
-    const setCuIx = computeUnitsInstruction(1_400_000, session.sessionPublicKey)
+    const setCuIx = computeUnitsInstruction(1_400_000, signers.sessionPublicKey)
 
     const swapIx = yield* call(
       [marketProgram, marketProgram.swapIx],
-      session,
+      signers,
       {
         pair: swapPair,
         xToY: isXtoY,
@@ -475,8 +528,32 @@ export function* handleSwap(): Generator {
       },
       { tickCrosses: MAX_CROSSES_IN_SINGLE_TX }
     )
+    let txResult
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], [setCuIx, swapIx])
+    } else {
+      const tx = new Transaction().add(setCuIx).add(swapIx)
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+      const { blockhash, lastValidBlockHeight } = yield* call([
+        connection,
+        connection.getLatestBlockhash
+      ])
+      tx.recentBlockhash = blockhash
+      tx.lastValidBlockHeight = lastValidBlockHeight
+      tx.feePayer = wallet.publicKey
+      const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
 
-    const txResult = yield* call([session, session.sendTransaction], [setCuIx, swapIx])
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+        skipPreflight: false
+      })
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
     const { signature: txSig, type: resultType } = txResult
 
     // yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))

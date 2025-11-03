@@ -160,6 +160,9 @@ export interface INewPosition {
   suggestedPrice: number
   handleBack: () => void
   oraclePrice: number | null
+  isConnected: boolean
+  onConnectWallet: () => void
+  onDisconnectWallet: () => void
 }
 
 export const NewPosition: React.FC<INewPosition> = ({
@@ -232,7 +235,10 @@ export const NewPosition: React.FC<INewPosition> = ({
   initialMaxSlippageToleranceCreatePosition,
   suggestedPrice,
   handleBack,
-  oraclePrice
+  oraclePrice,
+  isConnected,
+  onConnectWallet,
+  onDisconnectWallet
 }) => {
   const { classes } = useStyles()
   const navigate = useNavigate()
@@ -1071,6 +1077,7 @@ export const NewPosition: React.FC<INewPosition> = ({
 
       <Grid container className={classes.row}>
         <DepositSelector
+          isConnected={isConnected}
           tokenAIndex={tokenAIndex}
           tokenBIndex={tokenBIndex}
           setTokenAIndex={setTokenAIndex}
@@ -1236,6 +1243,8 @@ export const NewPosition: React.FC<INewPosition> = ({
           alignment={alignment}
           setAlignment={setAlignment}
           updateLiquidity={updateLiquidity}
+          onConnectWallet={onConnectWallet}
+          onDisconnectWallet={onDisconnectWallet}
         />
         <Hidden mdUp>
           <Grid container alignSelf='flex-end' mb={2} width='200px'>

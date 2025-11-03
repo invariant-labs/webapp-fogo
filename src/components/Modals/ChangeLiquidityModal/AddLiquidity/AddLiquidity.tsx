@@ -77,7 +77,6 @@ import { InputState } from '@components/NewPosition/DepositSelector/DepositSelec
 import { Tick, Tickmap } from '@invariant-labs/sdk-fogo/lib/market'
 import { Info } from '@static/componentIcon/Info'
 import { Settings } from '@static/componentIcon/Settings'
-import { getSession } from '@store/hooks/session'
 
 export interface IProps {
   tokenFrom: PublicKey
@@ -137,6 +136,8 @@ export interface IProps {
   setChangeLiquiditySuccess: (value: boolean) => void
   tokenXLiquidity: number
   tokenYLiquidity: number
+  isConnected: boolean
+  onConnectWallet: () => void
 }
 
 export const AddLiquidity: React.FC<IProps> = ({
@@ -165,10 +166,11 @@ export const AddLiquidity: React.FC<IProps> = ({
   inProgress,
   setChangeLiquiditySuccess,
   tokenXLiquidity,
-  tokenYLiquidity
+  tokenYLiquidity,
+  isConnected,
+  onConnectWallet
 }) => {
   const dispatch = useDispatch()
-  const session = getSession()
 
   const isLoadingTicksOrTickmap = useMemo(
     () => ticksLoading || isLoadingAutoSwapPoolTicksOrTickMap || isLoadingAutoSwapPool,
@@ -1665,7 +1667,7 @@ export const AddLiquidity: React.FC<IProps> = ({
             value={tokenACheckbox ? tokenAInputState.value : '0'}
             priceLoading={priceALoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={!session}
+            walletUninitialized={!isConnected}
           />
         </Box>
         <Box className={classes.inputWrapper}>
@@ -1736,7 +1738,7 @@ export const AddLiquidity: React.FC<IProps> = ({
             value={tokenBCheckbox ? tokenBInputState.value : '0'}
             priceLoading={priceBLoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={!session}
+            walletUninitialized={!isConnected}
           />
         </Box>
       </Grid>
@@ -1793,12 +1795,14 @@ export const AddLiquidity: React.FC<IProps> = ({
         </Box>
       </Box>
       <Box width='100%'>
-        {!session ? (
+        {!isConnected ? (
           <ChangeWalletButton
-            walletConnected={!!session}
+            walletConnected={isConnected}
             width={'100%'}
             height={40}
             name='Connect wallet'
+            onConnect={onConnectWallet}
+            onDisconnect={() => {}}
           />
         ) : getButtonMessage() === 'Insufficient FOGO' ? (
           <TooltipHover

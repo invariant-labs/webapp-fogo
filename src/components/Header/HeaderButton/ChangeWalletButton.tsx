@@ -1,5 +1,5 @@
 import { SessionButton, SessionStateType, useSession } from '@fogo/sessions-sdk-react'
-import { JSX, useEffect, useRef, useState } from 'react'
+import React, { JSX, useEffect, useRef, useState } from 'react'
 import DotIcon from '@mui/icons-material/FiberManualRecordRounded'
 import { Button } from '@common/Button/Button'
 import { Box, CircularProgress, Grid, Typography } from '@mui/material'
@@ -7,6 +7,9 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import useStyles from './style'
 import { blurContent, unblurContent } from '@utils/uiUtils'
 import { colors } from '@static/theme'
+import { ALLOW_SESSIONS } from '@store/consts/static'
+import SelectWalletModal from '@components/Modals/SelectWalletModal/SelectWalletModal'
+import ConnectWallet from '@components/Modals/ConnectWallet/ConnectWallet'
 
 export interface IProps {
   name: string
@@ -24,6 +27,9 @@ export interface IProps {
   hideArrow?: boolean
   enableModal?: boolean
   margin?: string
+  onConnect: () => void
+  onDisconnect: () => void
+  onCopyAddress?: () => void
 }
 
 const ChangeWalletButton: React.FC<IProps> = ({
@@ -39,21 +45,37 @@ const ChangeWalletButton: React.FC<IProps> = ({
   width,
   hideArrow,
   enableModal,
-  margin
+  margin,
+  onConnect,
+  onDisconnect,
+  onCopyAddress
 }) => {
   const { classes, cx } = useStyles()
-
+  const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null)
   const sessionWrapperRef = useRef<HTMLDivElement | null>(null)
   const [hideModal, setHideModal] = useState(walletConnected)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [open, setOpen] = React.useState<boolean>(false)
+  const [isOpenSelectWallet, setIsOpenSelectWallet] = React.useState<boolean>(false)
+  const [isChangeWallet, setIsChangeWallet] = React.useState<boolean>(false)
   const session = useSession()
 
-  const handleClick = () => {
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     const btn = sessionWrapperRef.current?.querySelector('button')
-    btn?.click()
-    setHideModal(true)
     blurContent()
-    setIsModalOpen(true)
+
+    if (!ALLOW_SESSIONS) {
+      setAnchorEl(event.currentTarget ?? null)
+      if (!walletConnected) {
+        setIsOpenSelectWallet(true)
+      } else {
+        setOpen(true)
+      }
+    } else {
+      setHideModal(true)
+      setIsModalOpen(true)
+      btn?.click()
+    }
   }
 
   useEffect(() => {
@@ -100,6 +122,54 @@ const ChangeWalletButton: React.FC<IProps> = ({
       unblurContent()
     }
   }, [])
+
+  const handleConnect = async () => {
+    onConnect()
+    setIsOpenSelectWallet(false)
+    if (!noUnblur) {
+      unblurContent()
+    }
+    setIsChangeWallet(false)
+
+    // dispatch(saleActions.getUserStats())
+  }
+
+  const handleClose = () => {
+    if (!noUnblur) {
+      unblurContent()
+    }
+    setOpen(false)
+  }
+
+  const handleDisconnect = () => {
+    onDisconnect()
+    if (!noUnblur) {
+      unblurContent()
+    }
+    setOpen(false)
+    localStorage.setItem('WALLET_TYPE', '')
+    // dispatch(saleActions.resetUserStats())
+  }
+
+  const handleChangeWallet = () => {
+    setIsChangeWallet(true)
+    if (!noUnblur) {
+      unblurContent()
+    }
+    setOpen(false)
+    setIsOpenSelectWallet(true)
+    blurContent()
+
+    localStorage.setItem('WALLET_TYPE', '')
+  }
+
+  const handleCopyAddress = () => {
+    onCopyAddress?.()
+    if (!noUnblur) {
+      unblurContent()
+    }
+    setOpen(false)
+  }
 
   return (
     <div>
@@ -163,7 +233,7 @@ const ChangeWalletButton: React.FC<IProps> = ({
           {walletConnected && !hideArrow && <ExpandMoreIcon className={classes.endIcon} />}
         </Box>
       </Button>
-      {(enableModal || !hideModal) && (
+      {ALLOW_SESSIONS && (enableModal || !hideModal) && (
         <div
           ref={sessionWrapperRef}
           style={{
@@ -178,6 +248,34 @@ const ChangeWalletButton: React.FC<IProps> = ({
           <SessionButton />
         </div>
       )}
+
+      <SelectWalletModal
+        anchorEl={anchorEl}
+        handleClose={() => {
+          setIsOpenSelectWallet(false)
+          if (!noUnblur) {
+            unblurContent()
+          }
+        }}
+        setIsOpenSelectWallet={() => {
+          setIsOpenSelectWallet(false)
+          if (!noUnblur) {
+            unblurContent()
+          }
+        }}
+        handleConnect={handleConnect}
+        open={isOpenSelectWallet}
+        isChangeWallet={isChangeWallet}
+        onDisconnect={handleDisconnect}
+      />
+      <ConnectWallet
+        open={open}
+        anchorEl={anchorEl}
+        handleClose={handleClose}
+        callDisconect={handleDisconnect}
+        callCopyAddress={handleCopyAddress}
+        callChangeWallet={handleChangeWallet}
+      />
     </div>
   )
 }

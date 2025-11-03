@@ -16,7 +16,7 @@ import { actions as connectionActions } from '@store/reducers/solanaConnection'
 import { actions } from '@store/reducers/positions'
 import { actions as lockerActions } from '@store/reducers/locker'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
-import { actions as walletActions } from '@store/reducers/solanaWallet'
+import { Status, actions as walletActions } from '@store/reducers/solanaWallet'
 import { network, timeoutError } from '@store/selectors/solanaConnection'
 import {
   changeLiquidity,
@@ -30,7 +30,7 @@ import {
   singlePositionData,
   showFeesLoader as storeFeesLoader
 } from '@store/selectors/positions'
-import { balance, balanceLoading, poolTokens } from '@store/selectors/solanaWallet'
+import { balance, balanceLoading, poolTokens, status } from '@store/selectors/solanaWallet'
 import { VariantType } from 'notistack'
 import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
@@ -44,7 +44,7 @@ import { lockerState } from '@store/selectors/locker'
 import { theme } from '@static/theme'
 import { actions as statsActions } from '@store/reducers/stats'
 import { isLoading, lastInterval, poolsStatsWithTokensDetails } from '@store/selectors/stats'
-import { Intervals } from '@store/consts/static'
+import { ALLOW_SESSIONS, Intervals } from '@store/consts/static'
 import poolsSelectors, {
   autoSwapTicksAndTickMap,
   poolsArraySortedByFees
@@ -74,7 +74,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const walletConnected = isSessionActive()
+
   const locationHistory = useSelector(address)
   const isFeesLoading = useSelector(storeFeesLoader)
   const currentNetwork = useSelector(network)
@@ -112,6 +112,10 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
   const [isClosingPosition, setIsClosingPosition] = useState(false)
 
   const isLoadingStats = useSelector(isLoading)
+
+  const isConnected = ALLOW_SESSIONS
+    ? isSessionActive()
+    : useSelector(status) === Status.Initialized
 
   const previousPosition = useMemo(() => {
     const data = position?.isLocked ? lockedNavigationData : navigationData
@@ -407,7 +411,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
     if (isFinishedDelayRender) {
       return
     }
-    if (walletConnected) {
+    if (isConnected) {
       setIsFinishedDelayRender(true)
     }
     const timer = setTimeout(() => {
@@ -417,7 +421,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
     return () => {
       clearTimeout(timer)
     }
-  }, [walletConnected])
+  }, [isConnected])
 
   useEffect(() => {
     if (!isLoadingList) {
@@ -743,7 +747,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
         inProgress={inProgress}
         fogoBalance={fogoBalance}
         poolDetails={poolDetails}
-        onGoBackClick={() => handleBack(walletConnected)}
+        onGoBackClick={() => handleBack(isConnected)}
         showPoolDetailsLoader={isLoadingStats}
         isPreview={isPreview}
         showPositionLoader={position.ticksLoading}
@@ -773,10 +777,14 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
         setIsChangeLiquidityModalShown={setIsChangeLiquidityModalShown}
         isAddLiquidity={isAddLiquidity}
         setIsAddLiquidity={setIsAddLiquidity}
+        isConnected={isConnected}
+        onConnectWallet={() => {
+          dispatch(walletActions.connect(false))
+        }}
       />
     )
   }
-  if ((isLoadingListDelay && walletConnected) || !isFinishedDelayRender || positionPreviewLoading) {
+  if ((isLoadingListDelay && isConnected) || !isFinishedDelayRender || positionPreviewLoading) {
     return (
       <Grid
         container
@@ -786,7 +794,7 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
         <img src={loader} className={classes.loading} alt='Loading' />
       </Grid>
     )
-  } else if (!walletConnected) {
+  } else if (!isConnected) {
     return (
       <Grid className={classes.emptyContainer}>
         <EmptyPlaceholder
@@ -798,6 +806,13 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
           desc='No liquidity positions to show'
           withButton={false}
           connectButton={true}
+          walletConnected={isConnected}
+          onConnectWallet={() => {
+            dispatch(walletActions.connect(false))
+          }}
+          onDisconnectWallet={() => {
+            dispatch(walletActions.disconnect())
+          }}
         />
       </Grid>
     )
@@ -816,6 +831,13 @@ export const SinglePositionWrapper: React.FC<IProps> = ({ id }) => {
           desc='The position does not exist in your list! '
           onAction={() => navigate(ROUTES.PORTFOLIO)}
           buttonName='Back to positions'
+          walletConnected={isConnected}
+          onConnectWallet={() => {
+            dispatch(walletActions.connect(false))
+          }}
+          onDisconnectWallet={() => {
+            dispatch(walletActions.disconnect())
+          }}
         />
       </Grid>
     )

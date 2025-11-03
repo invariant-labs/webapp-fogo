@@ -89,6 +89,8 @@ export interface IChangeLiquidityModal {
   inProgress: boolean
   setChangeLiquiditySuccess: (value: boolean) => void
   positionLiquidity: BN
+  onConnectWallet: () => void
+  isConnected: boolean
 }
 
 export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
@@ -128,7 +130,9 @@ export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
   success,
   inProgress,
   setChangeLiquiditySuccess,
-  positionLiquidity
+  positionLiquidity,
+  onConnectWallet,
+  isConnected
 }) => {
   const [width, setWidth] = useState(0)
 
@@ -295,6 +299,8 @@ export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
               setChangeLiquiditySuccess={setChangeLiquiditySuccess}
               tokenXLiquidity={tokenX.liqValue}
               tokenYLiquidity={tokenY.liqValue}
+              onConnectWallet={onConnectWallet}
+              isConnected={isConnected}
             />
           ) : (
             <RemoveLiquidity
@@ -318,6 +324,8 @@ export const ChangeLiquidityModal: React.FC<IChangeLiquidityModal> = ({
               inProgress={inProgress}
               setChangeLiquiditySuccess={setChangeLiquiditySuccess}
               positionLiquidity={positionLiquidity}
+              onConnectWallet={onConnectWallet}
+              isConnected={isConnected}
             />
           )}
         </Box>
