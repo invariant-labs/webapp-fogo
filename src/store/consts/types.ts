@@ -32,6 +32,14 @@ export enum SwapError {
   Unknown
 }
 
+export enum WalletType {
+  NIGHTLY = 'NIGHTLY',
+  NIGHTLY_WALLET = 'NIGHTLY_WALLET',
+  BACKPACK = 'BACKPACK',
+  SALMON = 'SALMON',
+  OKX = 'OKX'
+}
+
 export interface Token {
   tokenProgram?: PublicKey
   symbol: string

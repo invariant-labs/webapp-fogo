@@ -14,7 +14,13 @@ import {
   isLoadingPathTokens
 } from '@store/selectors/pools'
 import { network, rpcAddress, timeoutError } from '@store/selectors/solanaConnection'
-import { swapTokens, swapTokensDict, balanceLoading, balance } from '@store/selectors/solanaWallet'
+import {
+  swapTokens,
+  swapTokensDict,
+  balanceLoading,
+  balance,
+  status
+} from '@store/selectors/solanaWallet'
 import { swap as swapPool, accounts, isLoading } from '@store/selectors/swap'
 import { PublicKey } from '@solana/web3.js'
 import { useEffect, useState } from 'react'
@@ -64,6 +70,7 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
   const { state } = useLocation()
   const [block, setBlock] = useState(state?.referer === 'stats')
   const rpc = useSelector(rpcAddress)
+  const walletStatus = useSelector(status)
   const market = getMarketProgramSync(networkType, rpc, {} as IWallet)
 
   useEffect(() => {
@@ -396,6 +403,13 @@ export const WrappedSwap = ({ initialTokenFrom, initialTokenTo }: Props) => {
       tokensDict={tokensDict}
       swapAccounts={swapAccounts}
       swapIsLoading={swapIsLoading}
+      walletStatus={walletStatus}
+      onConnectWallet={() => {
+        dispatch(walletActions.connect(false))
+      }}
+      onDisconnectWallet={() => {
+        dispatch(walletActions.disconnect())
+      }}
     />
   )
 }

@@ -1,9 +1,15 @@
 import Header from '@components/Header/Header'
-import { RPC, CHAINS, RECOMMENDED_RPC_ADDRESS, NetworkType } from '@store/consts/static'
-import { actions, RpcStatus } from '@store/reducers/solanaConnection'
+import {
+  RPC,
+  CHAINS,
+  RECOMMENDED_RPC_ADDRESS,
+  NetworkType,
+  ALLOW_SESSIONS
+} from '@store/consts/static'
+import { actions, RpcStatus, Status } from '@store/reducers/solanaConnection'
 import { actions as walletActions } from '@store/reducers/solanaWallet'
 import { network, rpcAddress, rpcStatus } from '@store/selectors/solanaConnection'
-import { address, balance, thankYouModalShown } from '@store/selectors/solanaWallet'
+import { address, balance, thankYouModalShown, status } from '@store/selectors/solanaWallet'
 import React, { useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -13,6 +19,7 @@ import { RpcErrorModal } from '@components/RpcErrorModal/RpcErrorModal'
 import { ThankYouModal } from '@components/Modals/ThankYouModal/ThankYouModal'
 import { ensureError, generateHash, ROUTES } from '@utils/utils'
 import { isSessionActive } from '@store/hooks/session'
+import { useSession } from '@fogo/sessions-sdk-react'
 
 export const HeaderWrapper: React.FC = () => {
   const dispatch = useDispatch()
@@ -23,7 +30,9 @@ export const HeaderWrapper: React.FC = () => {
   const location = useLocation()
   const walletAddress = useSelector(address)
   const navigate = useNavigate()
-  const walletConnected = isSessionActive()
+  const sessionActive = isSessionActive()
+  const walletStatus = useSelector(status)
+  const session = useSession()
 
   const hideThankYouModal = () => {
     dispatch(walletActions.showThankYouModal(false))
@@ -148,7 +157,7 @@ export const HeaderWrapper: React.FC = () => {
           dispatch(walletActions.connect(false))
         }}
         landing={location.pathname.substring(1)}
-        walletConnected={walletConnected}
+        walletConnected={ALLOW_SESSIONS ? session.type === 7 : walletStatus === Status.Initialized}
         onDisconnectWallet={() => {
           dispatch(walletActions.disconnect())
         }}
@@ -176,7 +185,7 @@ export const HeaderWrapper: React.FC = () => {
         network={currentNetwork}
         rpcStatus={currentRpcStatus}
         defaultMainnetRPC={defaultMainnetRPC}
-        walletBalance={walletConnected ? walletBalance : null}
+        walletBalance={sessionActive || walletStatus === Status.Initialized ? walletBalance : null}
       />
     </>
   )

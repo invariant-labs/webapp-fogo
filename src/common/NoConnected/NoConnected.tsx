@@ -4,9 +4,13 @@ import { useStyles } from './style'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ChangeWalletButton from '@components/Header/HeaderButton/ChangeWalletButton'
 import { ROUTES } from '@utils/utils'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { actions } from '@store/reducers/navigation'
-import { getSession } from '@store/hooks/session'
+import { actions as walletActions } from '@store/reducers/solanaWallet'
+import { isSessionActive } from '@store/hooks/session'
+import { ALLOW_SESSIONS } from '@store/consts/static'
+import { status } from '@store/selectors/solanaWallet'
+import { Status } from '@store/reducers/solanaWallet'
 
 export interface INoConnected {
   title?: string
@@ -19,7 +23,10 @@ export const NoConnected: React.FC<INoConnected> = ({ title, descCustomText }) =
   const location = useLocation()
   const navigate = useNavigate()
 
-  const session = getSession()
+  const isConnected = ALLOW_SESSIONS
+    ? isSessionActive()
+    : useSelector(status) === Status.Initialized
+
   return (
     <>
       <Grid className={cx(classes.blur, 'blurLayer')} />
@@ -47,7 +54,13 @@ export const NoConnected: React.FC<INoConnected> = ({ title, descCustomText }) =
             name='Connect wallet'
             textClassName={classes.buttonText}
             isSmDown={false}
-            walletConnected={!!session}
+            walletConnected={isConnected}
+            onConnect={() => {
+              dispatch(walletActions.connect(false))
+            }}
+            onDisconnect={() => {
+              dispatch(walletActions.disconnect())
+            }}
           />
         </Grid>
       </Grid>

@@ -56,6 +56,7 @@ export default defineConfig({
     minify: 'esbuild',
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 4000,
+    cssCodeSplit: true,
 
     rollupOptions: {
       external: ['fs/promises', 'path'],
@@ -95,7 +96,7 @@ export default defineConfig({
             'remeda'
           ],
 
-          utils: ['axios', 'html2canvas']
+          utils: ['axios']
         }
       }
     }

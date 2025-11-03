@@ -1,6 +1,6 @@
 import { actions, LockPositionPayload } from '@store/reducers/locker'
 import { all, call, put, select, spawn, takeLatest } from 'typed-redux-saga'
-import { SendTransactionError } from '@solana/web3.js'
+import { sendAndConfirmRawTransaction, SendTransactionError, Transaction } from '@solana/web3.js'
 import { getLockerProgram, getMarketProgram } from '@utils/web3/programs/amm'
 import { rpcAddress } from '@store/selectors/solanaConnection'
 import { getConnection } from './connection'
@@ -9,7 +9,13 @@ import { IWallet } from '@invariant-labs/sdk-fogo'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { actions as snackbarsActions } from '@store/reducers/snackbars'
 import { actions as positionsActions } from '@store/reducers/positions'
-import { COMMON_ERROR_MESSAGE, DEFAULT_PUBLICKEY } from '@store/consts/static'
+import {
+  ALLOW_SESSIONS,
+  COMMON_ERROR_MESSAGE,
+  DEFAULT_PUBLICKEY,
+  PAYMASTER_ADDRESS,
+  SIGNING_SNACKBAR_CONFIG
+} from '@store/consts/static'
 import {
   createLoaderKey,
   ensureError,
@@ -19,6 +25,7 @@ import {
 } from '@utils/utils'
 import { closeSnackbar } from 'notistack'
 import { getSession, TransactionResultType } from '@store/hooks/session'
+import { getWallet } from './wallet'
 
 export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) {
   const { index, network } = action.payload
@@ -28,14 +35,25 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
   try {
     const connection = yield* call(getConnection)
     const session = getSession()
-    if (!session) throw Error('No session provided')
+    const wallet = yield* call(getWallet)
+
+    if (!session && ALLOW_SESSIONS) {
+      throw Error('No session provided')
+    }
+
+    const signers = {
+      sessionPublicKey: ALLOW_SESSIONS ? session!.sessionPublicKey : wallet.publicKey,
+      payer: ALLOW_SESSIONS ? session!.payer : wallet.publicKey,
+      walletPublicKey: ALLOW_SESSIONS ? session!.walletPublicKey : wallet.publicKey,
+      paymaster: PAYMASTER_ADDRESS
+    }
 
     const rpc = yield* select(rpcAddress)
     const marketProgram = yield* call(getMarketProgram, network, rpc, {} as IWallet)
     const locker = yield* call(getLockerProgram, network, rpc, {} as IWallet)
     yield put(positionsActions.setShouldDisable(true))
 
-    if (session.walletPublicKey.toBase58() === DEFAULT_PUBLICKEY.toBase58() || !connection) {
+    if (signers.walletPublicKey.toBase58() === DEFAULT_PUBLICKEY.toBase58() || !connection) {
       yield put(
         snackbarsActions.add({
           message: 'Failed to lock position',
@@ -60,7 +78,8 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
       market: marketProgram as any,
       index: index
     }
-    const ixs = yield* call([locker, locker.lockPositionIx], session, lockData)
+
+    const ixs = yield* call([locker, locker.lockPositionIx], signers, lockData)
 
     // const transaction = new Transaction().add(...ixs)
 
@@ -73,7 +92,34 @@ export function* handleLockPosition(action: PayloadAction<LockPositionPayload>) 
     // transaction.recentBlockhash = blockhash
     // transaction.lastValidBlockHeight = lastValidBlockHeight
 
-    const txResult = yield* call([session, session.sendTransaction], ixs)
+    let txResult
+    if (ALLOW_SESSIONS) {
+      txResult = yield* call([session, session!.sendTransaction], ixs)
+    } else {
+      const tx = new Transaction().add(...ixs)
+      yield put(snackbarsActions.add({ ...SIGNING_SNACKBAR_CONFIG, key: loaderSigningTx }))
+      const { blockhash, lastValidBlockHeight } = yield* call([
+        connection,
+        connection.getLatestBlockhash
+      ])
+      tx.recentBlockhash = blockhash
+      tx.lastValidBlockHeight = lastValidBlockHeight
+      tx.feePayer = wallet.publicKey
+      const signedTx = (yield* call([wallet, wallet.signTransaction], tx)) as Transaction
+
+      closeSnackbar(loaderSigningTx)
+      yield put(snackbarsActions.remove(loaderSigningTx))
+
+      const txid = yield* call(sendAndConfirmRawTransaction, connection, signedTx.serialize(), {
+        skipPreflight: false
+      })
+      txResult = {
+        signature: txid,
+        type: txid.length ? TransactionResultType.Success : TransactionResultType.Failed
+      }
+    }
+
+    // const txResult = yield* call([session, session.sendTransaction], ixs)
     const txId = txResult.signature
 
     // closeSnackbar(loaderSigningTx)
