@@ -33,7 +33,6 @@ export const HeaderWrapper: React.FC = () => {
   const sessionActive = isSessionActive()
   const walletStatus = useSelector(status)
   const session = useSession()
-  console.log('wallet status:', walletStatus)
 
   const hideThankYouModal = () => {
     dispatch(walletActions.showThankYouModal(false))
@@ -119,7 +118,7 @@ export const HeaderWrapper: React.FC = () => {
     dispatch(actions.setRpcStatus(RpcStatus.IgnoredWithError))
     localStorage.setItem('IS_RPC_WARNING_IGNORED', 'true')
   }
-  console.log(walletStatus)
+
   return (
     <>
       {currentRpcStatus === RpcStatus.Error &&

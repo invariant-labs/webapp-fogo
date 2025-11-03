@@ -606,7 +606,6 @@ export function* createMultipleAccounts(tokenAddress: PublicKey[]): SagaGenerato
 
 export function* init(isEagerConnect: boolean): Generator {
   try {
-    console.log('Initializing wallet saga, isEagerConnect:', isEagerConnect)
     if (!ALLOW_SESSIONS) {
       if (isEagerConnect) {
         yield* delay(500)

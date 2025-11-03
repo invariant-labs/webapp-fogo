@@ -625,10 +625,6 @@ export function* handleInitPosition(action: PayloadAction<InitPositionData>): Ge
 
     closeSnackbar(loaderSigningTx)
     yield put(snackbarsActions.remove(loaderSigningTx))
-    console.log(tx.instructions)
-    for (const acc of tx.instructions[0].keys) {
-      console.log(acc.pubkey.toBase58(), acc.isWritable, acc.isSigner)
-    }
 
     let txResult
     if (ALLOW_SESSIONS) {

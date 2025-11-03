@@ -38,8 +38,6 @@ const connectStaticWallet = async (wallet: WalletType) => {
 
   await sleep(300)
   await _wallet.connect()
-  console.log('wallet connected', _wallet)
-  console.log('_wallet.connected', _wallet.publicKey.toBase58(), _wallet.connected)
 
   return _wallet.connected ? (localStorage.setItem('WALLET_TYPE', wallet.toString()), true) : false
 }

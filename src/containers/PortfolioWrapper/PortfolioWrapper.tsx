@@ -108,8 +108,6 @@ const PortfolioWrapper = () => {
     ? isSessionActive()
     : useSelector(status) === Status.Initialized
 
-  console.log(isConnected, walletAddress.toBase58())
-
   const navigate = useNavigate()
   const dispatch = useDispatch()
 

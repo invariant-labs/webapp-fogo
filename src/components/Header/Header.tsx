@@ -53,7 +53,6 @@ export const Header: React.FC<IHeader> = ({
   walletConnected,
   address
 }) => {
-  console.log('Header render, walletConnected:', walletConnected, address)
   const { classes } = useStyles()
   const navigate = useNavigate()
   const dispatch = useDispatch()
