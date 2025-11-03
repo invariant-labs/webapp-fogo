@@ -56,14 +56,8 @@ export default defineConfig({
     minify: 'esbuild',
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 4000,
-    cssCodeSplit: true,
 
     rollupOptions: {
-      treeshake: {
-        preset: 'smallest',
-        moduleSideEffects: false
-      },
-
       external: ['fs/promises', 'path'],
 
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
