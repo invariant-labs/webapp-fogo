@@ -140,6 +140,8 @@ interface IProps {
   setIsAddLiquidity: (value: boolean) => void
   openPosition: (index: string) => void
   prices: Record<string, number>
+  isConnected: boolean
+  onConnectWallet: () => void
 }
 
 const Portfolio: React.FC<IProps> = ({
@@ -202,7 +204,9 @@ const Portfolio: React.FC<IProps> = ({
   isAddLiquidity,
   setIsAddLiquidity,
   openPosition,
-  prices
+  prices,
+  isConnected,
+  onConnectWallet
 }) => {
   const { classes, cx } = useStyles()
 
@@ -492,6 +496,8 @@ const Portfolio: React.FC<IProps> = ({
         inProgress={changeLiquidityInProgress}
         setChangeLiquiditySuccess={setChangeLiquiditySuccess}
         positionLiquidity={positionLiquidity}
+        onConnectWallet={onConnectWallet}
+        isConnected={isConnected}
       />
 
       <Box className={classes.overviewContainer}>

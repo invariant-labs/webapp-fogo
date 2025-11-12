@@ -6,6 +6,7 @@ import Refresher from '@common/Refresher/Refresher'
 import { BN } from '@coral-xyz/anchor'
 import { Box, Button, Grid, Typography, useMediaQuery } from '@mui/material'
 import {
+  ALLOW_SESSIONS,
   DEFAULT_TOKEN_DECIMAL,
   inputTarget,
   NetworkType,
@@ -46,6 +47,7 @@ import { useNavigate } from 'react-router-dom'
 import { FetcherRecords, Pair, SimulationTwoHopResult } from '@invariant-labs/sdk-fogo'
 import { theme } from '@static/theme'
 import { getSession } from '@store/hooks/session'
+import { Status } from '@store/reducers/solanaWallet'
 
 export interface Pools {
   tokenX: PublicKey
@@ -113,6 +115,9 @@ export interface ISwap {
   tokensDict: Record<string, SwapToken>
   swapAccounts: FetcherRecords
   swapIsLoading: boolean
+  onConnectWallet: () => void
+  onDisconnectWallet: () => void
+  walletStatus: Status
 }
 
 export type SimulationPath = {
@@ -154,14 +159,16 @@ export const Swap: React.FC<ISwap> = ({
   copyTokenAddressHandler,
   network,
   fogoBalance,
-
   isTimeoutError,
   deleteTimeoutError,
   canNavigate,
   market,
   tokensDict,
   swapAccounts,
-  swapIsLoading
+  swapIsLoading,
+  onConnectWallet,
+  onDisconnectWallet,
+  walletStatus
 }) => {
   const { classes, cx } = useStyles()
 
@@ -194,16 +201,17 @@ export const Swap: React.FC<ISwap> = ({
     initialHideUnknownTokensValue
   )
   const [walletConnected, setWalletConnected] = useState(false)
+
   const txDown = useMediaQuery(theme.breakpoints.down(483))
   const txDown2 = useMediaQuery(theme.breakpoints.down(360))
 
   useEffect(() => {
-    if (!!session) {
-      setWalletConnected(true)
+    if (ALLOW_SESSIONS) {
+      setWalletConnected(!!session)
     } else {
-      setWalletConnected(false)
+      setWalletConnected(walletStatus === Status.Initialized)
     }
-  }, [session])
+  }, [session, walletStatus])
 
   const [simulateResult, setSimulateResult] = React.useState<{
     amountOut: BN
@@ -1255,6 +1263,8 @@ export const Swap: React.FC<ISwap> = ({
                 width={'100%'}
                 walletConnected={walletConnected}
                 isSmDown={false}
+                onConnect={onConnectWallet}
+                onDisconnect={onDisconnectWallet}
               />
             ) : getStateMessage() === 'Insufficient FOGO' ? (
               <TooltipHover

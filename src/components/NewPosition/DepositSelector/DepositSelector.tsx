@@ -59,7 +59,6 @@ import {
 import DepoSitOptionsModal from '@components/Modals/DepositOptionsModal/DepositOptionsModal'
 import loadingAnimation from '@static/gif/loading.gif'
 import { theme } from '@static/theme'
-import { getSession } from '@store/hooks/session'
 
 export interface InputState {
   value: string
@@ -151,6 +150,9 @@ export interface IDepositSelector {
   alignment: DepositOptions
   setAlignment: (val: DepositOptions) => void
   updateLiquidity: (lq: BN) => void
+  isConnected: boolean
+  onConnectWallet: () => void
+  onDisconnectWallet: () => void
 }
 
 export const DepositSelector: React.FC<IDepositSelector> = ({
@@ -211,10 +213,12 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
   setTokenBCheckbox,
   alignment,
   setAlignment,
-  updateLiquidity
+  updateLiquidity,
+  isConnected,
+  onConnectWallet,
+  onDisconnectWallet
 }) => {
   const { classes, cx } = useStyles()
-  const session = getSession()
 
   const isSm = useMediaQuery(theme.breakpoints.down(370))
 
@@ -1078,7 +1082,7 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
             value={tokenACheckbox ? tokenAInputState.value : '0'}
             priceLoading={priceALoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={!session}
+            walletUninitialized={!isConnected}
           />
         </Box>
         <Box className={cx(classes.inputWrapper, classes.inputSecond)}>
@@ -1149,16 +1153,18 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
             value={tokenBCheckbox ? tokenBInputState.value : '0'}
             priceLoading={priceBLoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={!session}
+            walletUninitialized={!isConnected}
           />
         </Box>
       </Grid>
       <Box width='100%'>
-        {!session ? (
+        {!isConnected ? (
           <ChangeWalletButton
-            walletConnected={!!session}
+            walletConnected={isConnected}
             width={'100%'}
             height={48}
+            onConnect={onConnectWallet}
+            onDisconnect={onDisconnectWallet}
             name='Connect wallet'
             margin='30px 0'
           />

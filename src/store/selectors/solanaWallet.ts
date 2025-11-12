@@ -15,6 +15,7 @@ export const {
   fogoBalanceLoading,
   tokenBalanceLoading,
   thankYouModalShown,
+  status,
   overviewSwitch
 } = keySelectors(store, [
   'address',
@@ -23,6 +24,7 @@ export const {
   'fogoBalanceLoading',
   'tokenBalanceLoading',
   'thankYouModalShown',
+  'status',
   'overviewSwitch'
 ])
 

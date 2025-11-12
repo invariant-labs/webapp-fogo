@@ -108,9 +108,7 @@ const CustomSnackbar = React.forwardRef<HTMLDivElement, CustomContentProps & Cus
         {txid && (
           <Grid className={classes.transactionWrapper}>
             <StyledDetails
-              onClick={() =>
-                window.open(`https://explorer.fogo.io/tx/${txid}${networkUrl}`, '_blank')
-              }>
+              onClick={() => window.open(`https://fogoscan.com/tx/${txid}${networkUrl}`, '_blank')}>
               Details
               <img alt='new tab' src={newTabIcon} />
             </StyledDetails>

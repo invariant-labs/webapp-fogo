@@ -100,7 +100,7 @@ export const ActionButtons = ({ pool, strategy, currentNetwork }: IActionButtons
           className={classes.actionIcon}
           onClick={() => {
             window.open(
-              `https://explorer.fogo.io/address/${pool.id.toString()}/${networkUrl}`,
+              `https://fogoscan.com/address/${pool.id.toString()}/${networkUrl}`,
               '_blank',
               'noopener,noreferrer'
             )

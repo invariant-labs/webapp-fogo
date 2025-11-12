@@ -46,7 +46,6 @@ import DepositAmountInput from '@components/Inputs/DepositAmountInput/DepositAmo
 import { InputState } from '@components/NewPosition/DepositSelector/DepositSelector'
 import { PercentageSlider } from './PercentageSlider/PercentageSlider'
 import { unknownTokenIcon } from '@static/icons'
-import { getSession } from '@store/hooks/session'
 
 export interface IProps {
   tokenFrom: PublicKey
@@ -85,6 +84,8 @@ export interface IProps {
   inProgress: boolean
   setChangeLiquiditySuccess: (value: boolean) => void
   positionLiquidity: BN
+  onConnectWallet: () => void
+  isConnected: boolean
 }
 
 export const RemoveLiquidity: React.FC<IProps> = ({
@@ -107,10 +108,10 @@ export const RemoveLiquidity: React.FC<IProps> = ({
   success,
   inProgress,
   setChangeLiquiditySuccess,
-  positionLiquidity
+  positionLiquidity,
+  isConnected,
+  onConnectWallet
 }) => {
-  const session = getSession()
-
   const isLoadingTicksOrTickmap = useMemo(() => ticksLoading, [ticksLoading])
   const [liquidity, setLiquidity] = useState<BN>(new BN(0))
 
@@ -762,7 +763,7 @@ export const RemoveLiquidity: React.FC<IProps> = ({
     rightRange,
     currentPriceSqrt,
     isBalanceLoading,
-    session,
+    isConnected,
     depositPercentage,
     positionLiquidity
   ])
@@ -863,7 +864,7 @@ export const RemoveLiquidity: React.FC<IProps> = ({
             value={tokenAInputState.value}
             priceLoading={priceALoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={!session}
+            walletUninitialized={!isConnected}
           />
         </Box>
         <Box className={classes.inputWrapper}>
@@ -913,7 +914,7 @@ export const RemoveLiquidity: React.FC<IProps> = ({
             value={tokenBInputState.value}
             priceLoading={priceBLoading}
             isBalanceLoading={isBalanceLoading}
-            walletUninitialized={!session}
+            walletUninitialized={!isConnected}
           />
         </Box>
       </Grid>
@@ -960,12 +961,14 @@ export const RemoveLiquidity: React.FC<IProps> = ({
         </Box>
       </Box>
       <Box width='100%'>
-        {!session ? (
+        {!isConnected ? (
           <ChangeWalletButton
-            walletConnected={!!session}
+            walletConnected={isConnected}
             width={'100%'}
             height={40}
             name='Connect wallet'
+            onConnect={onConnectWallet}
+            onDisconnect={() => {}}
           />
         ) : getButtonMessage() === 'Insufficient FOGO' ? (
           <TooltipHover

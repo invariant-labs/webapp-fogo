@@ -148,6 +148,8 @@ interface IProps {
   isAddLiquidity: boolean
   setIsAddLiquidity: (value: boolean) => void
   openPosition?: (index: string) => void
+  isConnected: boolean
+  onConnectWallet: () => void
 }
 
 const PositionDetails: React.FC<IProps> = ({
@@ -216,7 +218,9 @@ const PositionDetails: React.FC<IProps> = ({
   isChangeLiquidityModalShown,
   setIsChangeLiquidityModalShown,
   isAddLiquidity,
-  setIsAddLiquidity
+  setIsAddLiquidity,
+  isConnected,
+  onConnectWallet
 }) => {
   const { classes } = useStyles()
   const isSm = useMediaQuery(theme.breakpoints.down('sm'))
@@ -476,6 +480,8 @@ const PositionDetails: React.FC<IProps> = ({
             inProgress={changeLiquidityInProgress}
             setChangeLiquiditySuccess={setChangeLiquiditySuccess}
             positionLiquidity={positionLiquidity}
+            onConnectWallet={onConnectWallet}
+            isConnected={isConnected}
           />
           <PositionHeader
             openPoolDetails={openPoolDetails}
