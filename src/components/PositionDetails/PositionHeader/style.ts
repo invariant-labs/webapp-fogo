@@ -25,6 +25,15 @@ export const useStyles = makeStyles()(() => ({
       height: 'auto'
     }
   },
+  poolStats: {
+    '&:hover': {
+      filter: 'brightness(1.4)',
+      cursor: 'pointer',
+      '@media (hover: none)': {
+        filter: 'brightness(1)'
+      }
+    }
+  },
   navigationSide: {
     display: 'flex',
     justifyContent: 'space-between',

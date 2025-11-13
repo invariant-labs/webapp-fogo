@@ -25,7 +25,7 @@ const ResponsivePieChart = ({
   const nivoData = hasPositiveValue ? formatDataForNivo(data) : loadingData
   const showPlaceholder = isLoading || !hasPositiveValue
   return (
-    <Box position='relative' height={height} width='100%'>
+    <Box flexWrap='nowrap' display='flex' position='relative' height={height} width='100%'>
       <Fade in={!showPlaceholder} timeout={{ enter: 0, exit: 400 }} unmountOnExit>
         <Box
           className={classes.sliceShadow}

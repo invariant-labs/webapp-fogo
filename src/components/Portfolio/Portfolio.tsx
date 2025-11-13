@@ -214,9 +214,8 @@ const Portfolio: React.FC<IProps> = ({
   const dispatch = useDispatch()
   const location = useLocation()
   const isLg = useMediaQuery('@media (max-width: 1360px)')
-  const isDownLg = useMediaQuery(theme.breakpoints.down('lg'))
   const isMb = useMediaQuery(theme.breakpoints.down('sm'))
-  const isMd = useMediaQuery(theme.breakpoints.down('md'))
+  const isMd = useMediaQuery(theme.breakpoints.down(850))
 
   const setLiquidityPoolsAlignment = (val: LiquidityPools) => {
     setAlignment(val)
@@ -346,6 +345,24 @@ const Portfolio: React.FC<IProps> = ({
     })
   }, [currentData, selectedFilters])
 
+  const openPoolDetails = (element: IPositionItem) => {
+    const address1 = addressToTicker(currentNetwork, element.tokenXName)
+    const address2 = addressToTicker(currentNetwork, element.poolData.tokenY.toString())
+    const parsedFee = parseFeeToPathFee(element.poolData.fee)
+    const isXtoY = initialXtoY(
+      element.poolData.tokenX.toString(),
+      element.poolData.tokenY.toString()
+    )
+
+    const tokenA = isXtoY ? address1 : address2
+    const tokenB = isXtoY ? address2 : address1
+
+    unblurContent()
+
+    dispatch(actions.setNavigation({ address: location.pathname }))
+
+    navigate(ROUTES.getPoolDetailsRoute(tokenA, tokenB, parsedFee))
+  }
   const createNewPosition = (element: IPositionItem) => {
     const address1 = addressToTicker(currentNetwork, element.tokenXName)
     const address2 = addressToTicker(currentNetwork, element.poolData.tokenY.toString())
@@ -383,6 +400,7 @@ const Portfolio: React.FC<IProps> = ({
           handleClaimFee={handleClaimFee}
           createNewPosition={createNewPosition}
           openPosition={openPosition}
+          openPoolDetails={openPoolDetails}
         />
       )
     } else if (isLg && loading) {
@@ -428,6 +446,7 @@ const Portfolio: React.FC<IProps> = ({
             createNewPosition(element)
           }}
           openPosition={() => openPosition(element.id)}
+          openPoolDetails={() => openPoolDetails(element)}
         />
       </Grid>
     ))
@@ -483,49 +502,10 @@ const Portfolio: React.FC<IProps> = ({
 
       <Box className={classes.overviewContainer}>
         <Box>
-          <Grid display={'flex'} marginBottom={isDownLg ? '12px' : '16px'}>
+          <Grid display={'flex'} marginBottom={isMd ? '12px' : '16px'}>
             <Typography className={classes.overviewHeaderTitle}>Overview</Typography>
           </Grid>
         </Box>
-
-        {isDownLg && !isMd && (
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Overview poolAssets={data} prices={prices} />
-              <Box className={classes.footer}>
-                <Box className={classes.footerItem}>{renderPositionDetails()}</Box>
-              </Box>
-            </Grid>
-            <Grid item xs={12}>
-              <YourWallet
-                currentNetwork={currentNetwork}
-                handleSnackbar={handleSnackbar}
-                tokens={finalTokens}
-                isLoading={loading || isBalanceLoading || isProcesing}
-              />
-              <Box className={classes.footer}>
-                <Box className={classes.footerItem}>
-                  <Box className={classes.footerCheckboxContainer}>
-                    <FormGroup>
-                      <FormControlLabel
-                        className={classes.checkBoxLabel}
-                        control={
-                          <Checkbox
-                            checked={hideUnknownTokens}
-                            className={classes.checkBox}
-                            onChange={e => handleCheckbox(e)}
-                          />
-                        }
-                        label='Hide unknown tokens'
-                      />
-                    </FormGroup>
-                  </Box>
-                  {renderTokensFound()}
-                </Box>
-              </Box>
-            </Grid>
-          </Grid>
-        )}
 
         {isMd && (
           <>
@@ -608,7 +588,7 @@ const Portfolio: React.FC<IProps> = ({
           </>
         )}
 
-        {!isDownLg && (
+        {!isMd && (
           <>
             <Box display={'flex'}>
               <Overview poolAssets={data} prices={prices} />

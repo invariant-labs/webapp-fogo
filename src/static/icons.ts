@@ -4,6 +4,8 @@ import arrowIcon from './svg/arrow.svg'
 import noConnectedIcon from './svg/no-connected.svg'
 import githubIcon from './svg/githubCircle.svg'
 import telegramIcon from './svg/telegramCircle.svg'
+import poolStatsBtnIcon from './svg/poolStatsBtn.svg'
+
 import mediumIcon from './svg/mediumCircle.svg'
 import discordIcon from './svg/discordCircle.svg'
 import closeIcon from './svg/closeIcon.svg'
@@ -114,8 +116,13 @@ import saleSelectedIcon from './svg/sale-selected.svg'
 import saleUnselectedIcon from './svg/sale-unselected.svg'
 import fogoIcon from './svg/fogo.svg'
 import fogoGlow from './svg/fogoGlow.svg'
+import arrowUpIcon from './svg/arrowUp.svg'
+import arrowDownIcon from './svg/arrowDown.svg'
 
 export {
+  arrowUpIcon,
+  arrowDownIcon,
+  poolStatsBtnIcon,
   fogoGlow,
   fogoIcon,
   hornsUSDC,

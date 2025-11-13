@@ -39,6 +39,7 @@ interface IPositionsTableRow extends IPositionItem {
   createNewPosition: () => void
   shouldDisable: boolean
   openPosition: () => void
+  openPoolDetails: () => void
 }
 
 export const PositionTableRow: React.FC<IPositionsTableRow> = ({
@@ -68,7 +69,8 @@ export const PositionTableRow: React.FC<IPositionsTableRow> = ({
   handleClosePosition,
   createNewPosition,
   shouldDisable,
-  openPosition
+  openPosition,
+  openPoolDetails
 }) => {
   const { classes, cx } = useStyles()
   const { classes: skeletonClasses } = useSkeletonStyle()
@@ -365,6 +367,7 @@ export const PositionTableRow: React.FC<IPositionsTableRow> = ({
         shouldDisable={shouldDisable}
         anchorEl={anchorEl}
         handleClose={handleClose}
+        openPoolDetails={openPoolDetails}
         open={isActionPopoverOpen}
         isLocked={positionSingleData?.isLocked ?? false}
         unclaimedFeesInUSD={unclaimedFeesInUSD}

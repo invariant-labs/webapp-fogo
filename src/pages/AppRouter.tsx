@@ -17,6 +17,7 @@ import TokenCreatorPage from './TokenCreatorPage/TokenCreatorPage'
 import StatsPage from './StatsPage/StatsPage'
 import SwapPage from './SwapPage/SwapPage'
 import { ROUTES } from '@utils/utils'
+import PoolDetailsPage from './PoolDetailsPage/PoolDetailsPage'
 
 const createRouter = (currentNetwork: NetworkType) =>
   createBrowserRouter(
@@ -28,6 +29,8 @@ const createRouter = (currentNetwork: NetworkType) =>
         <Route path={ROUTES.NEW_POSITION_WITH_PARAMS} element={<NewPositionPage />} />
         <Route path={ROUTES.POSITION_WITH_ID} element={<SinglePositionPage />} />
         <Route path={ROUTES.PORTFOLIO} element={<PortfolioPage />} />
+        <Route path={ROUTES.POOL_DETAILS_WITH_PARAMS} element={<PoolDetailsPage />} />
+
         {currentNetwork === NetworkType.Testnet && (
           <Route path={ROUTES.CREATOR} element={<TokenCreatorPage />} />
         )}

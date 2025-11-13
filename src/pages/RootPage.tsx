@@ -70,6 +70,8 @@ const RootPage: React.FC = memo(() => {
       <EventsHandlers />
       <div id={toBlur}>
         <Grid className={classes.root}>
+          <div className={classes.background} />
+
           <SessionExpiredBanner
             width='100%'
             open={
