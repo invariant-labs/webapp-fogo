@@ -109,7 +109,7 @@ const TokenListItem: React.FC<IProps> = ({
       onClick={e => {
         e.stopPropagation()
 
-        if (isMd) setShowInfo(prev => !prev)
+        if (isMd) window.requestAnimationFrame(() => setShowInfo(prev => !prev))
       }}>
       <Grid container className={classes.mainContent}>
         <ItemValue
