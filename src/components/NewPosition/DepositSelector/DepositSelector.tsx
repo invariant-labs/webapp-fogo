@@ -354,7 +354,9 @@ export const DepositSelector: React.FC<IDepositSelector> = ({
     if (tokenAIndex === tokenBIndex) {
       return 'Select different tokens'
     }
-
+    if (!isCurrentPoolExisting) {
+      return 'Pool creation is temporarily disabled'
+    }
     if (isAutoswapOn && autoswapCustomError === AutoswapCustomError.FetchError) {
       return 'Fetch error'
     }
